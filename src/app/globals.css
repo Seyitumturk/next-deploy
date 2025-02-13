@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #ffffff;
+  --foreground: #000000;
+  --primary: #10B981;
+  --primary-dark: #059669;
+  --secondary: #8B5CF6;
+  --secondary-dark: #7C3AED;
+  --accent-1: #3B82F6;
+  --accent-2: #EC4899;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0F172A;
+    --foreground: #ffffff;
+  }
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-geist-sans);
+}
+
+@layer base {
+  h1 {
+    @apply text-4xl font-bold tracking-tight;
+  }
+  h2 {
+    @apply text-3xl font-bold tracking-tight;
+  }
+  h3 {
+    @apply text-2xl font-bold tracking-tight;
+  }
+  h4 {
+    @apply text-xl font-bold tracking-tight;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded-xl font-medium transition-all duration-200 disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply bg-gradient-to-r from-primary to-primary-dark text-white shadow-sm hover:shadow-md hover:opacity-90;
+  }
+  .btn-secondary {
+    @apply bg-gradient-to-r from-secondary to-secondary-dark text-white shadow-sm hover:shadow-md hover:opacity-90;
+  }
+  .glass-panel {
+    @apply bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg border border-white/20 dark:border-gray-700/30;
+  }
+  .glass-effect {
+    @apply bg-gradient-to-br from-white/5 to-white/10 dark:from-gray-800/5 dark:to-gray-800/10 backdrop-blur;
+  }
+}

@@ -1,0 +1,91 @@
+import mongoose, { Schema, Document, Types } from 'mongoose';
+
+interface IHistoryItem {
+  _id?: Types.ObjectId;
+  prompt?: string;
+  diagram: string;
+  updateType: 'chat' | 'code' | 'reversion';
+  diagram_img?: string;
+  updatedAt: Date;
+}
+
+export interface IProject extends Document {
+  title: string;
+  projectDescription?: string;
+  userId: Types.ObjectId;
+  diagramSVG?: string;
+  diagramType: string;
+  history: IHistoryItem[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const projectSchema = new Schema<IProject>({
+  title: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  projectDescription: {
+    type: String,
+    required: false,
+    trim: true,
+  },
+  userId: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+  },
+  diagramSVG: {
+    type: String,
+    required: false,
+  },
+  diagramType: {
+    type: String,
+    required: true,
+    enum: [
+      'erd',
+      'flowchart',
+      'sequence',
+      'class',
+      'state',
+      'user_journey',
+      'gantt',
+      'pie_chart',
+      'quadrant',
+      'requirement',
+      'c4_diagram',
+      'mindmap',
+      'timeline',
+      'sankey',
+      'git',
+    ],
+  },
+  history: [{
+    _id: {
+      type: Schema.Types.ObjectId,
+      auto: true,
+    },
+    prompt: { type: String },
+    diagram: {
+      type: String,
+    },
+    updateType: {
+      type: String,
+      required: true,
+      enum: ['chat', 'code', 'reversion'],
+      default: 'chat',
+    },
+    diagram_img: {
+      type: String,
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  }],
+}, {
+  timestamps: true,
+});
+
+export default mongoose.models.Project || mongoose.model<IProject>('Project', projectSchema); 

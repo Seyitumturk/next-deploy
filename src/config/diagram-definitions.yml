@@ -1,0 +1,1085 @@
+# Base definitions for each diagram type with detailed instructions
+definitions:
+  flowchart:
+    description: |
+      Create a professional flowchart following these guidelines:
+      - Use modern direction syntax: TD (top-down), BT (bottom-top), LR (left-right), or RL (right-left)
+      - Include descriptive node labels with proper escaping for special characters
+      - Use modern node shapes:
+        * [Rectangle] for process steps
+        * {Diamond} for decisions
+        * ([Rounded]) for start/end points
+        * [(Database)] for data storage
+        * [/Parallelogram/] for input/output
+        * {{Hexagon}} for preparation steps
+        * [>Note] for notes/comments
+        * ((Circle)) for connections
+      - Add meaningful link labels between nodes using |text|
+      - Group related processes using subgraphs with modern syntax:
+        subgraph title
+          direction LR/TB
+          content
+        end
+      - Use click events for interactive nodes: click nodeId "URL" "Tooltip"
+      - Apply consistent styling using classDefs
+      - Use modern link styles: -->, -.-> (dotted), ==> (thick)
+      - Add comments using %% for better maintainability
+    example: |
+      flowchart LR
+        %% Client Layer
+        Client((Client))
+        
+        %% API Gateway
+        subgraph gateway [API Gateway]
+          direction TB
+          LoadBalancer[/Load Balancer/]
+          Auth[Authentication]
+          Router{Router}
+        end
+        
+        %% Microservices
+        subgraph services [Services]
+          direction TB
+          UserService[(User Service)]
+          PaymentService[(Payment Service)]
+          ProductService[(Product Service)]
+        end
+        
+        %% Database Layer
+        subgraph databases [Databases]
+          UserDB[(User DB)]
+          PaymentDB[(Payment DB)]
+          ProductDB[(Product DB)]
+        end
+        
+        %% Connections
+        Client --> LoadBalancer
+        LoadBalancer --> Auth
+        Auth --> Router
+        Router -->|/users| UserService
+        Router -->|/payments| PaymentService
+        Router -->|/products| ProductService
+        UserService --> UserDB
+        PaymentService --> PaymentDB
+        ProductService --> ProductDB
+        
+        %% Styling
+        classDef service fill:#f9f,stroke:#333,stroke-width:2px
+        class UserService,PaymentService,ProductService service
+    prompt_template: |
+      As an expert Mermaid.js diagram creator, create a professional flowchart that follows modern best practices. Your task is to:
+
+      1. Analyze the requirements: {prompt}
+      2. Create a flowchart that:
+         - Uses clear direction and layout (TD/BT/LR/RL)
+         - Implements proper node shapes based on their purpose
+         - Groups related elements using subgraphs
+         - Includes meaningful connections with labeled relationships
+         - Applies consistent styling with classDefs
+         - Adds helpful comments for maintainability
+
+      Reference this example for structure and styling:
+      {example}
+
+      Important:
+      - Start with ```mermaid
+      - Use proper node shapes for each element type
+      - Include clear comments using %%
+      - Group related elements in subgraphs
+      - Add meaningful connection labels
+      - Apply consistent styling
+      - End with ```
+
+      Now, create a detailed flowchart based on the requirements above.
+
+  class:
+    description: |
+      Create a detailed class diagram that shows:
+      - All relevant classes with proper naming
+      - Class attributes with modern type annotations
+      - Methods with parameters, return types, and generics support
+      - Modern relationship syntax:
+        * Inheritance: --|>
+        * Implementation: ..|>
+        * Composition: *--
+        * Aggregation: o--
+        * Association: -->
+        * Dependency: ..>
+      - Access modifiers:
+        * +public
+        * -private
+        * #protected
+        * ~package/internal
+      - Use modern features:
+        * <<interface>> and <<abstract>> stereotypes
+        * Generic types <T>
+        * Static members and methods with $
+        * Namespace support
+        * Method overloading
+      - Include clear comments using %% syntax
+    example: |
+      classDiagram
+        %% Interfaces
+        class ITask {
+          <<interface>>
+          +getStatus() TaskStatus
+          +assignTo(user: User) void
+          +updateProgress(progress: number) void
+        }
+        
+        %% Base Classes
+        class Task {
+          -id: UUID
+          -title: string
+          -description: string
+          -status: TaskStatus
+          -assignee: User
+          -progress: number
+          +constructor(title: string)
+          +getStatus() TaskStatus
+          +assignTo(user: User) void
+          +updateProgress(progress: number) void
+        }
+        
+        %% Specialized Tasks
+        class ProjectTask {
+          -project: Project
+          -deadline: Date
+          +getProjectDetails() ProjectInfo
+        }
+        
+        %% Relationships
+        Task ..|> ITask
+        ProjectTask --|> Task
+        User "1" o-- "many" Task
+    prompt_template: |
+      As an expert Mermaid.js diagram creator, create a professional class diagram that follows modern best practices. Your task is to:
+
+      1. Analyze the requirements: {prompt}
+      2. Create a class diagram that:
+         - Defines clear class hierarchies and relationships
+         - Uses proper access modifiers and type annotations
+         - Implements interfaces and abstract classes where appropriate
+         - Includes meaningful method signatures
+         - Applies modern relationship syntax
+         - Adds helpful comments for complex relationships
+
+      Reference this example for structure and styling:
+      {example}
+
+      Important:
+      - Start with ```mermaid
+      - Use proper access modifiers (+, -, #, ~)
+      - Include type annotations
+      - Add clear comments using %%
+      - Use modern relationship syntax
+      - Group related classes logically
+      - End with ```
+
+      Now, create a detailed class diagram based on the requirements above.
+
+  erd:
+    description: |
+      Create a comprehensive ERD that includes:
+      - All essential entities with clear names (PascalCase recommended)
+      - Complete set of attributes with modern data types
+      - Primary and foreign keys clearly marked (PK, FK)
+      - Modern relationship types:
+        * one-to-one: ||--|| with relationship text
+        * one-to-many: ||--|{ with relationship text
+        * many-to-many: }|--|{ with relationship text
+        * zero-or-one: |o--|| with relationship text
+        * zero-or-many: }o--|{ with relationship text
+      - Relationship labels describing the connection
+      - Attribute constraints and validations
+      - Use comments for complex relationships
+      - Include indexes and unique constraints
+      - Group related entities using modern clustering
+    example: |
+      erDiagram
+        %% User Management
+        USER ||--o{ ORDER : places
+        USER {
+          uuid id PK
+          string email UK
+          string password_hash
+          string first_name
+          string last_name
+          datetime created_at
+          datetime last_login
+        }
+        
+        %% Product Management
+        PRODUCT ||--o{ ORDER_ITEM : contains
+        PRODUCT {
+          uuid id PK
+          string name
+          text description
+          decimal price
+          int stock_quantity
+          string sku UK
+          datetime created_at
+          boolean is_active
+        }
+    prompt_template: |
+      As an expert Mermaid.js diagram creator, create a professional ERD that follows modern best practices. Your task is to:
+
+      1. Analyze the requirements: {prompt}
+      2. Create an ERD that:
+         - Uses clear entity names in PascalCase
+         - Includes comprehensive attributes with proper data types
+         - Marks primary and foreign keys appropriately
+         - Uses modern relationship syntax
+         - Adds helpful comments for complex relationships
+
+      Reference this example for structure and styling:
+      {example}
+
+      Important:
+      - Start with ```mermaid
+      - Use proper relationship syntax
+      - Include all necessary attributes
+      - Add clear comments using %%
+      - Mark constraints and keys
+      - End with ```
+
+      Now, create a detailed ERD based on the requirements above.
+
+  sequence:
+    description: |
+      Create a detailed sequence diagram showing:
+      - All participating actors/objects with descriptive names
+      - Modern message syntax:
+        * Synchronous: ->> with solid arrow
+        * Asynchronous: -->> with dashed arrow
+        * Response: -->> with dashed arrow and text
+        * Self message: ->> self
+      - Activation boxes using + and - for precise timing
+      - Modern control structures:
+        * alt for alternatives
+        * opt for optional paths
+        * par for parallel execution
+        * loop for repetition
+        * break for breaking conditions
+      - Notes using Note left of, Note right of, Note over
+      - Participant groups using boxes
+      - Modern features:
+        * Background highlighting
+        * Participant creation/destruction
+        * Message numbering
+        * Critical sections
+      - Use comments for complex flows
+    example: |
+      sequenceDiagram
+        %% Participants
+        participant User
+        participant API
+        participant DB
+        
+        %% Authentication Flow
+        User->>+API: Login Request
+        Note right of User: With credentials
+        
+        %% Validation
+        alt Invalid Credentials
+            API-->>-User: Authentication Failed
+        else Valid Credentials
+            API->>+DB: Verify User
+            DB-->>-API: User Found
+            
+            %% Token Generation
+            activate API
+            Note over API: Generate JWT
+            API-->>-User: Return Token
+        end
+    prompt_template: |
+      As an expert Mermaid.js diagram creator, create a professional sequence diagram that follows modern best practices. Your task is to:
+
+      1. Analyze the requirements: {prompt}
+      2. Create a sequence diagram that:
+         - Shows clear participant interactions
+         - Uses proper message types
+         - Implements control structures
+         - Includes activation boxes
+         - Adds helpful notes and comments
+
+      Reference this example for structure and styling:
+      {example}
+
+      Important:
+      - Start with ```mermaid
+      - Define all participants
+      - Use proper message syntax
+      - Add clear comments using %%
+      - Include activation boxes
+      - End with ```
+
+      Now, create a detailed sequence diagram based on the requirements above.
+
+  mindmap:
+    description: |
+      Create an organized mindmap following these guidelines:
+      - Start with a clear central concept (root)
+      - Use modern node shapes:
+        * Default shape: no special syntax
+        * Square: [text]
+        * Rounded square: (text)
+        * Circle: ((text))
+        * Bang: ))text((
+        * Cloud: )text(
+        * Hexagon: {{text}}
+      - Structure and Hierarchy:
+        * Use indentation to define hierarchy levels
+        * Each level should be clearly indented from its parent
+        * Maintain consistent indentation for siblings
+      - Advanced Features:
+        * Icons using ::icon() syntax
+        * CSS Classes using triple colon
+        * Markdown formatting in strings
+        * Unicode emoji support
+      - Best Practices:
+        * Keep node text concise and clear
+        * Use consistent shape types for similar concepts
+        * Group related ideas under common parents
+        * Utilize icons to enhance visual understanding
+    example: |
+      mindmap
+        root((Project Plan))
+          Requirements
+            :::important
+            Functional
+              ::icon(fa fa-cogs)
+              Core Features
+              User Interface
+              API Integration
+            Non-Functional
+              ::icon(fa fa-shield)
+              Security
+              Performance
+              Scalability
+      Resources
+        "`**Team Members**`"
+          Frontend Devs
+          Backend Devs
+          UX Designer
+        Tools
+          :::tools
+          Version Control
+          CI/CD Pipeline
+          Testing Suite
+      Timeline
+        ::icon(fa fa-calendar)
+        Phase 1
+          Planning
+          Setup
+        Phase 2
+          Development
+          Testing
+        Phase 3
+          "`*Deployment*
+          and Launch`"
+    prompt_template: |
+      As an expert Mermaid.js diagram creator, create a professional mindmap that follows modern best practices. Your task is to:
+
+      1. Analyze the requirements: {prompt}
+      2. Create a mindmap that:
+         - Has a clear central concept
+         - Uses appropriate node shapes
+         - Maintains proper hierarchy
+         - Utilizes icons and styling
+         - Groups related concepts effectively
+
+      Reference this example for structure and styling:
+      {example}
+
+      Important:
+      - Start with ```mermaid
+      - Use proper node shapes
+      - Maintain consistent indentation
+      - Add icons and classes where appropriate
+      - Keep text concise
+      - End with ```
+
+      Now, create a detailed mindmap based on the requirements above.
+
+  timeline:
+    description: |
+      Create a timeline diagram that:
+      - Uses sections for grouping events
+      - Supports different time scales
+      - Includes:
+        * Title for each event
+        * Description
+        * Date/time
+      - Allows:
+        * Multiple events per line
+        * Color coding
+        * Icons and emojis
+      - Uses modern syntax:
+        * section [Section name]
+        * [Event title] : [description]
+      - Supports markdown in descriptions
+      - Maintains chronological order
+      - Uses clear date formatting
+    example: |
+      timeline
+        title Product Development Timeline
+        
+        section Planning Phase
+          Initial Concept : 2024-01-15 : Brainstorming and research
+          Requirements : 2024-01-20 : Feature specification
+        
+        section Development
+          Sprint 1 : 2024-02-01 : Core functionality
+          Sprint 2 : 2024-02-15 : User interface
+    prompt_template: |
+      As an expert Mermaid.js diagram creator, create a professional timeline that follows modern best practices. Your task is to:
+
+      1. Analyze the requirements: {prompt}
+      2. Create a timeline that:
+         - Groups events into logical sections
+         - Uses clear dates and descriptions
+         - Maintains chronological order
+         - Includes relevant details
+         - Uses proper formatting
+
+      Reference this example for structure and styling:
+      {example}
+
+      Important:
+      - Start with ```mermaid
+      - Use proper section grouping
+      - Include dates and descriptions
+      - Maintain chronological order
+      - End with ```
+
+      Now, create a detailed timeline based on the requirements above.
+
+  gantt:
+    description: |
+      Create a Gantt chart that shows:
+      - Project timeline with clear sections
+      - Tasks with:
+        * Duration
+        * Dependencies
+        * Milestones
+      - Modern features:
+        * Date format specification
+        * Weekend highlighting
+        * Today marker
+        * Progress indicators
+      - Supports:
+        * Task exclusion
+        * Critical path
+        * Different date formats
+      - Uses modern syntax:
+        * dateFormat YYYY-MM-DD
+        * section [Section name]
+        * [Task] :[status], [start], [end]
+      - Includes clear dependencies
+    example: |
+      gantt
+        title Software Release Plan
+        dateFormat YYYY-MM-DD
+        excludes weekends
+        
+        section Planning
+        Project Kickoff    :done, milestone, 2024-01-01, 0d
+        Requirements      :active, req1, 2024-01-01, 10d
+        
+        section Development
+        Core Features    :crit, 2024-01-15, 30d
+        API Development  :2024-01-20, 25d
+    prompt_template: |
+      As an expert Mermaid.js diagram creator, create a professional Gantt chart that follows modern best practices. Your task is to:
+
+      1. Analyze the requirements: {prompt}
+      2. Create a Gantt chart that:
+         - Shows clear project timeline
+         - Includes task dependencies
+         - Uses proper date formatting
+         - Marks milestones and critical paths
+         - Groups tasks into sections
+
+      Reference this example for structure and styling:
+      {example}
+
+      Important:
+      - Start with ```mermaid
+      - Set date format
+      - Define sections
+      - Include dependencies
+      - Mark critical tasks
+      - End with ```
+
+      Now, create a detailed Gantt chart based on the requirements above.
+
+  pie:
+    description: |
+      Create a pie chart that shows:
+      - Clear title using title [text]
+      - Data points with:
+        * Labels
+        * Values
+        * Optional comments
+      - Supports:
+        * Percentage calculations
+        * Custom colors
+        * Sorting options
+      - Uses modern syntax:
+        * title [Chart title]
+        * "[label]" : [value]
+      - Maintains readability
+      - Includes legend when needed
+    example: |
+      pie title Annual Revenue Distribution
+        "Product Sales" : 45.5
+        "Services" : 30.2
+        "Subscriptions" : 15.8
+        "Consulting" : 8.5
+    prompt_template: |
+      As an expert Mermaid.js diagram creator, create a professional pie chart that follows modern best practices. Your task is to:
+
+      1. Analyze the requirements: {prompt}
+      2. Create a pie chart that:
+         - Has a clear title
+         - Shows data points with values
+         - Uses descriptive labels
+         - Maintains proper proportions
+         - Includes any necessary comments
+
+      Reference this example for structure and styling:
+      {example}
+
+      Important:
+      - Start with ```mermaid
+      - Include title
+      - Use proper value format
+      - Add descriptive labels
+      - End with ```
+
+      Now, create a detailed pie chart based on the requirements above.
+
+  git:
+    description: |
+      Create a Git graph that shows:
+      - Branch structure using gitGraph
+      - Commits with:
+        * Messages
+        * Tags
+        * Branch points
+      - Modern features:
+        * Cherry-picks
+        * Merges
+        * Checkouts
+      - Supports:
+        * Branch colors
+        * Custom commit IDs
+        * Different orientations
+      - Uses modern syntax:
+        * commit id: "message"
+        * branch [name]
+        * merge [branch]
+    example: |
+      gitGraph
+        commit id: "initial"
+        branch develop
+        checkout develop
+        commit id: "feature-start"
+        branch feature/login
+        checkout feature/login
+        commit id: "auth-basic"
+        checkout develop
+        merge feature/login
+    prompt_template: |
+      As an expert Mermaid.js diagram creator, create a professional Git graph that follows modern best practices. Your task is to:
+
+      1. Analyze the requirements: {prompt}
+      2. Create a Git graph that:
+         - Shows clear branch structure
+         - Includes meaningful commit messages
+         - Uses proper branching strategy
+         - Shows merges and checkouts
+         - Maintains clarity and readability
+
+      Reference this example for structure and styling:
+      {example}
+
+      Important:
+      - Start with ```mermaid
+      - Use proper branch names
+      - Include commit messages
+      - Show merges correctly
+      - End with ```
+
+      Now, create a detailed Git graph based on the requirements above.
+
+  state:
+    description: |
+      Create a detailed state diagram showing:
+      - All possible states with descriptive names
+      - Modern transition syntax:
+        * Normal: -->
+        * Conditional: --> [condition]
+        * With actions: --> : action
+      - State descriptions:
+        * Entry and exit actions
+        * Internal actions
+        * Composite states
+        * Parallel states
+      - Modern features:
+        * Choice points using <<choice>>
+        * History states using [H] and [H*]
+        * Fork and join
+        * Notes and comments
+      - Proper state hierarchy using:
+        state stateName {
+          [nested states]
+        }
+      - Transition types:
+        * Internal
+        * External
+        * Local
+      - Use direction statements for better layout
+    example: |
+      stateDiagram-v2
+        [*] --> Created: Order Placed
+        
+        state "Order Processing" as Processing {
+          Created --> PaymentPending: Initialize Payment
+          
+          state "Payment Processing" as PaymentProcess {
+            PaymentPending --> PaymentValidation: Payment Submitted
+            PaymentValidation --> PaymentConfirmed: Valid Payment
+            PaymentValidation --> PaymentFailed: Invalid Payment
+            PaymentFailed --> PaymentPending: Retry Payment
+          }
+        }
+        
+        PaymentConfirmed --> Shipped: Order Shipped
+        Shipped --> [*]: Delivery Complete
+    prompt_template: |
+      As an expert Mermaid.js diagram creator, create a professional state diagram that follows modern best practices. Your task is to:
+
+      1. Analyze the requirements: {prompt}
+      2. Create a state diagram that:
+         - Shows clear state transitions
+         - Uses proper state hierarchy
+         - Implements composite states where needed
+         - Includes entry/exit actions
+         - Uses modern transition syntax
+         - Adds helpful comments for complex flows
+
+      Reference this example for structure and styling:
+      {example}
+
+      Important:
+      - Start with ```mermaid
+      - Use stateDiagram-v2 syntax
+      - Include proper state nesting
+      - Add clear comments using %%
+      - Use descriptive transition labels
+      - End with ```
+
+      Now, create a detailed state diagram based on the requirements above.
+
+# Example sections with modern, practical use cases
+flowchartExamples: |
+  Example: Modern Microservice Architecture
+  ```mermaid
+  flowchart LR
+    %% Client Layer
+    Client((Client))
+    
+    %% API Gateway
+    subgraph gateway [API Gateway]
+      direction TB
+      LoadBalancer[/Load Balancer/]
+      Auth[Authentication]
+      Router{Router}
+    end
+    
+    %% Microservices
+    subgraph services [Services]
+      direction TB
+      UserService[(User Service)]
+      PaymentService[(Payment Service)]
+      ProductService[(Product Service)]
+    end
+    
+    %% Database Layer
+    subgraph databases [Databases]
+      UserDB[(User DB)]
+      PaymentDB[(Payment DB)]
+      ProductDB[(Product DB)]
+    end
+    
+    %% Connections
+    Client --> LoadBalancer
+    LoadBalancer --> Auth
+    Auth --> Router
+    Router -->|/users| UserService
+    Router -->|/payments| PaymentService
+    Router -->|/products| ProductService
+    UserService --> UserDB
+    PaymentService --> PaymentDB
+    ProductService --> ProductDB
+    
+    %% Styling
+    classDef service fill:#f9f,stroke:#333,stroke-width:2px
+    class UserService,PaymentService,ProductService service
+  ```
+
+classExamples: |
+  Example: Modern Task Management System
+  ```mermaid
+  classDiagram
+    %% Interfaces
+    class ITask {
+      <<interface>>
+      +getStatus() TaskStatus
+      +assignTo(user: User) void
+      +updateProgress(progress: number) void
+    }
+    
+    %% Base Classes
+    class Task {
+      -id: UUID
+      -title: string
+      -description: string
+      -status: TaskStatus
+      -assignee: User
+      -progress: number
+      +constructor(title: string)
+      +getStatus() TaskStatus
+      +assignTo(user: User) void
+      +updateProgress(progress: number) void
+    }
+    
+    %% Specialized Tasks
+    class ProjectTask {
+      -project: Project
+      -deadline: Date
+      +getProjectDetails() ProjectInfo
+    }
+    
+    class RecurringTask {
+      -interval: Duration
+      -nextOccurrence: Date
+      +scheduleNext() void
+    }
+    
+    %% User Management
+    class User {
+      -id: UUID
+      -email: string
+      -tasks: Task[]
+      +assignTask(task: Task) void
+      +getTasks() Task[]
+    }
+    
+    %% Relationships
+    Task ..|> ITask
+    ProjectTask --|> Task
+    RecurringTask --|> Task
+    User "1" o-- "many" Task
+    
+    %% Enums
+    class TaskStatus {
+      <<enumeration>>
+      TODO
+      IN_PROGRESS
+      COMPLETED
+      BLOCKED
+    }
+  ```
+
+erdExamples: |
+  Example: Modern E-commerce Platform
+  ```mermaid
+  erDiagram
+    %% User Management
+    USER ||--o{ ORDER : places
+    USER {
+      uuid id PK
+      string email UK
+      string password_hash
+      string first_name
+      string last_name
+      datetime created_at
+      datetime last_login
+    }
+    
+    %% Product Management
+    PRODUCT ||--o{ ORDER_ITEM : contains
+    PRODUCT ||--o{ PRODUCT_CATEGORY : belongs_to
+    PRODUCT {
+      uuid id PK
+      string name
+      text description
+      decimal price
+      int stock_quantity
+      string sku UK
+      datetime created_at
+      boolean is_active
+    }
+    
+    %% Order Management
+    ORDER ||--|{ ORDER_ITEM : includes
+    ORDER {
+      uuid id PK
+      uuid user_id FK
+      decimal total_amount
+      string status
+      datetime order_date
+      string payment_status
+      string shipping_address
+    }
+    
+    %% Order Items
+    ORDER_ITEM {
+      uuid id PK
+      uuid order_id FK
+      uuid product_id FK
+      int quantity
+      decimal unit_price
+      decimal subtotal
+    }
+    
+    %% Categories
+    PRODUCT_CATEGORY {
+      uuid id PK
+      string name
+      string slug UK
+      uuid parent_id FK "Self-referential"
+    }
+    
+    %% Reviews
+    REVIEW }o--|| PRODUCT : reviews
+    REVIEW }o--|| USER : writes
+    REVIEW {
+      uuid id PK
+      uuid user_id FK
+      uuid product_id FK
+      int rating
+      text comment
+      datetime created_at
+    }
+  ```
+
+stateExamples: |
+  Example: Modern Order Processing System
+  ```mermaid
+  stateDiagram-v2
+    [*] --> Created: Order Placed
+    
+    state "Order Processing" as Processing {
+      Created --> PaymentPending: Initialize Payment
+      
+      state "Payment Processing" as PaymentProcess {
+        PaymentPending --> PaymentValidation: Payment Submitted
+        PaymentValidation --> PaymentConfirmed: Valid Payment
+        PaymentValidation --> PaymentFailed: Invalid Payment
+        PaymentFailed --> PaymentPending: Retry Payment
+      }
+      
+      PaymentConfirmed --> Fulfillment: Start Fulfillment
+      
+      state "Fulfillment Process" as Fulfillment {
+        state "Inventory Check" as InventoryCheck {
+          [*] --> CheckingStock
+          CheckingStock --> InStock: Available
+          CheckingStock --> OutOfStock: Not Available
+          OutOfStock --> BackorderCreated: Create Backorder
+          BackorderCreated --> InStock: Stock Received
+        }
+        
+        InStock --> Picking: Assign to Picker
+        Picking --> Packing: Items Collected
+        Packing --> ReadyToShip: Package Complete
+      }
+      
+      ReadyToShip --> Shipped: Carrier Pickup
+    }
+    
+    Shipped --> InTransit: Package in Transit
+    InTransit --> Delivered: Delivery Confirmed
+    Delivered --> [*]
+    
+    state "Return Process" as Return {
+      Delivered --> ReturnRequested: Customer Requests Return
+      ReturnRequested --> ReturnInTransit: Return Shipped
+      ReturnInTransit --> ReturnReceived: Return Arrived
+      ReturnReceived --> RefundProcessing: Inspection Passed
+      RefundProcessing --> Refunded: Refund Issued
+      Refunded --> [*]
+    }
+  ```
+
+timelineExamples: |
+  Example: Product Launch Timeline
+  ```mermaid
+  timeline
+    title Product Development and Launch Timeline
+    
+    section Planning Phase
+      Initial Concept : 2024-01-15 : Brainstorming and market research
+      Requirements Gathering : 2024-01-20 : Detailed feature specification
+      Project Plan Approval : 2024-01-30 : Stakeholder sign-off
+    
+    section Development
+      Sprint 1 : 2024-02-01 : Core functionality
+      Sprint 2 : 2024-02-15 : User interface
+      Sprint 3 : 2024-03-01 : API integration
+      
+    section Testing
+      Alpha Testing : 2024-03-15 : Internal testing
+      Beta Program : 2024-04-01 : Selected customers
+      Performance Testing : 2024-04-15 : Load and stress tests
+      
+    section Launch
+      Marketing Campaign : 2024-05-01 : Social media and PR
+      Soft Launch : 2024-05-15 : Limited release
+      Full Release : 2024-06-01 : Public availability
+  ```
+
+ganttExamples: |
+  Example: Software Release Plan
+  ```mermaid
+  gantt
+    title Software Release Plan
+    dateFormat  YYYY-MM-DD
+    excludes    weekends
+    
+    section Planning
+    Project Kickoff    :done, milestone, 2024-01-01, 0d
+    Requirements       :active, req1, 2024-01-01, 10d
+    Architecture      :after req1, 5d
+    
+    section Development
+    Core Features     :crit, 2024-01-15, 30d
+    API Development   :2024-01-20, 25d
+    UI Implementation :2024-02-01, 20d
+    
+    section Testing
+    Unit Tests       :2024-02-15, 10d
+    Integration Tests :2024-02-25, 10d
+    User Testing     :2024-03-05, 15d
+    
+    section Deployment
+    Documentation    :2024-03-15, 10d
+    Beta Release     :crit, milestone, 2024-03-25, 0d
+    Production Deploy :crit, milestone, 2024-04-01, 0d
+  ```
+
+pieExamples: |
+  Example: Revenue Distribution
+  ```mermaid
+  pie title Annual Revenue Distribution
+    "Product Sales" : 45.5
+    "Services" : 30.2
+    "Subscriptions" : 15.8
+    "Consulting" : 8.5
+  ```
+
+gitExamples: |
+  Example: Feature Development Flow
+  ```mermaid
+  gitGraph
+    commit id: "initial"
+    branch develop
+    checkout develop
+    commit id: "feature-start"
+    branch feature/login
+    checkout feature/login
+    commit id: "auth-basic"
+    commit id: "auth-social"
+    checkout develop
+    merge feature/login
+    branch feature/profile
+    checkout feature/profile
+    commit id: "user-profile"
+    commit id: "profile-photo"
+    checkout develop
+    merge feature/profile
+    checkout main
+    merge develop tag: "v1.0.0"
+  ```
+
+mindmapExamples: |
+  Example: Project Planning Mindmap
+  ```mermaid
+  mindmap
+    root((Project Plan))
+      Requirements
+        :::important
+        Functional
+          ::icon(fa fa-cogs)
+          Core Features
+          User Interface
+          API Integration
+        Non-Functional
+          ::icon(fa fa-shield)
+          Security
+          Performance
+          Scalability
+      Resources
+        "`**Team Members**`"
+          Frontend Devs
+          Backend Devs
+          UX Designer
+        Tools
+          :::tools
+          Version Control
+          CI/CD Pipeline
+          Testing Suite
+      Timeline
+        ::icon(fa fa-calendar)
+        Phase 1
+          Planning
+          Setup
+        Phase 2
+          Development
+          Testing
+        Phase 3
+          "`*Deployment*
+          and Launch`"
+  ```
+
+prompts:
+  system_template: |
+    You are an expert Mermaid.js diagram creator specializing in {diagram_type} diagrams. Your task is to create clear, professional, and modern diagrams that follow best practices.
+
+    Follow these specific guidelines:
+
+    {description}
+
+    Additional requirements:
+    1. Always start with ```mermaid
+    2. Use descriptive names and labels
+    3. Follow consistent formatting and spacing
+    4. Add comments using %% for complex sections
+    5. Use modern Mermaid.js features
+    6. Ensure the diagram is both functional and visually appealing
+    7. Follow best practices for layout and organization
+    8. Include all necessary relationships and connections
+
+    Here's a reference example of a well-structured {diagram_type} diagram:
+    ```mermaid
+    {example}
+    ```
+
+    Create a diagram that follows these guidelines and maintains similar quality and structure.
+
+  user_template: |
+    Based on the following requirements:
+    {prompt}
+
+    Create a professional {diagram_type} diagram that follows the structure and best practices shown in the example, while incorporating the specific requirements above.
+
+    Important:
+    1. Follow the exact syntax and formatting guidelines
+    2. Use appropriate node shapes and connections
+    3. Include clear comments and documentation
+    4. Maintain consistent styling
+    5. Ensure proper relationships and hierarchy
