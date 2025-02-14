@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import mermaid from 'mermaid';
 import Link from 'next/link';
@@ -23,12 +23,12 @@ interface EditorProps {
     _id: string;
     prompt?: string;
     diagram: string;
+    diagram_img?: string;
     updateType: 'chat' | 'code' | 'reversion';
     updatedAt: string;
   }[];
 }
 
-// Add these types at the top of the file
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system' | 'document';
   content: string;
@@ -36,30 +36,210 @@ interface ChatMessage {
   diagramVersion?: string;
 }
 
-// Add this interface at the top of the file with other interfaces
 interface StreamMessage {
   mermaidSyntax: string;
   isComplete: boolean;
   gptResponseId?: string;
 }
 
-// Add this helper function at the top of your file, outside the component
+interface ChatMessageProps {
+  message: ChatMessage;
+  onDiagramVersionSelect?: (version: string) => void;
+}
+
 const formatTime = (date: Date) => {
+  // Use 24-hour format to avoid AM/PM localization issues
   return date.toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit',
-    hour12: true
+    hour12: false
   });
 };
 
-export default function DiagramEditor({ 
+const ChatMessage: React.FC<ChatMessageProps> = ({ message, onDiagramVersionSelect }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const isSystem = message.role === 'system';
+  const isDocument = message.role === 'document';
+  const isUser = message.role === 'user';
+  const isAssistant = message.role === 'assistant';
+  const isError = message.role === 'system' && message.content.startsWith('Error:');
+  
+  // For error messages
+  if (isError) {
+    return (
+      <div className="flex justify-start mb-4">
+        <div className="max-w-[80%] rounded-lg p-4 bg-red-50 dark:bg-red-900/20">
+          <div className="flex items-center space-x-2 text-red-600 dark:text-red-400">
+            <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+            </svg>
+            <span className="text-sm">{message.content.substring(6)}</span>
+          </div>
+          <div className="mt-2 text-xs text-red-400 dark:text-red-500">
+            {formatTime(new Date(message.timestamp))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // For document messages, show a preview of the content
+  if (isDocument) {
+    const preview = message.content.slice(0, 150) + (message.content.length > 150 ? '...' : '');
+    
+    return (
+      <div className="flex justify-start mb-4">
+        <div className="max-w-[80%] rounded-lg p-4 bg-blue-50 dark:bg-blue-900/20">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center space-x-2 text-blue-600 dark:text-blue-400">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" />
+              </svg>
+              <span className="text-sm font-medium">Document Content</span>
+            </div>
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="text-blue-500 hover:text-blue-600 dark:text-blue-400 
+                dark:hover:text-blue-300 transition-colors"
+            >
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                className={`h-4 w-4 transform transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                viewBox="0 0 20 20" 
+                fill="currentColor"
+              >
+                <path fillRule="evenodd" 
+                  d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" 
+                  clipRule="evenodd" 
+                />
+              </svg>
+            </button>
+          </div>
+          <div className="text-sm text-blue-600 dark:text-blue-400">
+            {isExpanded ? (
+              <div className="whitespace-pre-wrap">{message.content}</div>
+            ) : (
+              <div>
+                {preview}
+                {message.content.length > 150 && (
+                  <button
+                    onClick={() => setIsExpanded(true)}
+                    className="text-blue-500 hover:text-blue-600 dark:text-blue-400 
+                      dark:hover:text-blue-300 ml-1 text-sm font-medium"
+                  >
+                    Show more
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="mt-2 text-xs text-blue-400 dark:text-blue-500">
+            {formatTime(new Date(message.timestamp))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Update the diagram version button click handler
+  const handleDiagramVersionClick = () => {
+    if (message.diagramVersion && onDiagramVersionSelect) {
+      onDiagramVersionSelect(message.diagramVersion);
+    }
+  };
+
+  // Return original message format for non-document messages
+  return (
+    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
+      <div className={`
+        max-w-[80%] rounded-lg p-4 
+        ${isSystem ? 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300' :
+          isUser ? 'bg-secondary/10 text-secondary dark:text-secondary-light' :
+          'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700'}
+      `}>
+        {/* Message header with collapse button for long messages */}
+        {message.content.length > 150 && (
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs text-gray-500">
+              {isUser ? 'Your prompt' : 'Assistant response'}
+            </div>
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="text-gray-400 hover:text-gray-600 dark:text-gray-500 
+                dark:hover:text-gray-300 transition-colors"
+            >
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                className={`h-4 w-4 transform transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                viewBox="0 0 20 20" 
+                fill="currentColor"
+              >
+                <path fillRule="evenodd" 
+                  d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" 
+                  clipRule="evenodd" 
+                />
+              </svg>
+            </button>
+          </div>
+        )}
+
+        {/* Message content */}
+        <div className="text-sm">
+          {message.content.length > 150 ? (
+            isExpanded ? (
+              <div className="whitespace-pre-wrap">{message.content}</div>
+            ) : (
+              <div>
+                {message.content.slice(0, 150)}...
+                <button
+                  onClick={() => setIsExpanded(true)}
+                  className="text-secondary hover:text-secondary-dark dark:text-secondary-light 
+                    dark:hover:text-secondary ml-1 text-sm font-medium"
+                >
+                  Show more
+                </button>
+              </div>
+            )
+          ) : (
+            message.content
+          )}
+        </div>
+
+        {/* Diagram version button */}
+        {message.diagramVersion && onDiagramVersionSelect && (
+          <div className="mt-2 space-y-2">
+            <div className="text-xs text-gray-500">Changes applied to diagram:</div>
+            <button 
+              onClick={handleDiagramVersionClick}
+              className="w-full px-3 py-2 bg-secondary/5 hover:bg-secondary/10 
+                rounded-lg transition-colors text-xs text-secondary 
+                hover:text-secondary-dark flex items-center justify-center space-x-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+              </svg>
+              <span>View this version</span>
+            </button>
+          </div>
+        )}
+
+        <div className="mt-1 text-xs text-gray-400">
+          {formatTime(new Date(message.timestamp))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const DiagramEditor: React.FC<EditorProps> = ({ 
   projectId, 
   projectTitle,
   diagramType, 
   initialDiagram,
   user,
   history
-}: EditorProps) {
+}) => {
   const router = useRouter();
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -70,7 +250,7 @@ export default function DiagramEditor({
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [currentDiagram, setCurrentDiagram] = useState(initialDiagram || '');
+  const [currentDiagram, setCurrentDiagram] = useState('');
   const [streamBuffer, setStreamBuffer] = useState('');
   const svgRef = useRef<HTMLDivElement>(null);
   const bufferTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
@@ -91,15 +271,59 @@ export default function DiagramEditor({
       .reverse()
   );
   const [showFileUpload, setShowFileUpload] = useState(false);
+  const [diagramError, setDiagramError] = useState<string | null>(null);
 
+  // Initialize with the latest diagram and SVG from history
   useEffect(() => {
-    if (initialDiagram) {
-      setCurrentDiagram(initialDiagram);
-      renderDiagram(initialDiagram);
-    }
-  }, [initialDiagram]);
+    const loadLatestDiagram = async () => {
+      if (history.length > 0) {
+        const latestHistoryItem = history[0];
+        if (latestHistoryItem) {
+          // Set the current diagram syntax
+          setCurrentDiagram(latestHistoryItem.diagram);
+          
+          // If we have a saved SVG in history, use it directly
+          if (latestHistoryItem.diagram_img) {
+            setSvgOutput(latestHistoryItem.diagram_img);
+          } else {
+            // Otherwise render it using Mermaid
+            try {
+              mermaid.initialize({
+                startOnLoad: false,
+                theme: 'neutral',
+                securityLevel: 'loose',
+                fontFamily: 'var(--font-geist-sans)',
+                logLevel: 1,
+                deterministicIds: true,
+                sequence: { useMaxWidth: false },
+                er: { useMaxWidth: false },
+                flowchart: { useMaxWidth: false },
+                gantt: { useMaxWidth: false },
+                journey: { useMaxWidth: false },
+              });
 
-  // Enhanced rendering with error handling, retries, and SVG saving
+              const { svg } = await mermaid.render('diagram-' + Date.now(), latestHistoryItem.diagram);
+              setSvgOutput(svg);
+            } catch (error) {
+              console.error('Error rendering initial diagram:', error);
+            }
+          }
+        }
+      } else if (initialDiagram) {
+        setCurrentDiagram(initialDiagram);
+        try {
+          const { svg } = await mermaid.render('diagram-' + Date.now(), initialDiagram);
+          setSvgOutput(svg);
+        } catch (error) {
+          console.error('Error rendering initial diagram:', error);
+        }
+      }
+    };
+
+    loadLatestDiagram();
+  }, [history, initialDiagram]);
+
+  // Enhanced rendering with error handling and retries
   const renderDiagram = async (diagramText: string): Promise<boolean> => {
     const maxRetries = 3;
     let currentTry = 0;
@@ -111,36 +335,37 @@ export default function DiagramEditor({
           theme: 'neutral',
           securityLevel: 'loose',
           fontFamily: 'var(--font-geist-sans)',
+          logLevel: 1,
+          deterministicIds: true,
+          sequence: { useMaxWidth: false },
+          er: { useMaxWidth: false },
+          flowchart: { useMaxWidth: false },
+          gantt: { useMaxWidth: false },
+          journey: { useMaxWidth: false },
         });
         
         const { svg } = await mermaid.render('diagram-' + Date.now(), diagramText);
         setSvgOutput(svg);
 
-        // Save the SVG to the database
-        try {
-          const response = await fetch('/api/diagrams/save-svg', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              projectId,
-              svg,
-            }),
-          });
-
-          if (!response.ok) {
-            console.error('Failed to save SVG');
-          }
-        } catch (error) {
-          console.error('Error saving SVG:', error);
-        }
+        // Save SVG in the background without blocking
+        fetch('/api/diagrams/save-svg', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            projectId,
+            svg,
+          }),
+        }).catch(console.error); // Just log errors, don't show to user
 
         return true;
       } catch (err) {
-        console.error(`Failed to render diagram (attempt ${currentTry + 1}/${maxRetries}):`, err);
         currentTry++;
-        if (currentTry < maxRetries) {
-          await new Promise(resolve => setTimeout(resolve, 100));
+        if (currentTry === maxRetries) {
+          console.error('Diagram rendering failed:', err);
+          return false;
         }
+        // Wait a bit before retrying
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
     }
     return false;
@@ -150,16 +375,15 @@ export default function DiagramEditor({
   const updateDiagramWithBuffer = (newContent: string) => {
     setStreamBuffer(newContent);
     
-    // Clear existing timeout
     if (bufferTimeoutRef.current) {
       clearTimeout(bufferTimeoutRef.current);
     }
 
-    // Set new timeout for rendering
     bufferTimeoutRef.current = setTimeout(async () => {
       setCurrentDiagram(newContent);
-      await renderDiagram(newContent);
-    }, 100); // Adjust buffer time as needed
+      // Don't show errors during streaming updates
+      renderDiagram(newContent).catch(console.error);
+    }, 100);
   };
 
   // Handle mouse wheel zoom
@@ -392,7 +616,7 @@ export default function DiagramEditor({
     setError('');
 
     try {
-      // Add user message to chat history with proper type
+      // Add user message to chat history
       setChatHistory(prev => [...prev, {
         role: 'user' as const,
         content: promptText,
@@ -400,11 +624,9 @@ export default function DiagramEditor({
         diagramVersion: currentDiagram
       }]);
 
-      // Get the current diagram version and SVG
       const currentVersion = currentDiagram;
       const currentSvg = svgRef.current?.querySelector('svg')?.outerHTML || '';
 
-      // Create the final prompt with context and current diagram
       const finalPrompt = `Current diagram:
 \`\`\`mermaid
 ${currentVersion}
@@ -413,13 +635,11 @@ ${currentVersion}
 ${documentSummary ? `Document context: ${documentSummary}\n\n` : ''}
 Previous conversation:
 ${chatHistory
-  .slice(-3) // Only include last 3 messages for context
+  .slice(-3)
   .map(msg => `${msg.role}: ${msg.content}`)
   .join('\n')}
 
-Requested changes: ${promptText}
-
-Please modify the current diagram based on these changes. Return the complete updated diagram.`;
+Requested changes: ${promptText}`;
 
       const response = await fetch('/api/diagrams', {
         method: 'POST',
@@ -434,14 +654,12 @@ Please modify the current diagram based on these changes. Return the complete up
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to generate diagram');
+        throw new Error('Failed to generate diagram');
       }
 
-      // Handle streaming response
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
-      let currentResponse = '';
+      let finalDiagram: string | null = null;
 
       if (!reader) throw new Error('Failed to get response reader');
 
@@ -458,44 +676,52 @@ Please modify the current diagram based on these changes. Return the complete up
         for (const message of messages) {
           if (message.mermaidSyntax) {
             updateDiagramWithBuffer(message.mermaidSyntax);
-            currentResponse = message.mermaidSyntax;
             
             if (message.isComplete) {
-              setCurrentDiagram(message.mermaidSyntax);
-              await renderDiagram(message.mermaidSyntax);
-              
-              // Save to database
-              const historyResponse = await fetch(`/api/projects/${projectId}/history`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  prompt: promptText,
-                  diagram: message.mermaidSyntax,
-                  updateType: 'chat'
-                }),
-              });
-
-              if (!historyResponse.ok) {
-                console.error('Failed to save history');
-              }
-
-              // Update the chat history addition with proper type
-              setChatHistory(prev => [...prev, {
-                role: 'assistant' as const,
-                content: 'Updated diagram based on your request.',
-                timestamp: new Date(),
-                diagramVersion: message.mermaidSyntax
-              }]);
-
-              if (prompt) setPrompt('');
-              router.refresh();
-              break;
+              finalDiagram = message.mermaidSyntax;
             }
           }
         }
       }
+
+      if (finalDiagram) {
+        // Only add success message if we have a final diagram
+        setChatHistory(prev => [...prev, {
+          role: 'assistant' as const,
+          content: 'Diagram updated successfully.',
+          timestamp: new Date(),
+          diagramVersion: finalDiagram
+        }]);
+
+        // Save to database
+        await fetch(`/api/projects/${projectId}/history`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: promptText,
+            diagram: finalDiagram,
+            updateType: 'chat'
+          }),
+        });
+
+        // Final render
+        const renderSuccess = await renderDiagram(finalDiagram);
+        if (!renderSuccess) {
+          throw new Error('Failed to render the final diagram');
+        }
+
+        if (prompt) setPrompt('');
+        router.refresh();
+      } else {
+        throw new Error('No valid diagram was generated');
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
+      // Only show error in chat for complete failures
+      setChatHistory(prev => [...prev, {
+        role: 'system' as const,
+        content: `Error: ${err instanceof Error ? err.message : 'Failed to generate diagram'}`,
+        timestamp: new Date()
+      }]);
     } finally {
       setIsGenerating(false);
       if (bufferTimeoutRef.current) {
@@ -633,158 +859,10 @@ Please modify the current diagram based on these changes. Return the complete up
     }
   };
 
-  // Add this component for chat messages
-  const ChatMessage = ({ message }) => {
-    const [isExpanded, setIsExpanded] = useState(false);
-    const isSystem = message.role === 'system';
-    const isDocument = message.role === 'document';
-    const isUser = message.role === 'user';
-    const isAssistant = message.role === 'assistant';
-    
-    // For document messages, show a preview of the content
-    if (isDocument) {
-      const preview = message.content.slice(0, 150) + (message.content.length > 150 ? '...' : '');
-      
-      return (
-        <div className="flex justify-start mb-4">
-          <div className="max-w-[80%] rounded-lg p-4 bg-blue-50 dark:bg-blue-900/20">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center space-x-2 text-blue-600 dark:text-blue-400">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" />
-                </svg>
-                <span className="text-sm font-medium">Document Content</span>
-              </div>
-              <button
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="text-blue-500 hover:text-blue-600 dark:text-blue-400 
-                  dark:hover:text-blue-300 transition-colors"
-              >
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  className={`h-4 w-4 transform transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                  viewBox="0 0 20 20" 
-                  fill="currentColor"
-                >
-                  <path fillRule="evenodd" 
-                    d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" 
-                    clipRule="evenodd" 
-                  />
-                </svg>
-              </button>
-            </div>
-            <div className="text-sm text-blue-600 dark:text-blue-400">
-              {isExpanded ? (
-                <div className="whitespace-pre-wrap">{message.content}</div>
-              ) : (
-                <div>
-                  {preview}
-                  {message.content.length > 150 && (
-                    <button
-                      onClick={() => setIsExpanded(true)}
-                      className="text-blue-500 hover:text-blue-600 dark:text-blue-400 
-                        dark:hover:text-blue-300 ml-1 text-sm font-medium"
-                    >
-                      Show more
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-            <div className="mt-2 text-xs text-blue-400 dark:text-blue-500">
-              {formatTime(new Date(message.timestamp))}
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    // Return original message format for non-document messages
-    return (
-      <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
-        <div className={`
-          max-w-[80%] rounded-lg p-4 
-          ${isSystem ? 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300' :
-            isUser ? 'bg-secondary/10 text-secondary dark:text-secondary-light' :
-            'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700'}
-        `}>
-          {/* Message header with collapse button for long messages */}
-          {message.content.length > 150 && (
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-xs text-gray-500">
-                {isUser ? 'Your prompt' : 'Assistant response'}
-              </div>
-              <button
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="text-gray-400 hover:text-gray-600 dark:text-gray-500 
-                  dark:hover:text-gray-300 transition-colors"
-              >
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  className={`h-4 w-4 transform transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                  viewBox="0 0 20 20" 
-                  fill="currentColor"
-                >
-                  <path fillRule="evenodd" 
-                    d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" 
-                    clipRule="evenodd" 
-                  />
-                </svg>
-              </button>
-            </div>
-          )}
-
-          {/* Message content */}
-          <div className="text-sm">
-            {message.content.length > 150 ? (
-              isExpanded ? (
-                <div className="whitespace-pre-wrap">{message.content}</div>
-              ) : (
-                <div>
-                  {message.content.slice(0, 150)}...
-                  <button
-                    onClick={() => setIsExpanded(true)}
-                    className="text-secondary hover:text-secondary-dark dark:text-secondary-light 
-                      dark:hover:text-secondary ml-1 text-sm font-medium"
-                  >
-                    Show more
-                  </button>
-                </div>
-              )
-            ) : (
-              message.content
-            )}
-          </div>
-
-          {/* Diagram version button */}
-          {message.diagramVersion && (
-            <div className="mt-2 space-y-2">
-              <div className="text-xs text-gray-500">Changes applied to diagram:</div>
-              <button 
-                onClick={() => {
-                  setCurrentDiagram(message.diagramVersion);
-                  renderDiagram(message.diagramVersion);
-                }}
-                className="w-full px-3 py-2 bg-secondary/5 hover:bg-secondary/10 
-                  rounded-lg transition-colors text-xs text-secondary 
-                  hover:text-secondary-dark flex items-center justify-center space-x-2"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                  <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-                </svg>
-                <span>View this version</span>
-              </button>
-            </div>
-          )}
-
-          <div className="mt-1 text-xs text-gray-400">
-            {formatTime(new Date(message.timestamp))}
-          </div>
-        </div>
-      </div>
-    );
-  };
+  const handleDiagramVersionSelect = useCallback((version: string) => {
+    setCurrentDiagram(version);
+    renderDiagram(version);
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
@@ -864,7 +942,7 @@ Please modify the current diagram based on these changes. Return the complete up
                 className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                  <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L10 10.586 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
                 </svg>
               </button>
             </div>
@@ -895,7 +973,11 @@ Please modify the current diagram based on these changes. Return the complete up
                 scrollbar-thin scrollbar-thumb-secondary/10 hover:scrollbar-thumb-secondary/20 
                 scrollbar-track-transparent">
                 {chatHistory.map((message, index) => (
-                  <ChatMessage key={index} message={message} />
+                  <ChatMessage 
+                    key={index} 
+                    message={message} 
+                    onDiagramVersionSelect={handleDiagramVersionSelect}
+                  />
                 ))}
               </div>
             </div>
@@ -1163,7 +1245,7 @@ Please modify the current diagram based on these changes. Return the complete up
                   title="Show AI Assistant"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10 10.586 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
                   </svg>
                 </button>
               )}
@@ -1171,7 +1253,7 @@ Please modify the current diagram based on these changes. Return the complete up
               <div className="flex items-center space-x-1 bg-white/10 dark:bg-gray-800/50 rounded-lg p-1">
                 <button onClick={() => setScale(s => Math.min(s + 0.1, 5))} className="p-1.5 hover:bg-white/10 rounded-md transition-colors" title="Zoom In">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                    <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 100-2v-3H6a1 1 0 100-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
                   </svg>
                 </button>
                 <button onClick={() => setScale(s => Math.max(s - 0.1, 0.1))} className="p-1.5 hover:bg-white/10 rounded-md transition-colors" title="Zoom Out">
@@ -1241,36 +1323,35 @@ Please modify the current diagram based on these changes. Return the complete up
             onMouseDown={handleMouseDown}
             style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
           >
+            {isGenerating && (
+              <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 flex items-center space-x-3">
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-secondary border-t-transparent"></div>
+                  <span className="text-sm text-gray-600 dark:text-gray-300">Generating diagram...</span>
+                </div>
+              </div>
+            )}
+            
             <div 
               className="absolute inset-0 w-full h-full flex items-center justify-center"
               style={{
                 transform: `translate3d(${position.x}px, ${position.y}px, 0) scale(${scale})`,
-                transition: isDragging ? 'transform 0.08s cubic-bezier(0.4, 0, 0.2, 1)' : 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                transition: isDragging ? 'none' : 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                 willChange: 'transform',
               }}
             >
-              {isGenerating && !svgOutput && (
-                <div className="absolute inset-0 bg-black/10 backdrop-blur-sm flex items-center justify-center z-10">
-                  <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-lg flex items-center space-x-3">
-                    <svg className="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    <span>Generating diagram...</span>
-                  </div>
-                </div>
-              )}
               {svgOutput ? (
                 <div
                   ref={svgRef}
                   dangerouslySetInnerHTML={{ __html: svgOutput }}
                   className="w-full h-full flex items-center justify-center"
+                  style={{ minWidth: '100%', minHeight: '100%' }}
                 />
               ) : (
                 <div className="text-gray-400 flex flex-col items-center glass-panel rounded-2xl p-8">
                   <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-secondary to-accent-2 flex items-center justify-center text-white mb-4">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
                     </svg>
                   </div>
                   <p className="text-lg font-medium text-gray-600 dark:text-gray-300">No diagram yet</p>
@@ -1283,4 +1364,6 @@ Please modify the current diagram based on these changes. Return the complete up
       </div>
     </div>
   );
-} 
+};
+
+export default DiagramEditor; 

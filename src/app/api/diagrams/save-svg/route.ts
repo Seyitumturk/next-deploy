@@ -15,21 +15,30 @@ export async function POST(req: Request) {
 
     const { projectId, gptResponseId, svg } = await req.json();
 
-    // Update the project
-    const project = await Project.findById(projectId);
-    if (!project) {
+    // Update the project using findOneAndUpdate to avoid version conflicts
+    const updatedProject = await Project.findOneAndUpdate(
+      { _id: projectId },
+      {
+        $set: { diagramSVG: svg },
+        $push: {
+          history: {
+            $each: [{
+              diagram_img: svg,
+              updateType: 'chat',
+              updatedAt: new Date()
+            }],
+            $position: 0
+          }
+        }
+      },
+      { new: true }
+    );
+
+    if (!updatedProject) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
-    // Update the most recent history item with the SVG
-    if (project.history.length > 0) {
-      project.history[0].diagram_img = svg;
-    }
-    project.diagramSVG = svg;
-    project.markModified('history');
-    await project.save();
-
-    // Update the GPT response
+    // Update the GPT response if provided
     if (gptResponseId) {
       await GptResponse.findByIdAndUpdate(gptResponseId, {
         diagramSvg: svg
