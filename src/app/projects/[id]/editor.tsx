@@ -46,6 +46,7 @@ export default function DiagramEditor({
   const [editorMode, setEditorMode] = useState<'chat' | 'code'>('chat');
   const [isEditorReady, setIsEditorReady] = useState(false);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
+  const [documentSummary, setDocumentSummary] = useState<string>('');
 
   useEffect(() => {
     if (initialDiagram) {
@@ -321,12 +322,17 @@ export default function DiagramEditor({
 
   async function handleGenerateDiagram(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!prompt.trim()) return;
+    if (!prompt.trim() && !documentSummary) return;
 
     setIsGenerating(true);
     setError('');
 
     try {
+      // Combine document summary with user's input for the final prompt
+      const finalPrompt = documentSummary 
+        ? `Based on this document content: ${documentSummary}\n\n${prompt ? `Additional modifications: ${prompt}` : ''}`
+        : prompt;
+
       // Initial request without SVG
       const response = await fetch('/api/diagrams', {
         method: 'POST',
@@ -336,7 +342,7 @@ export default function DiagramEditor({
         body: JSON.stringify({
           projectId,
           diagramType,
-          textPrompt: prompt,
+          textPrompt: finalPrompt,
         }),
       });
 
@@ -393,7 +399,8 @@ export default function DiagramEditor({
                 console.error('Failed to save SVG');
               }
 
-              setPrompt('');
+              // Only clear the user's additional input, keep the document summary
+              if (prompt) setPrompt('');
               router.refresh();
               break;
             }
@@ -494,7 +501,36 @@ export default function DiagramEditor({
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    await processDocument(file);
+    
+    setIsProcessingFile(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('diagramType', diagramType);
+
+      const response = await fetch('/api/process-document', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to process document');
+      }
+
+      const { summary, message } = await response.json();
+      setDocumentSummary(summary);
+      setPrompt(''); // Clear the prompt for user's additional input
+      
+      // Show success message to user
+      setError(message);
+
+    } catch (error) {
+      console.error('Error processing document:', error);
+      setError(error instanceof Error ? error.message : 'Failed to process document');
+    } finally {
+      setIsProcessingFile(false);
+    }
   };
 
   return (
@@ -708,26 +744,59 @@ export default function DiagramEditor({
                   </button>
 
                   <button
-                    onClick={() => {/* handle DOCX upload */}}
+                    onClick={() => document.getElementById('docx-upload')?.click()}
+                    disabled={isProcessingFile}
                     className="flex items-center space-x-2 px-3 py-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 
                       hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm font-medium text-gray-600 dark:text-gray-300"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-500" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M21 8V7L18 4H3V20H11V18H5V6H17V9H19V8H21M12.8 16.8L12 18L11.3 16.8L10 17L10.9 15.5L9.2 14.8L10.6 14.3L11 13L12 14.2L13.3 13L13.8 14.3L15.2 14.8L13.5 15.5L14.4 17L12.8 16.8Z" />
-                    </svg>
+                    {isProcessingFile ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500" />
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-500" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M6,2H14L20,8V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V4A2,2 0 0,1 6,2M13,3.5V9H18.5L13,3.5M7,13V15H17V13H7M7,17V19H17V17H7Z" />
+                      </svg>
+                    )}
                     <span>Word</span>
                   </button>
 
                   <button
-                    onClick={() => {/* handle PPTX upload */}}
+                    onClick={() => document.getElementById('pptx-upload')?.click()}
+                    disabled={isProcessingFile}
                     className="flex items-center space-x-2 px-3 py-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 
                       hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm font-medium text-gray-600 dark:text-gray-300"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-orange-500" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M21 8V7L18 4H3V20H11V18H5V6H17V9H19V8H21M13.8 22H14.5V20.3L15.8 21.2L16.2 20.5L14.9 19.6L16.2 18.7L15.8 18L14.5 18.9V17.2H13.8V18.9L12.5 18L12.1 18.7L13.4 19.6L12.1 20.5L12.5 21.2L13.8 20.3V22M19.8 22H20.5V20.3L21.8 21.2L22.2 20.5L20.9 19.6L22.2 18.7L21.8 18L20.5 18.9V17.2H19.8V18.9L18.5 18L18.1 18.7L19.4 19.6L18.1 20.5L18.5 21.2L19.8 20.3V22M16.8 22H17.5V20.3L18.8 21.2L19.2 20.5L17.9 19.6L19.2 18.7L18.8 18L17.5 18.9V17.2H16.8V18.9L15.5 18L15.1 18.7L16.4 19.6L15.1 20.5L15.5 21.2L16.8 20.3V22Z" />
-                    </svg>
+                    {isProcessingFile ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-500" />
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-orange-500" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M6,2H14L20,8V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V4A2,2 0 0,1 6,2M13,3.5V9H18.5L13,3.5M8,11V13H16V11H8M8,15V17H16V15H8Z" />
+                      </svg>
+                    )}
                     <span>PowerPoint</span>
                   </button>
+
+                  {/* Hidden File Inputs */}
+                  <input
+                    id="pdf-upload"
+                    type="file"
+                    accept=".pdf"
+                    className="hidden"
+                    onChange={handleFileUpload}
+                  />
+                  <input
+                    id="docx-upload"
+                    type="file"
+                    accept=".docx"
+                    className="hidden"
+                    onChange={handleFileUpload}
+                  />
+                  <input
+                    id="pptx-upload"
+                    type="file"
+                    accept=".pptx"
+                    className="hidden"
+                    onChange={handleFileUpload}
+                  />
                 </div>
               </div>
 
