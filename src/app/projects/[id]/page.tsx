@@ -112,6 +112,7 @@ export default async function ProjectPage({ params }: { params: { id: string } }
         diagramType={project.diagramType}
         initialDiagram={currentDiagram}
         user={userDisplayData}
+        history={project.history}
       />
     </main>
   );

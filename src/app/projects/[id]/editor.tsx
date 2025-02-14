@@ -19,14 +19,31 @@ interface EditorProps {
     credits: number;
     initials: string;
   };
+  history: {
+    _id: string;
+    prompt?: string;
+    diagram: string;
+    updateType: 'chat' | 'code' | 'reversion';
+    updatedAt: string;
+  }[];
 }
+
+// Add this helper function at the top of your file, outside the component
+const formatTime = (date: Date) => {
+  return date.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
+};
 
 export default function DiagramEditor({ 
   projectId, 
   projectTitle,
   diagramType, 
   initialDiagram,
-  user 
+  user,
+  history
 }: EditorProps) {
   const router = useRouter();
   const [prompt, setPrompt] = useState('');
@@ -47,6 +64,18 @@ export default function DiagramEditor({
   const [isEditorReady, setIsEditorReady] = useState(false);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
   const [documentSummary, setDocumentSummary] = useState<string>('');
+  const [chatHistory, setChatHistory] = useState(() => 
+    history
+      .filter(item => item.updateType === 'chat')
+      .map(item => ({
+        role: item.prompt ? 'user' : 'assistant',
+        content: item.prompt || 'Updated diagram based on your request.',
+        timestamp: new Date(item.updatedAt),
+        diagramVersion: item.diagram
+      }))
+      .reverse()
+  );
+  const [showFileUpload, setShowFileUpload] = useState(false);
 
   useEffect(() => {
     if (initialDiagram) {
@@ -320,29 +349,51 @@ export default function DiagramEditor({
     });
   };
 
-  async function handleGenerateDiagram(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!prompt.trim() && !documentSummary) return;
+  const handleGenerateDiagram = async (e: React.FormEvent<HTMLFormElement> | null, initialPrompt?: string) => {
+    if (e) e.preventDefault();
+    const promptText = initialPrompt || prompt;
+    if (!promptText.trim() && !documentSummary) return;
 
     setIsGenerating(true);
     setError('');
 
     try {
-      // Combine document summary with user's input for the final prompt
-      const finalPrompt = documentSummary 
-        ? `Based on this document content: ${documentSummary}\n\n${prompt ? `Additional modifications: ${prompt}` : ''}`
-        : prompt;
+      // Add user message to chat history
+      setChatHistory(prev => [...prev, {
+        role: 'user',
+        content: promptText,
+        timestamp: new Date(),
+        diagramVersion: currentDiagram
+      }]);
 
-      // Initial request without SVG
+      // Get the current diagram version
+      const currentVersion = currentDiagram;
+
+      // Create the final prompt with context and current diagram
+      const finalPrompt = `Current diagram:
+\`\`\`mermaid
+${currentVersion}
+\`\`\`
+
+${documentSummary ? `Document context: ${documentSummary}\n\n` : ''}
+Previous conversation:
+${chatHistory
+  .slice(-3) // Only include last 3 messages for context
+  .map(msg => `${msg.role}: ${msg.content}`)
+  .join('\n')}
+
+Requested changes: ${promptText}
+
+Please modify the current diagram based on these changes. Return the complete updated diagram.`;
+
       const response = await fetch('/api/diagrams', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           projectId,
           diagramType,
           textPrompt: finalPrompt,
+          currentDiagram: currentVersion
         }),
       });
 
@@ -354,10 +405,9 @@ export default function DiagramEditor({
       // Handle streaming response
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
+      let currentResponse = '';
 
-      if (!reader) {
-        throw new Error('Failed to get response reader');
-      }
+      if (!reader) throw new Error('Failed to get response reader');
 
       while (true) {
         const { done, value } = await reader.read();
@@ -372,34 +422,35 @@ export default function DiagramEditor({
         for (const message of messages) {
           if (message.mermaidSyntax) {
             updateDiagramWithBuffer(message.mermaidSyntax);
+            currentResponse = message.mermaidSyntax;
             
             if (message.isComplete) {
-              // Final update
               setCurrentDiagram(message.mermaidSyntax);
               await renderDiagram(message.mermaidSyntax);
               
-              // Now get the SVG after it's been rendered
-              const currentSvg = svgRef.current?.innerHTML || '';
-              console.log('Final SVG:', currentSvg ? currentSvg.substring(0, 100) + '...' : 'No SVG available');
-
-              // Send a follow-up request to save the SVG
-              const svgResponse = await fetch('/api/diagrams/save-svg', {
+              // Save to database
+              const historyResponse = await fetch(`/api/projects/${projectId}/history`, {
                 method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                  projectId,
-                  gptResponseId: message.gptResponseId,
-                  svg: currentSvg,
+                  prompt: promptText,
+                  diagram: message.mermaidSyntax,
+                  updateType: 'chat'
                 }),
               });
 
-              if (!svgResponse.ok) {
-                console.error('Failed to save SVG');
+              if (!historyResponse.ok) {
+                console.error('Failed to save history');
               }
 
-              // Only clear the user's additional input, keep the document summary
+              // Add assistant response to chat history
+              setChatHistory(prev => [...prev, {
+                role: 'assistant',
+                content: 'Updated diagram based on your request.',
+                timestamp: new Date(),
+                diagramVersion: message.mermaidSyntax
+              }]);
+
               if (prompt) setPrompt('');
               router.refresh();
               break;
@@ -415,7 +466,7 @@ export default function DiagramEditor({
         clearTimeout(bufferTimeoutRef.current);
       }
     }
-  }
+  };
 
   const handleCodeChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newCode = e.target.value;
@@ -487,7 +538,7 @@ export default function DiagramEditor({
       setPrompt(diagramPrompt);
       
       // Trigger diagram generation
-      handleGenerateDiagram(new Event('submit') as any);
+      handleGenerateDiagram(null, diagramPrompt);
 
     } catch (error) {
       console.error('Error processing document:', error);
@@ -508,6 +559,13 @@ export default function DiagramEditor({
       formData.append('file', file);
       formData.append('diagramType', diagramType);
 
+      // Add document processing message to chat
+      setChatHistory(prev => [...prev, {
+        role: 'system',
+        content: `Processing ${file.name}...`,
+        timestamp: new Date()
+      }]);
+
       const response = await fetch('/api/process-document', {
         method: 'POST',
         body: formData,
@@ -520,17 +578,176 @@ export default function DiagramEditor({
 
       const { summary, message } = await response.json();
       setDocumentSummary(summary);
-      setPrompt(''); // Clear the prompt for user's additional input
       
-      // Show success message to user
-      setError(message);
+      // Add document content to chat history
+      setChatHistory(prev => [...prev, {
+        role: 'document',
+        content: message,
+        timestamp: new Date()
+      }]);
 
+      // Generate initial diagram
+      handleGenerateDiagram(null, summary);
+      
     } catch (error) {
       console.error('Error processing document:', error);
       setError(error instanceof Error ? error.message : 'Failed to process document');
     } finally {
       setIsProcessingFile(false);
     }
+  };
+
+  // Add this component for chat messages
+  const ChatMessage = ({ message }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+    const isSystem = message.role === 'system';
+    const isDocument = message.role === 'document';
+    const isUser = message.role === 'user';
+    const isAssistant = message.role === 'assistant';
+    
+    // For document messages, show a preview of the content
+    if (isDocument) {
+      const preview = message.content.slice(0, 150) + (message.content.length > 150 ? '...' : '');
+      
+      return (
+        <div className="flex justify-start mb-4">
+          <div className="max-w-[80%] rounded-lg p-4 bg-blue-50 dark:bg-blue-900/20">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center space-x-2 text-blue-600 dark:text-blue-400">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" />
+                </svg>
+                <span className="text-sm font-medium">Document Content</span>
+              </div>
+              <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="text-blue-500 hover:text-blue-600 dark:text-blue-400 
+                  dark:hover:text-blue-300 transition-colors"
+              >
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  className={`h-4 w-4 transform transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                  viewBox="0 0 20 20" 
+                  fill="currentColor"
+                >
+                  <path fillRule="evenodd" 
+                    d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" 
+                    clipRule="evenodd" 
+                  />
+                </svg>
+              </button>
+            </div>
+            <div className="text-sm text-blue-600 dark:text-blue-400">
+              {isExpanded ? (
+                <div className="whitespace-pre-wrap">{message.content}</div>
+              ) : (
+                <div>
+                  {preview}
+                  {message.content.length > 150 && (
+                    <button
+                      onClick={() => setIsExpanded(true)}
+                      className="text-blue-500 hover:text-blue-600 dark:text-blue-400 
+                        dark:hover:text-blue-300 ml-1 text-sm font-medium"
+                    >
+                      Show more
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="mt-2 text-xs text-blue-400 dark:text-blue-500">
+              {formatTime(new Date(message.timestamp))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Return original message format for non-document messages
+    return (
+      <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
+        <div className={`
+          max-w-[80%] rounded-lg p-4 
+          ${isSystem ? 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300' :
+            isUser ? 'bg-secondary/10 text-secondary dark:text-secondary-light' :
+            'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700'}
+        `}>
+          {/* Message header with collapse button for long messages */}
+          {message.content.length > 150 && (
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-xs text-gray-500">
+                {isUser ? 'Your prompt' : 'Assistant response'}
+              </div>
+              <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="text-gray-400 hover:text-gray-600 dark:text-gray-500 
+                  dark:hover:text-gray-300 transition-colors"
+              >
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  className={`h-4 w-4 transform transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                  viewBox="0 0 20 20" 
+                  fill="currentColor"
+                >
+                  <path fillRule="evenodd" 
+                    d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" 
+                    clipRule="evenodd" 
+                  />
+                </svg>
+              </button>
+            </div>
+          )}
+
+          {/* Message content */}
+          <div className="text-sm">
+            {message.content.length > 150 ? (
+              isExpanded ? (
+                <div className="whitespace-pre-wrap">{message.content}</div>
+              ) : (
+                <div>
+                  {message.content.slice(0, 150)}...
+                  <button
+                    onClick={() => setIsExpanded(true)}
+                    className="text-secondary hover:text-secondary-dark dark:text-secondary-light 
+                      dark:hover:text-secondary ml-1 text-sm font-medium"
+                  >
+                    Show more
+                  </button>
+                </div>
+              )
+            ) : (
+              message.content
+            )}
+          </div>
+
+          {/* Diagram version button */}
+          {message.diagramVersion && (
+            <div className="mt-2 space-y-2">
+              <div className="text-xs text-gray-500">Changes applied to diagram:</div>
+              <button 
+                onClick={() => {
+                  setCurrentDiagram(message.diagramVersion);
+                  renderDiagram(message.diagramVersion);
+                }}
+                className="w-full px-3 py-2 bg-secondary/5 hover:bg-secondary/10 
+                  rounded-lg transition-colors text-xs text-secondary 
+                  hover:text-secondary-dark flex items-center justify-center space-x-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                  <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                </svg>
+                <span>View this version</span>
+              </button>
+            </div>
+          )}
+
+          <div className="mt-1 text-xs text-gray-400">
+            {formatTime(new Date(message.timestamp))}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -620,7 +837,9 @@ export default function DiagramEditor({
           {/* Conditional render chat or code editor */}
           {editorMode === 'chat' ? (
             // Existing chat UI
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 
+              scrollbar-thin scrollbar-thumb-secondary/10 hover:scrollbar-thumb-secondary/20 
+              scrollbar-track-transparent">
               {/* Welcome Message */}
               <div className="flex items-start space-x-3">
                 <div className="w-8 h-8 rounded-lg bg-secondary/10 flex items-center justify-center">
@@ -633,6 +852,15 @@ export default function DiagramEditor({
                     Hello! I'm your AI assistant. Describe what you'd like to create or modify in your diagram, and I'll help you bring it to life.
                   </p>
                 </div>
+              </div>
+
+              {/* Chat History */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 
+                scrollbar-thin scrollbar-thumb-secondary/10 hover:scrollbar-thumb-secondary/20 
+                scrollbar-track-transparent">
+                {chatHistory.map((message, index) => (
+                  <ChatMessage key={index} message={message} />
+                ))}
               </div>
             </div>
           ) : (
@@ -726,78 +954,113 @@ export default function DiagramEditor({
             <div className="p-4 border-t border-gray-200 dark:border-gray-800">
               {/* File Upload Options */}
               <div className="mb-4">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    onClick={() => document.getElementById('pdf-upload')?.click()}
-                    disabled={isProcessingFile}
-                    className="flex items-center space-x-2 px-3 py-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 
-                      hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm font-medium text-gray-600 dark:text-gray-300"
+                <button
+                  onClick={() => setShowFileUpload(!showFileUpload)}
+                  className="w-full flex items-center justify-between px-3 py-2 bg-white dark:bg-gray-800 
+                    rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 
+                    dark:hover:bg-gray-700 transition-colors text-sm font-medium 
+                    text-gray-600 dark:text-gray-300"
+                >
+                  <div className="flex items-center space-x-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M8 4a3 3 0 00-3 3v4a5 5 0 0010 0V7a1 1 0 112 0v4a7 7 0 11-14 0V7a5 5 0 0110 0v4a3 3 0 11-6 0V7a1 1 0 012 0v4a1 1 0 102 0V7a3 3 0 00-3-3z" clipRule="evenodd" />
+                    </svg>
+                    <span>Import from document</span>
+                  </div>
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    className={`h-4 w-4 transform transition-transform ${showFileUpload ? 'rotate-180' : ''}`} 
+                    viewBox="0 0 20 20" 
+                    fill="currentColor"
                   >
-                    {isProcessingFile ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-500" />
-                    ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-red-500" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M7 18H17V16H7V18M17 14H7V12H17V14M7 10H11V8H7V10M20.1 3H3.9C3.4 3 3 3.4 3 3.9V20.1C3 20.5 3.4 21 3.9 21H20.1C20.5 21 21 20.5 21 20.1V3.9C21 3.4 20.5 3 20.1 3M19 19H5V5H19V19Z" />
-                      </svg>
-                    )}
-                    <span>PDF</span>
-                  </button>
+                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
 
-                  <button
-                    onClick={() => document.getElementById('docx-upload')?.click()}
-                    disabled={isProcessingFile}
-                    className="flex items-center space-x-2 px-3 py-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 
-                      hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm font-medium text-gray-600 dark:text-gray-300"
-                  >
-                    {isProcessingFile ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500" />
-                    ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-500" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M6,2H14L20,8V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V4A2,2 0 0,1 6,2M13,3.5V9H18.5L13,3.5M7,13V15H17V13H7M7,17V19H17V17H7Z" />
-                      </svg>
-                    )}
-                    <span>Word</span>
-                  </button>
+                {/* Collapsible content */}
+                {showFileUpload && (
+                  <div className="mt-2 grid grid-cols-3 gap-2">
+                    <button
+                      onClick={() => document.getElementById('pdf-upload')?.click()}
+                      disabled={isProcessingFile}
+                      className="flex flex-col items-center justify-center p-3 bg-white dark:bg-gray-800 
+                        rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 
+                        dark:hover:bg-gray-700 transition-colors"
+                    >
+                      {isProcessingFile ? (
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-red-500" />
+                      ) : (
+                        <>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-500 mb-1" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M7 18H17V16H7V18M17 14H7V12H17V14M7 10H11V8H7V10M20.1 3H3.9C3.4 3 3 3.4 3 3.9V20.1C3 20.5 3.4 21 3.9 21H20.1C20.5 21 21 20.5 21 20.1V3.9C21 3.4 20.5 3 20.1 3M19 19H5V5H19V19Z" />
+                          </svg>
+                          <span className="text-xs">PDF</span>
+                        </>
+                      )}
+                    </button>
 
-                  <button
-                    onClick={() => document.getElementById('pptx-upload')?.click()}
-                    disabled={isProcessingFile}
-                    className="flex items-center space-x-2 px-3 py-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 
-                      hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm font-medium text-gray-600 dark:text-gray-300"
-                  >
-                    {isProcessingFile ? (
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-500" />
-                    ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-orange-500" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M6,2H14L20,8V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V4A2,2 0 0,1 6,2M13,3.5V9H18.5L13,3.5M8,11V13H16V11H8M8,15V17H16V15H8Z" />
-                      </svg>
-                    )}
-                    <span>PowerPoint</span>
-                  </button>
+                    <button
+                      onClick={() => document.getElementById('docx-upload')?.click()}
+                      disabled={isProcessingFile}
+                      className="flex flex-col items-center justify-center p-3 bg-white dark:bg-gray-800 
+                        rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 
+                        dark:hover:bg-gray-700 transition-colors"
+                    >
+                      {isProcessingFile ? (
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500" />
+                      ) : (
+                        <>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500 mb-1" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M6,2H14L20,8V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V4A2,2 0 0,1 6,2M13,3.5V9H18.5L13,3.5M7,13V15H17V13H7M7,17V19H17V17H7Z" />
+                          </svg>
+                          <span className="text-xs">Word</span>
+                        </>
+                      )}
+                    </button>
 
-                  {/* Hidden File Inputs */}
-                  <input
-                    id="pdf-upload"
-                    type="file"
-                    accept=".pdf"
-                    className="hidden"
-                    onChange={handleFileUpload}
-                  />
-                  <input
-                    id="docx-upload"
-                    type="file"
-                    accept=".docx"
-                    className="hidden"
-                    onChange={handleFileUpload}
-                  />
-                  <input
-                    id="pptx-upload"
-                    type="file"
-                    accept=".pptx"
-                    className="hidden"
-                    onChange={handleFileUpload}
-                  />
-                </div>
+                    <button
+                      onClick={() => document.getElementById('pptx-upload')?.click()}
+                      disabled={isProcessingFile}
+                      className="flex flex-col items-center justify-center p-3 bg-white dark:bg-gray-800 
+                        rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 
+                        dark:hover:bg-gray-700 transition-colors"
+                    >
+                      {isProcessingFile ? (
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-orange-500" />
+                      ) : (
+                        <>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-orange-500 mb-1" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M6,2H14L20,8V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V4A2,2 0 0,1 6,2M13,3.5V9H18.5L13,3.5M8,11V13H16V11H8M8,15V17H16V15H8Z" />
+                          </svg>
+                          <span className="text-xs">PowerPoint</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {/* Hidden File Inputs */}
+                <input
+                  id="pdf-upload"
+                  type="file"
+                  accept=".pdf"
+                  className="hidden"
+                  onChange={handleFileUpload}
+                />
+                <input
+                  id="docx-upload"
+                  type="file"
+                  accept=".docx"
+                  className="hidden"
+                  onChange={handleFileUpload}
+                />
+                <input
+                  id="pptx-upload"
+                  type="file"
+                  accept=".pptx"
+                  className="hidden"
+                  onChange={handleFileUpload}
+                />
               </div>
 
               {/* Existing code for error message */}
@@ -807,50 +1070,44 @@ export default function DiagramEditor({
                 </div>
               )}
 
-              {/* Rest of the chat input form */}
-              <form onSubmit={handleGenerateDiagram} className="space-y-4">
-                <div className="relative flex items-end">
-                  <textarea
-                    value={prompt}
-                    onChange={(e) => {
-                      setPrompt(e.target.value);
-                      e.target.style.height = 'inherit';
-                      e.target.style.height = `${Math.min(e.target.scrollHeight, 200)}px`;
-                    }}
-                    className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 
-                      px-4 pb-4 pt-3 pr-14 text-sm focus:ring-2 focus:ring-secondary/50 focus:border-transparent resize-none 
-                      min-h-[72px] max-h-[200px] transition-all duration-200
-                      placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:placeholder:text-transparent
-                      overflow-y-auto
-                      [&::-webkit-scrollbar]:w-2
-                      [&::-webkit-scrollbar-track]:bg-transparent
-                      [&::-webkit-scrollbar-thumb]:bg-gray-200
-                      [&::-webkit-scrollbar-thumb]:rounded-full
-                      dark:[&::-webkit-scrollbar-thumb]:bg-gray-700
-                      hover:[&::-webkit-scrollbar-thumb]:bg-gray-300
-                      dark:hover:[&::-webkit-scrollbar-thumb]:bg-gray-600
-                      align-bottom"
-                    placeholder="Describe your diagram modifications..."
-                    disabled={isGenerating}
-                    style={{ height: '72px' }}
-                  />
-                  <button
-                    type="submit"
-                    disabled={isGenerating || !prompt.trim()}
-                    className="absolute right-3 bottom-4 p-2.5 rounded-lg text-secondary hover:text-secondary-dark disabled:opacity-50 transition-colors"
-                  >
-                    {isGenerating ? (
-                      <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                    ) : (
-                      <svg className="h-5 w-5 rotate-90 transform" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
-                      </svg>
-                    )}
-                  </button>
-                </div>
+              {/* Input container with proper button positioning */}
+              <form onSubmit={(e) => handleGenerateDiagram(e)} className="relative">
+                <textarea
+                  value={prompt}
+                  onChange={(e) => {
+                    setPrompt(e.target.value);
+                    e.target.style.height = 'auto';
+                    e.target.style.height = `${Math.min(e.target.scrollHeight, 200)}px`;
+                  }}
+                  className="w-full rounded-xl border border-gray-200 dark:border-gray-700 
+                    bg-white dark:bg-gray-800 px-4 pb-4 pt-3 pr-14 text-sm 
+                    focus:ring-2 focus:ring-secondary/50 focus:border-transparent 
+                    resize-none min-h-[72px] max-h-[200px] transition-all duration-200 ease-in-out
+                    placeholder:text-gray-400 dark:placeholder:text-gray-500 
+                    focus:placeholder:text-transparent overflow-y-auto scrollbar-none"
+                  placeholder="Describe your diagram modifications..."
+                  disabled={isGenerating}
+                  style={{ height: '72px' }}
+                />
+                <button
+                  type="submit"
+                  disabled={!prompt.trim() || isGenerating}
+                  className="absolute right-2 bottom-2 p-2 text-secondary hover:text-secondary-dark 
+                    disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isGenerating ? (
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-secondary" />
+                  ) : (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      className="w-5 h-5"
+                    >
+                      <path d="M3.478 2.404a.75.75 0 00-.926.941l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.404z" />
+                    </svg>
+                  )}
+                </button>
               </form>
             </div>
           )}
@@ -895,7 +1152,7 @@ export default function DiagramEditor({
                   title="Reset View"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                    <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
                   </svg>
                 </button>
                 <div className="px-2 text-sm text-gray-500 dark:text-gray-400">
@@ -961,7 +1218,7 @@ export default function DiagramEditor({
                   <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-lg flex items-center space-x-3">
                     <svg className="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
                     <span>Generating diagram...</span>
                   </div>
