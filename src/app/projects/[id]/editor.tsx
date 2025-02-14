@@ -28,6 +28,21 @@ interface EditorProps {
   }[];
 }
 
+// Add these types at the top of the file
+interface ChatMessage {
+  role: 'user' | 'assistant' | 'system' | 'document';
+  content: string;
+  timestamp: Date;
+  diagramVersion?: string;
+}
+
+// Add this interface at the top of the file with other interfaces
+interface StreamMessage {
+  mermaidSyntax: string;
+  isComplete: boolean;
+  gptResponseId?: string;
+}
+
 // Add this helper function at the top of your file, outside the component
 const formatTime = (date: Date) => {
   return date.toLocaleTimeString([], {
@@ -64,11 +79,11 @@ export default function DiagramEditor({
   const [isEditorReady, setIsEditorReady] = useState(false);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
   const [documentSummary, setDocumentSummary] = useState<string>('');
-  const [chatHistory, setChatHistory] = useState(() => 
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>(() => 
     history
       .filter(item => item.updateType === 'chat')
       .map(item => ({
-        role: item.prompt ? 'user' : 'assistant',
+        role: item.prompt ? ('user' as const) : ('assistant' as const),
         content: item.prompt || 'Updated diagram based on your request.',
         timestamp: new Date(item.updatedAt),
         diagramVersion: item.diagram
@@ -84,7 +99,7 @@ export default function DiagramEditor({
     }
   }, [initialDiagram]);
 
-  // Enhanced rendering with error handling and retries
+  // Enhanced rendering with error handling, retries, and SVG saving
   const renderDiagram = async (diagramText: string): Promise<boolean> => {
     const maxRetries = 3;
     let currentTry = 0;
@@ -100,6 +115,25 @@ export default function DiagramEditor({
         
         const { svg } = await mermaid.render('diagram-' + Date.now(), diagramText);
         setSvgOutput(svg);
+
+        // Save the SVG to the database
+        try {
+          const response = await fetch('/api/diagrams/save-svg', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              projectId,
+              svg,
+            }),
+          });
+
+          if (!response.ok) {
+            console.error('Failed to save SVG');
+          }
+        } catch (error) {
+          console.error('Error saving SVG:', error);
+        }
+
         return true;
       } catch (err) {
         console.error(`Failed to render diagram (attempt ${currentTry + 1}/${maxRetries}):`, err);
@@ -358,16 +392,17 @@ export default function DiagramEditor({
     setError('');
 
     try {
-      // Add user message to chat history
+      // Add user message to chat history with proper type
       setChatHistory(prev => [...prev, {
-        role: 'user',
+        role: 'user' as const,
         content: promptText,
         timestamp: new Date(),
         diagramVersion: currentDiagram
       }]);
 
-      // Get the current diagram version
+      // Get the current diagram version and SVG
       const currentVersion = currentDiagram;
+      const currentSvg = svgRef.current?.querySelector('svg')?.outerHTML || '';
 
       // Create the final prompt with context and current diagram
       const finalPrompt = `Current diagram:
@@ -393,7 +428,8 @@ Please modify the current diagram based on these changes. Return the complete up
           projectId,
           diagramType,
           textPrompt: finalPrompt,
-          currentDiagram: currentVersion
+          currentDiagram: currentVersion,
+          clientSvg: currentSvg
         }),
       });
 
@@ -417,7 +453,7 @@ Please modify the current diagram based on these changes. Return the complete up
         const messages = chunk
           .split('\n\n')
           .filter(msg => msg.trim().startsWith('data: '))
-          .map(msg => JSON.parse(msg.replace('data: ', '')));
+          .map(msg => JSON.parse(msg.replace('data: ', ''))) as StreamMessage[];
 
         for (const message of messages) {
           if (message.mermaidSyntax) {
@@ -443,9 +479,9 @@ Please modify the current diagram based on these changes. Return the complete up
                 console.error('Failed to save history');
               }
 
-              // Add assistant response to chat history
+              // Update the chat history addition with proper type
               setChatHistory(prev => [...prev, {
-                role: 'assistant',
+                role: 'assistant' as const,
                 content: 'Updated diagram based on your request.',
                 timestamp: new Date(),
                 diagramVersion: message.mermaidSyntax
@@ -561,7 +597,7 @@ Please modify the current diagram based on these changes. Return the complete up
 
       // Add document processing message to chat
       setChatHistory(prev => [...prev, {
-        role: 'system',
+        role: 'system' as const,
         content: `Processing ${file.name}...`,
         timestamp: new Date()
       }]);
@@ -581,7 +617,7 @@ Please modify the current diagram based on these changes. Return the complete up
       
       // Add document content to chat history
       setChatHistory(prev => [...prev, {
-        role: 'document',
+        role: 'document' as const,
         content: message,
         timestamp: new Date()
       }]);
