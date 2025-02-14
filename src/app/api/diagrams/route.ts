@@ -9,6 +9,7 @@ import yaml from 'yaml';
 import fs from 'fs';
 import path from 'path';
 import mongoose from 'mongoose';
+import mermaid from 'mermaid';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -20,6 +21,14 @@ const ARTIFICIAL_DELAY = 400;
 // Load diagram definitions from YAML file
 const diagramConfigPath = path.join(process.cwd(), 'src/config/diagram-definitions.yml');
 const diagramConfig = yaml.parse(fs.readFileSync(diagramConfigPath, 'utf8'));
+
+// Initialize mermaid configuration
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'neutral',
+  securityLevel: 'loose',
+  fontFamily: 'var(--font-geist-sans)',
+});
 
 function getPromptForDiagramType(diagramType: string, userPrompt: string) {
   const config = diagramConfig.definitions[diagramType];
@@ -59,7 +68,10 @@ export async function POST(req: Request) {
 
     await connectDB();
 
-    const { textPrompt, diagramType, projectId } = await req.json();
+    const { textPrompt, diagramType, projectId, clientSvg } = await req.json();
+    
+    // Add debug logging
+    console.log('Received clientSvg:', clientSvg ? clientSvg.substring(0, 100) + '...' : 'No SVG received');
 
     // Validate diagram type
     if (!diagramConfig.definitions[diagramType]) {
@@ -90,7 +102,7 @@ export async function POST(req: Request) {
       async start(controller) {
         try {
           const completion = await openai.chat.completions.create({
-            model: "gpt-4-0125-preview",
+            model: "gpt-4o",
             messages: [
               {
                 role: "system",
@@ -132,6 +144,10 @@ export async function POST(req: Request) {
                 diagram += currentChunk.substring(0, currentChunk.indexOf('```'));
                 isCollectingDiagram = false;
 
+                // Use the client-provided SVG
+                const svgOutput = clientSvg;
+                console.log('Using SVG for save:', svgOutput ? svgOutput.substring(0, 100) + '...' : 'No SVG to save');
+
                 // Process any remaining lines in the buffer
                 if (lineBuffer.length > 0) {
                   diagram += lineBuffer.join('\n') + '\n';
@@ -145,19 +161,21 @@ export async function POST(req: Request) {
                 // Add final delay before completion
                 await new Promise(resolve => setTimeout(resolve, 800));
 
-                // Save the diagram
+                // Save with logging
                 const gptResponse = new GptResponse({
                   prompt: textPrompt,
                   gptResponse: diagram,
                   extractedSyntax: diagram.trim(),
+                  diagramSvg: svgOutput,
                 });
                 await gptResponse.save();
+                console.log('Saved GPT response with SVG:', gptResponse._id);
 
                 project.history.unshift({
                   _id: new mongoose.Types.ObjectId(),
                   prompt: textPrompt,
                   diagram: diagram.trim(),
-                  diagram_img: diagram.trim(),
+                  diagram_img: svgOutput,
                   updateType: 'chat',
                   updatedAt: new Date()
                 });
@@ -166,9 +184,10 @@ export async function POST(req: Request) {
                   project.history.pop();
                 }
 
-                project.diagramSVG = diagram.trim();
+                project.diagramSVG = svgOutput;
                 project.markModified('history');
                 await project.save();
+                console.log('Saved project with SVG:', project._id);
 
                 // Update user's token balance
                 await User.findByIdAndUpdate(user._id, {

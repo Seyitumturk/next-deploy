@@ -2,9 +2,9 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IGptResponse extends Document {
   prompt: string;
-  gptResponse: any;
+  gptResponse: string;
   extractedSyntax: string;
-  validSyntax?: boolean;
+  diagramSvg: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -15,15 +15,15 @@ const gptResponseSchema = new Schema<IGptResponse>({
     required: true,
   },
   gptResponse: {
-    type: Schema.Types.Mixed,
+    type: String,
     required: true,
   },
   extractedSyntax: {
     type: String,
     required: true,
   },
-  validSyntax: {
-    type: Boolean,
+  diagramSvg: {
+    type: String,
   },
 }, {
   timestamps: true,

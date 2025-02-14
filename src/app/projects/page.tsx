@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { UserButton } from '@clerk/nextjs';
 import CreateProjectModal from '@/components/CreateProjectModal';
 import { getProjects } from './actions';
+import DeleteProjectModal from '@/components/DeleteProjectModal';
 
 interface Project {
   _id: string;
@@ -32,6 +33,7 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -68,6 +70,10 @@ export default function ProjectsPage() {
       day: 'numeric',
       year: 'numeric',
     }).format(date);
+  };
+
+  const handleDeleteProject = (projectId: string) => {
+    setProjects(projects.filter(project => project._id !== projectId));
   };
 
   return (
@@ -149,55 +155,75 @@ export default function ProjectsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {projects.map((project) => (
-              <Link
+              <div
                 key={project._id}
-                href={`/projects/${project._id}`}
-                className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow group"
+                className="group relative bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
               >
-                {/* Diagram Preview */}
-                <div className="h-48 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900/50 dark:to-gray-800/50 border-b dark:border-gray-700/50 p-4 flex items-center justify-center relative overflow-hidden group-hover:from-gray-100 group-hover:to-gray-200 dark:group-hover:from-gray-800/50 dark:group-hover:to-gray-700/50 transition-all duration-300">
-                  {project.history?.[0]?.diagram_img ? (
-                    <div 
-                      dangerouslySetInnerHTML={{ __html: project.history[0].diagram_img }}
-                      className="w-full h-full flex items-center justify-center transform group-hover:scale-105 transition-transform duration-300"
-                    />
-                  ) : (
-                    <div className="relative flex items-center justify-center w-16 h-16">
-                      <div className="absolute inset-0 bg-gradient-to-br from-secondary/20 to-accent-2/20 blur-xl rounded-full transform scale-150" />
-                      <div className="w-10 h-10 transform group-hover:scale-110 transition-transform duration-300 relative z-10">
-                        {getDiagramIcon(project.diagramType)}
+                <Link
+                  href={`/projects/${project._id}`}
+                  className="block"
+                >
+                  {/* Diagram Preview */}
+                  <div className="h-48 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900/50 dark:to-gray-800/50 border-b dark:border-gray-700/50 p-4 flex items-center justify-center relative overflow-hidden group-hover:from-gray-100 group-hover:to-gray-200 dark:group-hover:from-gray-800/50 dark:group-hover:to-gray-700/50 transition-all duration-300">
+                    {project.history?.[0]?.diagram_img ? (
+                      <div 
+                        dangerouslySetInnerHTML={{ 
+                          __html: project.history[0].diagram_img 
+                        }}
+                        className="w-full h-full flex items-center justify-center transform group-hover:scale-105 transition-transform duration-300"
+                      />
+                    ) : (
+                      <div className="relative flex items-center justify-center w-16 h-16">
+                        <div className="absolute inset-0 bg-gradient-to-br from-secondary/20 to-accent-2/20 blur-xl rounded-full transform scale-150" />
+                        <div className="w-10 h-10 transform group-hover:scale-110 transition-transform duration-300 relative z-10">
+                          {getDiagramIcon(project.diagramType)}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Project Info */}
-                <div className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-lg mb-1 group-hover:text-primary transition-colors line-clamp-1">
-                        {project.title}
-                      </h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center space-x-3">
-                        <span className="w-5 h-5 flex items-center justify-center">
-                          <span className="w-4 h-4">
-                            {getDiagramIcon(project.diagramType)}
-                          </span>
-                        </span>
-                        <span className="capitalize">{project.diagramType.replace('_', ' ')} Diagram</span>
-                      </p>
-                    </div>
-                    <span className="text-sm text-gray-500 dark:text-gray-400">
-                      {formatDate(project.updatedAt)}
-                    </span>
+                    )}
                   </div>
-                  {project.description && (
-                    <p className="text-gray-600 dark:text-gray-400 text-sm line-clamp-2">
-                      {project.description}
-                    </p>
-                  )}
-                </div>
-              </Link>
+
+                  {/* Project Info */}
+                  <div className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-lg mb-1 group-hover:text-primary transition-colors line-clamp-1">
+                          {project.title}
+                        </h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center space-x-3">
+                          <span className="w-5 h-5 flex items-center justify-center">
+                            <span className="w-4 h-4">
+                              {getDiagramIcon(project.diagramType)}
+                            </span>
+                          </span>
+                          <span className="capitalize">{project.diagramType.replace('_', ' ')} Diagram</span>
+                        </p>
+                      </div>
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
+                        {formatDate(project.updatedAt)}
+                      </span>
+                    </div>
+                    {project.description && (
+                      <p className="text-gray-600 dark:text-gray-400 text-sm line-clamp-2">
+                        {project.description}
+                      </p>
+                    )}
+                  </div>
+                </Link>
+
+                {/* Delete Button */}
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setProjectToDelete(project);
+                  }}
+                  className="absolute top-2 right-2 p-2 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 dark:hover:bg-red-900/20"
+                  title="Delete project"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600 dark:text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
             ))}
           </div>
         )}
@@ -206,6 +232,16 @@ export default function ProjectsPage() {
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
         />
+        
+        {projectToDelete && (
+          <DeleteProjectModal
+            isOpen={!!projectToDelete}
+            projectId={projectToDelete._id}
+            projectTitle={projectToDelete.title}
+            onClose={() => setProjectToDelete(null)}
+            onDelete={handleDeleteProject}
+          />
+        )}
       </div>
     </div>
   );

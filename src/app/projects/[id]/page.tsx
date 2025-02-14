@@ -98,37 +98,20 @@ export default async function ProjectPage({ params }: { params: { id: string } }
   const { project, user } = await getProject(userId, params.id);
   const currentDiagram = project.history[0]?.diagram || '';
 
+  // Create user display data
+  const userDisplayData = {
+    credits: user.wordCountBalance,
+    initials: `${user.firstName[0]}${user.lastName[0]}`
+  };
+
   return (
     <main className="min-h-screen bg-background">
-      {/* Top Navigation */}
-      <nav className="bg-gray-900 text-white h-12">
-        <div className="container h-full mx-auto px-4 flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <Link href="/projects" className="flex items-center space-x-2 hover:opacity-80">
-              <img src="/logo-green.svg" alt="Chartable Logo" className="h-6 w-6" />
-              <span className="font-bold">{project.title}</span>
-            </Link>
-            <span className="text-sm text-gray-400">
-              {project.diagramType} diagram • Created {new Date(project.createdAt).toLocaleDateString()}
-            </span>
-          </div>
-          <div className="flex items-center space-x-4">
-            <div className="text-sm">
-              <span className="text-gray-400">Credits:</span>
-              <span className="ml-1 font-mono">{user.wordCountBalance.toLocaleString()}</span>
-            </div>
-            <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-white font-semibold">
-              {user.firstName[0]}{user.lastName[0]}
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* Editor */}
       <DiagramEditor
         projectId={project._id}
+        projectTitle={project.title}
         diagramType={project.diagramType}
         initialDiagram={currentDiagram}
+        user={userDisplayData}
       />
     </main>
   );
