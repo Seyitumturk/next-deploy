@@ -105,6 +105,73 @@ export default function ProjectsPage() {
       </nav>
 
       <div className="container mx-auto px-6 py-8">
+        {/* AI Quick Start Section */}
+        <div className="mb-12">
+          <div className="max-w-3xl mx-auto">
+            <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md rounded-2xl p-8 shadow-xl shadow-purple-500/10 border border-white/20 dark:border-white/10">
+              <form className="relative" onSubmit={async (e) => {
+                e.preventDefault();
+                const input = e.currentTarget.querySelector('input') as HTMLInputElement;
+                const prompt = input.value.trim();
+                if (!prompt) return;
+
+                try {
+                  // First, detect the diagram type
+                  const typeResponse = await fetch('/api/diagrams/detect-type', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt }),
+                  });
+
+                  if (!typeResponse.ok) {
+                    throw new Error('Failed to detect diagram type');
+                  }
+
+                  const { diagramType } = await typeResponse.json();
+
+                  // Then create the project with the detected type
+                  const projectResponse = await fetch('/api/projects', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      title: prompt,
+                      diagramType,
+                      description: prompt,
+                    }),
+                  });
+
+                  if (!projectResponse.ok) {
+                    throw new Error('Failed to create project');
+                  }
+
+                  const project = await projectResponse.json();
+                  router.push(`/projects/${project._id}`);
+                } catch (error) {
+                  console.error('Error:', error);
+                }
+              }}>
+                <input
+                  type="text"
+                  placeholder="Describe what you want to visualize..."
+                  className="w-full px-6 py-4 rounded-xl bg-black/20 border border-white/10 text-white placeholder-gray-400 
+                    focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent
+                    font-geist text-lg transition-all"
+                />
+                <button
+                  type="submit"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-lg 
+                    bg-primary/20 hover:bg-primary/30 text-primary-light transition-colors
+                    focus:outline-none focus:ring-2 focus:ring-primary/50"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-white">
             Diagrams

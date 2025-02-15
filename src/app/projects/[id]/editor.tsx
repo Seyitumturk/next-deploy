@@ -151,6 +151,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onDiagramVersionSele
   // Return original message format for non-document messages
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
+      {!isUser && (
+        <div className="w-8 h-8 rounded-lg bg-white dark:bg-white flex items-center justify-center hover:bg-secondary/10 transition-colors mr-3">
+          <svg className="w-5 h-5 text-black dark:text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
+          </svg>
+        </div>
+      )}
       <div className={`
         max-w-[80%] rounded-lg p-4 
         ${isSystem ? 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300' :
@@ -259,6 +266,7 @@ const DiagramEditor: React.FC<EditorProps> = ({
   const [isEditorReady, setIsEditorReady] = useState(false);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
   const [documentSummary, setDocumentSummary] = useState<string>('');
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>(() => {
     // Only keep actual user prompts from history
     const uniqueHistory = history
@@ -291,6 +299,24 @@ const DiagramEditor: React.FC<EditorProps> = ({
   });
   const [showFileUpload, setShowFileUpload] = useState(false);
   const [diagramError, setDiagramError] = useState<string | null>(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+
+  // Add smooth scroll effect when chat history updates
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      const container = chatContainerRef.current;
+      const scrollOptions: ScrollIntoViewOptions = {
+        behavior: 'smooth',
+        block: 'end',
+      };
+      
+      // Create a div element to scroll to
+      const scrollTarget = document.createElement('div');
+      container.appendChild(scrollTarget);
+      scrollTarget.scrollIntoView(scrollOptions);
+      container.removeChild(scrollTarget);
+    }
+  }, [chatHistory, isGenerating]);
 
   // Initialize with the latest diagram and SVG from history
   useEffect(() => {
@@ -922,7 +948,7 @@ Requested changes: ${promptText}`;
                   Credits: <span className="font-mono">{user.credits}</span>
                 </span>
               </div>
-              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-secondary to-accent-2 flex items-center justify-center text-white text-sm font-medium shadow-lg shadow-secondary/20">
+              <div className="h-8 w-8 rounded-full bg-white dark:bg-white flex items-center justify-center text-black text-sm font-medium shadow-lg">
                 {user.initials}
               </div>
             </div>
@@ -947,16 +973,10 @@ Requested changes: ${promptText}`;
           <div className="h-12 p-4 border-b border-gray-200 dark:border-gray-800 flex items-center">
             <div className="flex items-center justify-between w-full">
               <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-secondary to-accent-2 flex items-center justify-center text-white">
-                  {editorMode === 'chat' ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
-                    </svg>
-                  ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                    </svg>
-                  )}
+                <div className="w-8 h-8 rounded-lg bg-white dark:bg-white flex items-center justify-center hover:bg-secondary/10 transition-colors">
+                  <svg className="w-5 h-5 text-black dark:text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
+                  </svg>
                 </div>
                 <div>
                   <h2 className="text-base font-semibold text-gray-900 dark:text-white">
@@ -981,16 +1001,14 @@ Requested changes: ${promptText}`;
           {/* Conditional render chat or code editor */}
           {editorMode === 'chat' ? (
             // Existing chat UI
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 
-              scrollbar-thin scrollbar-thumb-secondary/10 hover:scrollbar-thumb-secondary/20 
-              scrollbar-track-transparent">
+            <div 
+              ref={chatContainerRef}
+              className="flex-1 overflow-y-auto p-4 space-y-4 
+                scrollbar-thin scrollbar-thumb-secondary/10 hover:scrollbar-thumb-secondary/20 
+                scrollbar-track-transparent"
+            >
               {/* Welcome Message */}
               <div className="flex items-start space-x-3">
-                <div className="w-8 h-8 rounded-lg bg-secondary/10 flex items-center justify-center">
-                  <svg className="w-5 h-5 text-secondary" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
-                  </svg>
-                </div>
                 <div className="flex-1 bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm">
                   <p className="text-gray-700 dark:text-gray-300">
                     Hello! I'm your AI assistant. Describe what you'd like to create or modify in your diagram, and I'll help you bring it to life.
@@ -1227,13 +1245,21 @@ Requested changes: ${promptText}`;
                     e.target.style.height = 'auto';
                     e.target.style.height = `${Math.min(e.target.scrollHeight, 200)}px`;
                   }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      if (prompt.trim() && !isGenerating) {
+                        handleGenerateDiagram(null);
+                      }
+                    }
+                  }}
                   className="w-full rounded-xl border border-gray-200 dark:border-gray-700 
                     bg-white dark:bg-gray-800 px-4 pb-4 pt-3 pr-14 text-sm 
                     focus:ring-2 focus:ring-secondary/50 focus:border-transparent 
                     resize-none min-h-[72px] max-h-[200px] transition-all duration-200 ease-in-out
                     placeholder:text-gray-400 dark:placeholder:text-gray-500 
                     focus:placeholder:text-transparent overflow-y-auto scrollbar-none"
-                  placeholder="Describe your diagram modifications..."
+                  placeholder="Describe your diagram modifications... (Press Enter to send, Shift+Enter for new line)"
                   disabled={isGenerating}
                   style={{ height: '72px' }}
                 />
@@ -1281,14 +1307,27 @@ Requested changes: ${promptText}`;
               )}
               <div className="h-6 border-r border-gray-200 dark:border-gray-700 mx-2" />
               <div className="flex items-center space-x-1 bg-white/10 dark:bg-gray-800/50 rounded-lg p-1">
-                <button onClick={() => setScale(s => Math.min(s + 0.1, 5))} className="p-1.5 hover:bg-white/10 rounded-md transition-colors" title="Zoom In">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 100-2v-3H6a1 1 0 100-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                <button 
+                  onClick={() => setScale(s => Math.min(s + 0.1, 5))} 
+                  className="p-1.5 hover:bg-primary/10 hover:text-primary dark:hover:text-primary-light rounded-md transition-all duration-200" 
+                  title="Zoom In"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    <line x1="11" y1="8" x2="11" y2="14"></line>
+                    <line x1="8" y1="11" x2="14" y2="11"></line>
                   </svg>
                 </button>
-                <button onClick={() => setScale(s => Math.max(s - 0.1, 0.1))} className="p-1.5 hover:bg-white/10 rounded-md transition-colors" title="Zoom Out">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clipRule="evenodd" />
+                <button 
+                  onClick={() => setScale(s => Math.max(s - 0.1, 0.1))} 
+                  className="p-1.5 hover:bg-primary/10 hover:text-primary dark:hover:text-primary-light rounded-md transition-all duration-200" 
+                  title="Zoom Out"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    <line x1="8" y1="11" x2="14" y2="11"></line>
                   </svg>
                 </button>
                 <button 
@@ -1296,52 +1335,94 @@ Requested changes: ${promptText}`;
                     setScale(1);
                     setPosition({ x: 0, y: 0 });
                   }} 
-                  className="p-1.5 hover:bg-white/10 rounded-md transition-colors" 
+                  className="p-1.5 hover:bg-primary/10 hover:text-primary dark:hover:text-primary-light rounded-md transition-all duration-200" 
                   title="Reset View"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                    <path d="M3 3v5h5"></path>
                   </svg>
                 </button>
-                <div className="px-2 text-sm text-gray-500 dark:text-gray-400">
+                <div className="px-2 text-sm text-gray-500 dark:text-gray-400 font-medium">
                   {Math.round(scale * 100)}%
                 </div>
               </div>
             </div>
 
             {/* Download Options */}
-            <div className="flex items-center space-x-2">
-              <div className="flex items-center space-x-1 bg-white/10 dark:bg-gray-800/50 rounded-lg p-1">
+            <div className="flex items-center">
+              <div className="relative">
                 <button
-                  onClick={downloadSVG}
-                  className="px-3 py-1.5 text-sm hover:bg-white/10 rounded-md transition-colors flex items-center space-x-1"
-                  title="Download SVG"
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  className="px-4 py-2 bg-white/10 dark:bg-gray-800/50 hover:bg-primary/10 dark:hover:bg-primary/10 
+                    text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary-light
+                    rounded-lg transition-all duration-200 flex items-center space-x-2 font-medium"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
                   </svg>
-                  <span>SVG</span>
+                  <span>Export</span>
                 </button>
-                <button
-                  onClick={() => downloadPNG(false)}
-                  className="px-3 py-1.5 text-sm hover:bg-white/10 rounded-md transition-colors flex items-center space-x-1"
-                  title="Download PNG with white background"
+                
+                {/* Inline Menu - Updated to be more compact */}
+                <div 
+                  className={`absolute right-0 top-0 h-10 bg-white dark:bg-gray-800 rounded-lg shadow-lg 
+                    ring-1 ring-black/5 dark:ring-white/10 flex items-center px-1
+                    transition-all duration-300 ease-out origin-right
+                    ${showExportMenu ? 'opacity-100 scale-x-100' : 'opacity-0 scale-x-0 pointer-events-none'}`}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                  <span>PNG</span>
-                </button>
-                <button
-                  onClick={() => downloadPNG(true)}
-                  className="px-3 py-1.5 text-sm hover:bg-white/10 rounded-md transition-colors flex items-center space-x-1"
-                  title="Download PNG with transparent background"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                  <span>Transparent</span>
-                </button>
+                  <button
+                    onClick={downloadSVG}
+                    className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/50 
+                      transition-colors group relative"
+                    title="Download SVG"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M4 22h14a2 2 0 0 0 2-2V7.5L14.5 2H6a2 2 0 0 0-2 2v4"></path>
+                      <polyline points="14 2 14 8 20 8"></polyline>
+                      <path d="M3 15h6"></path>
+                      <path d="M6 12v6"></path>
+                    </svg>
+                    <span className="absolute bottom-full right-0 mb-2 px-2 py-1 text-xs font-medium
+                      bg-gray-900 text-white rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                      SVG Vector
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => downloadPNG(false)}
+                    className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/50 
+                      transition-colors group relative"
+                    title="Download PNG with Background"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M4 22h14a2 2 0 0 0 2-2V7.5L14.5 2H6a2 2 0 0 0-2 2v4"></path>
+                      <polyline points="14 2 14 8 20 8"></polyline>
+                      <rect x="4" y="12" width="6" height="6"></rect>
+                    </svg>
+                    <span className="absolute bottom-full right-0 mb-2 px-2 py-1 text-xs font-medium
+                      bg-gray-900 text-white rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                      PNG with Background
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => downloadPNG(true)}
+                    className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/50 
+                      transition-colors group relative"
+                    title="Download Transparent PNG"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M4 22h14a2 2 0 0 0 2-2V7.5L14.5 2H6a2 2 0 0 0-2 2v4"></path>
+                      <polyline points="14 2 14 8 20 8"></polyline>
+                      <path d="M4 12h.01M8 12h.01M12 12h.01M16 12h.01M20 12h.01"></path>
+                    </svg>
+                    <span className="absolute bottom-full right-0 mb-2 px-2 py-1 text-xs font-medium
+                      bg-gray-900 text-white rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                      Transparent PNG
+                    </span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
