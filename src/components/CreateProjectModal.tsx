@@ -21,16 +21,16 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
   });
 
   const diagramTypes = [
-    { value: 'erd', label: 'Entity Relationship Diagram (ERD)', icon: '🗃️' },
-    { value: 'flowchart', label: 'Flowchart', icon: '📊' },
-    { value: 'sequence', label: 'Sequence Diagram', icon: '↔️' },
-    { value: 'class', label: 'Class Diagram', icon: '📦' },
-    { value: 'state', label: 'State Diagram', icon: '🔄' },
-    { value: 'mindmap', label: 'Mind Map', icon: '🧠' },
-    { value: 'timeline', label: 'Timeline', icon: '📅' },
-    { value: 'gantt', label: 'Gantt Chart', icon: '📋' },
-    { value: 'pie', label: 'Pie Chart', icon: '🥧' },
-    { value: 'git', label: 'Git Graph', icon: '🌳' },
+    { value: 'erd', label: 'Entity Relationship Diagram (ERD)', icon: '/diagrams/erd.svg' },
+    { value: 'flowchart', label: 'Flowchart', icon: '/diagrams/flowchart.svg' },
+    { value: 'sequence', label: 'Sequence Diagram', icon: '/diagrams/sequence.svg' },
+    { value: 'class', label: 'Class Diagram', icon: '/diagrams/class.svg' },
+    { value: 'state', label: 'State Diagram', icon: '/diagrams/state.svg' },
+    { value: 'mindmap', label: 'Mind Map', icon: '/diagrams/mindmap.svg' },
+    { value: 'timeline', label: 'Timeline', icon: '/diagrams/timeline.svg' },
+    { value: 'gantt', label: 'Gantt Chart', icon: '/diagrams/gantt.svg' },
+    { value: 'pie', label: 'Pie Chart', icon: '/diagrams/pie.svg' },
+    { value: 'git', label: 'Git Graph', icon: '/diagrams/git.svg' },
   ];
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -94,7 +94,7 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
             {/* Header */}
             <div className="p-6 border-b dark:border-gray-700">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-semibold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                <h2 className="text-2xl font-semibold font-geist text-white">
                   Create New Diagram
                 </h2>
                 <button
@@ -169,8 +169,23 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
                               : 'hover:border-primary/30'
                           }`}
                         >
-                          <span className="text-2xl mb-2 block">{type.icon}</span>
-                          <span className="font-medium">{type.label}</span>
+                          <div className="flex items-start space-x-3">
+                            <div className="w-10 h-10 flex-shrink-0 rounded-lg bg-white/10 dark:bg-white/5 backdrop-blur-sm shadow-lg shadow-purple-500/10 border border-white/20 dark:border-white/10 p-2">
+                              <img 
+                                src={type.icon} 
+                                alt={`${type.label} icon`}
+                                className="w-full h-full object-contain"
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <span className="font-medium block text-gray-900 dark:text-white">
+                                {type.label}
+                              </span>
+                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                Click to select
+                              </span>
+                            </div>
+                          </div>
                         </button>
                       ))}
                     </div>

@@ -79,19 +79,24 @@ export default function ProjectsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
       {/* Header */}
-      <nav className="bg-gray-900 text-white h-16">
-        <div className="container h-full mx-auto px-4 flex justify-between items-center">
+      <nav className="bg-gray-900 text-white h-16 shadow-lg shadow-gray-900/10 dark:shadow-black/20 backdrop-blur-md">
+        <div className="container h-full mx-auto px-6 flex justify-between items-center">
           <div className="flex items-center space-x-4">
-            <Link href="/" className="flex items-center space-x-2 hover:opacity-80">
+            <Link href="/" className="flex items-center space-x-3 hover:opacity-80 transition-all">
               <img src="/logo-green.svg" alt="Chartable Logo" className="h-8 w-8" />
-              <span className="text-xl font-bold">Chartable</span>
+              <span className="text-xl font-bold font-geist">Chartable</span>
             </Link>
           </div>
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-6">
             {user && (
-              <div className="text-sm">
-                <span className="text-gray-400">Credits:</span>
-                <span className="ml-1 font-mono">{user.wordCountBalance.toLocaleString()}</span>
+              <div className="flex items-center space-x-2 px-4 py-2 bg-white/10 rounded-lg backdrop-blur-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
+                </svg>
+                <span className="text-sm font-medium">
+                  <span className="text-gray-400">Credits:</span>
+                  <span className="ml-1 font-mono text-white">{user.wordCountBalance.toLocaleString()}</span>
+                </span>
               </div>
             )}
             <UserButton afterSignOutUrl="/" />
@@ -99,21 +104,14 @@ export default function ProjectsPage() {
         </div>
       </nav>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-6 py-8">
         <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              My Diagrams
-            </h1>
-            {user && (
-              <p className="text-gray-600 dark:text-gray-400 mt-2">
-                Token Balance: {user.wordCountBalance.toLocaleString()} words
-              </p>
-            )}
-          </div>
+          <h1 className="text-3xl font-bold text-white">
+            Diagrams
+          </h1>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors flex items-center space-x-2"
+            className="px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors flex items-center space-x-2 shadow-lg shadow-primary/20"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />

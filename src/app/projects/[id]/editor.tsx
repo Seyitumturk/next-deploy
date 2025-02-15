@@ -312,16 +312,22 @@ const DiagramEditor: React.FC<EditorProps> = ({
                 theme: 'neutral',
                 securityLevel: 'loose',
                 fontFamily: 'var(--font-geist-sans)',
-                logLevel: 1,
+                logLevel: 0, // Set to 0 to suppress all logs
                 deterministicIds: true,
                 sequence: { useMaxWidth: false },
                 er: { useMaxWidth: false },
                 flowchart: { useMaxWidth: false },
                 gantt: { useMaxWidth: false },
-                journey: { useMaxWidth: false },
+                journey: { useMaxWidth: false }
               });
 
-              const { svg } = await mermaid.render('diagram-' + Date.now(), latestHistoryItem.diagram);
+              // Create a temporary container that's hidden and isolated
+              const container = document.createElement('div');
+              container.style.cssText = 'position: absolute; visibility: hidden; width: 0; height: 0; overflow: hidden;';
+              document.body.appendChild(container);
+              
+              const { svg } = await mermaid.render('diagram-' + Date.now(), latestHistoryItem.diagram, container);
+              document.body.removeChild(container);
               setSvgOutput(svg);
             } catch (error) {
               console.error('Error rendering initial diagram:', error);
@@ -331,7 +337,13 @@ const DiagramEditor: React.FC<EditorProps> = ({
       } else if (initialDiagram) {
         setCurrentDiagram(initialDiagram);
         try {
-          const { svg } = await mermaid.render('diagram-' + Date.now(), initialDiagram);
+          // Create a temporary container that's hidden and isolated
+          const container = document.createElement('div');
+          container.style.cssText = 'position: absolute; visibility: hidden; width: 0; height: 0; overflow: hidden;';
+          document.body.appendChild(container);
+          
+          const { svg } = await mermaid.render('diagram-' + Date.now(), initialDiagram, container);
+          document.body.removeChild(container);
           setSvgOutput(svg);
         } catch (error) {
           console.error('Error rendering initial diagram:', error);
@@ -354,16 +366,22 @@ const DiagramEditor: React.FC<EditorProps> = ({
           theme: 'neutral',
           securityLevel: 'loose',
           fontFamily: 'var(--font-geist-sans)',
-          logLevel: 1,
+          logLevel: 0, // Set to 0 to suppress all logs
           deterministicIds: true,
           sequence: { useMaxWidth: false },
           er: { useMaxWidth: false },
           flowchart: { useMaxWidth: false },
           gantt: { useMaxWidth: false },
-          journey: { useMaxWidth: false },
+          journey: { useMaxWidth: false }
         });
         
-        const { svg } = await mermaid.render('diagram-' + Date.now(), diagramText);
+        // Create a temporary container that's hidden and isolated
+        const container = document.createElement('div');
+        container.style.cssText = 'position: absolute; visibility: hidden; width: 0; height: 0; overflow: hidden;';
+        document.body.appendChild(container);
+        
+        const { svg } = await mermaid.render('diagram-' + Date.now(), diagramText, container);
+        document.body.removeChild(container);
         setSvgOutput(svg);
 
         // Save SVG in the background without blocking
