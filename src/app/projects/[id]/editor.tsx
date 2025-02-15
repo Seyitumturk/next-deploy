@@ -259,17 +259,36 @@ const DiagramEditor: React.FC<EditorProps> = ({
   const [isEditorReady, setIsEditorReady] = useState(false);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
   const [documentSummary, setDocumentSummary] = useState<string>('');
-  const [chatHistory, setChatHistory] = useState<ChatMessage[]>(() => 
-    history
-      .filter(item => item.updateType === 'chat')
-      .map(item => ({
-        role: item.prompt ? ('user' as const) : ('assistant' as const),
-        content: item.prompt || 'Updated diagram based on your request.',
-        timestamp: new Date(item.updatedAt),
-        diagramVersion: item.diagram
-      }))
-      .reverse()
-  );
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>(() => {
+    // Only keep actual user prompts from history
+    const uniqueHistory = history
+      .filter(item => item.updateType === 'chat' && item.prompt)
+      .reduce((acc, item) => {
+        // Skip any messages that contain metadata markers
+        if (item.prompt && !item.prompt.includes('Current diagram:') && 
+            !item.prompt.includes('Previous conversation:') && 
+            !item.prompt.includes('Requested changes:')) {
+          // Check if we already have this message
+          const isDuplicate = acc.some(
+            msg => 
+              msg.content === item.prompt &&
+              Math.abs(new Date(msg.timestamp).getTime() - new Date(item.updatedAt).getTime()) < 1000
+          );
+          
+          if (!isDuplicate) {
+            acc.push({
+              role: 'user' as const,
+              content: item.prompt,
+              timestamp: new Date(item.updatedAt),
+              diagramVersion: item.diagram
+            });
+          }
+        }
+        return acc;
+      }, [] as ChatMessage[]);
+
+    return uniqueHistory.reverse();
+  });
   const [showFileUpload, setShowFileUpload] = useState(false);
   const [diagramError, setDiagramError] = useState<string | null>(null);
 
@@ -616,7 +635,7 @@ const DiagramEditor: React.FC<EditorProps> = ({
     setError('');
 
     try {
-      // Add user message to chat history
+      // Add user message to chat history with just the prompt
       setChatHistory(prev => [...prev, {
         role: 'user' as const,
         content: promptText,
@@ -627,7 +646,8 @@ const DiagramEditor: React.FC<EditorProps> = ({
       const currentVersion = currentDiagram;
       const currentSvg = svgRef.current?.querySelector('svg')?.outerHTML || '';
 
-      const finalPrompt = `Current diagram:
+      // Keep the metadata separate from what we store in history
+      const aiPrompt = `Current diagram:
 \`\`\`mermaid
 ${currentVersion}
 \`\`\`
@@ -647,7 +667,7 @@ Requested changes: ${promptText}`;
         body: JSON.stringify({
           projectId,
           diagramType,
-          textPrompt: finalPrompt,
+          textPrompt: aiPrompt,
           currentDiagram: currentVersion,
           clientSvg: currentSvg
         }),
@@ -685,20 +705,12 @@ Requested changes: ${promptText}`;
       }
 
       if (finalDiagram) {
-        // Only add success message if we have a final diagram
-        setChatHistory(prev => [...prev, {
-          role: 'assistant' as const,
-          content: 'Diagram updated successfully.',
-          timestamp: new Date(),
-          diagramVersion: finalDiagram
-        }]);
-
-        // Save to database
+        // Save to database with just the user's prompt
         await fetch(`/api/projects/${projectId}/history`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            prompt: promptText,
+            prompt: promptText, // Store only the user's prompt
             diagram: finalDiagram,
             updateType: 'chat'
           }),
@@ -1081,7 +1093,7 @@ Requested changes: ${promptText}`;
                 >
                   <div className="flex items-center space-x-2">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M8 4a3 3 0 00-3 3v4a5 5 0 0010 0V7a1 1 0 112 0v4a7 7 0 11-14 0V7a5 5 0 0110 0v4a3 3 0 11-6 0V7a1 1 0 012 0v4a1 1 0 102 0V7a3 3 0 00-3-3z" clipRule="evenodd" />
+                      <path fillRule="evenodd" d="M8 4a3 3 0 00-3 3v4a5 5 0 0010 0V7a1 1 0 112 0v4a7 7 0 11-14 0V7a3 3 0 013-3z" clipRule="evenodd" />
                     </svg>
                     <span>Import from document</span>
                   </div>
@@ -1129,7 +1141,7 @@ Requested changes: ${promptText}`;
                       ) : (
                         <>
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500 mb-1" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M6,2H14L20,8V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V4A2,2 0 0,1 6,2M13,3.5V9H18.5L13,3.5M7,13V15H17V13H7M7,17V19H17V17H7Z" />
+                            <path d="M6,2H14L20,8V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V4A2,2 0 0,1 6,2M13,3.5V9H18.5L13,3.5M8,11V13H16V11H8M8,15V17H16V15H8Z" />
                           </svg>
                           <span className="text-xs">Word</span>
                         </>
