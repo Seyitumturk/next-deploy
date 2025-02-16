@@ -69,6 +69,7 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
           error={editor.error}
           handleGenerateDiagram={editor.handleGenerateDiagram}
           handleFileUpload={editor.handleFileUpload}
+          processWebsite={editor.processWebsite}
           isProcessingFile={editor.isProcessingFile}
           documentSummary={editor.documentSummary}
           showFileUpload={editor.showFileUpload}

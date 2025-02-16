@@ -19,6 +19,7 @@ export interface PromptPanelProps {
   error: string;
   handleGenerateDiagram: (e: React.FormEvent<HTMLFormElement> | null, initialPrompt?: string) => void;
   handleFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  processWebsite: (url: string) => void;
   isProcessingFile: boolean;
   documentSummary: string;
   showFileUpload: boolean;
@@ -64,6 +65,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
   error,
   handleGenerateDiagram,
   handleFileUpload,
+  processWebsite,
   isProcessingFile,
   documentSummary,
   showFileUpload,
@@ -162,7 +164,10 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
                 <ChatMessage 
                   key={index} 
                   message={message} 
-                  onDiagramVersionSelect={handleDiagramVersionSelect} 
+                  onDiagramVersionSelect={handleDiagramVersionSelect}
+                  onRetry={() => {
+                    handleGenerateDiagram(null);
+                  }}
                 />
               ))}
             </div>
@@ -174,12 +179,8 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
               setShowFileUpload={setShowFileUpload}
               isProcessingFile={isProcessingFile}
               handleFileUpload={handleFileUpload}
+              processWebsite={processWebsite}
             />
-            {error && (
-              <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
-                {error}
-              </div>
-            )}
             <form onSubmit={(e) => handleGenerateDiagram(e)} className="relative">
               <textarea
                 value={prompt}
@@ -196,7 +197,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
                     }
                   }
                 }}
-                className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 pb-4 pt-3 pr-14 text-sm focus:ring-2 focus:ring-secondary/50 focus:border-transparent resize-none min-h-[72px] max-h-[200px] transition-all duration-200 ease-in-out placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:placeholder:text-transparent overflow-y-auto scrollbar-none"
+                className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 pb-4 pt-3 pr-14 text-sm focus:ring-2 focus:ring-secondary/50 focus:border-transparent resize-none min-h-[72px] max-h-[200px] transition-all duration-200 ease-in-out placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:placeholder:text-transparent overflow-y-auto scrollbar-none break-words overflow-x-hidden"
                 placeholder="Describe your diagram modifications... (Press Enter to send, Shift+Enter for new line)"
                 disabled={isGenerating}
                 style={{ height: '72px' }}

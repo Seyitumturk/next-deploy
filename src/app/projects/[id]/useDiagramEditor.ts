@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+                                                                  import { useState, useEffect, useRef, useCallback } from 'react';
 import mermaid from 'mermaid';
 import type { ChatMessageData } from './ChatMessage';
 
@@ -24,6 +24,7 @@ export interface EditorProps {
 function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram, user, history }: EditorProps) {
   // --- state definitions ---
   const [prompt, setPrompt] = useState('');
+  const [lastPrompt, setLastPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState('');
   const [showPromptPanel, setShowPromptPanel] = useState(true);
@@ -359,28 +360,34 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
   // --- generate diagram via API ---
   const handleGenerateDiagram = async (e: React.FormEvent<HTMLFormElement> | null, initialPrompt?: string) => {
     if (e) e.preventDefault();
-    const promptText = initialPrompt || prompt;
+    // Use the prompt if available; otherwise, fall back to the last used prompt.
+    const promptText = initialPrompt || (prompt.trim() ? prompt : lastPrompt);
     if (!promptText.trim() && !documentSummary) return;
+    // Store the prompt for later retries.
+    setLastPrompt(promptText);
+    // Clear the input box immediately after sending the diagram request
+    setPrompt('');
     setIsGenerating(true);
     setError('');
+    setSvgOutput('');  // Clean up previous SVG output before retrying
     try {
+      // Add the chat message before generating diagram
       setChatHistory(prev => [...prev, {
         role: 'user',
         content: promptText,
         timestamp: new Date(),
-        diagramVersion: currentDiagram
+        diagramVersion: currentDiagram // initial version may be empty or outdated
       }]);
       const currentVersion = currentDiagram;
       const currentSvg = svgRef.current?.querySelector('svg')?.outerHTML || '';
       
-      // Updated aiPrompt—using plain string concatenation to avoid nested backticks
+      // Updated aiPrompt using string concatenation
       const aiPrompt = `Current diagram:
 \`\`\`mermaid
 ${currentVersion}
 \`\`\`
 
-${documentSummary ? "Document context: " + documentSummary + "\n\n" : ""}
-Previous conversation:
+${documentSummary ? "Document context: " + documentSummary + "\n\n" : ""}Previous conversation:
 ${chatHistory.slice(-3).map(msg => msg.role + ": " + msg.content).join('\n')}
 
 Requested changes: ${promptText}`;
@@ -421,6 +428,16 @@ Requested changes: ${promptText}`;
         }
       }
       if (finalDiagram) {
+        // ---- NEW CODE: Update the last chat message with the finalized diagram version ----
+        setChatHistory(prev => {
+          const newHistory = [...prev];
+          const lastIndex = newHistory.length - 1;
+          if (lastIndex >= 0) {
+            newHistory[lastIndex] = { ...newHistory[lastIndex], diagramVersion: finalDiagram };
+          }
+          return newHistory;
+        });
+        // --------------------------------------------------------------------------
         await fetch(`/api/projects/${projectId}/history`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -434,16 +451,26 @@ Requested changes: ${promptText}`;
         if (!renderSuccess) {
           throw new Error('Failed to render the final diagram');
         }
-        if (prompt) setPrompt('');
       } else {
         throw new Error('No valid diagram was generated');
       }
     } catch (err) {
-      setChatHistory(prev => [...prev, {
-        role: 'system',
-        content: `Error: ${err instanceof Error ? err.message : 'Failed to generate diagram'}`,
-        timestamp: new Date()
-      }]);
+      const errorMessage =
+        err instanceof Error ? err.message : 'Failed to generate diagram';
+      // Check if the error message relates to syntax issues
+      setError(
+        errorMessage.toLowerCase().includes('syntax')
+          ? 'Syntax error in diagram. Please check your Mermaid syntax and try again.'
+          : errorMessage
+      );
+      setChatHistory(prev => [
+        ...prev,
+        {
+          role: 'system',
+          content: `Error: ${errorMessage}`,
+          timestamp: new Date()
+        }
+      ]);
     } finally {
       setIsGenerating(false);
       if (bufferTimeoutRef.current) {
@@ -524,6 +551,50 @@ Requested changes: ${promptText}`;
     }
   };
 
+  // --- NEW: website processing ---
+  // This function uses an API endpoint that uses Playwright to load webpage content.
+  const processWebsite = async (url: string) => {
+    setIsProcessingFile(true);
+    try {
+      // Add a system message to indicate website processing has started.
+      setChatHistory(prev => [
+        ...prev,
+        {
+          role: 'system',
+          content: `Processing website ${url}...`,
+          timestamp: new Date(),
+        },
+      ]);
+      // Post the URL and diagramType to the API.
+      const response = await fetch('/api/process-website', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, diagramType }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to process website');
+      }
+      const { summary, message } = await response.json();
+      setDocumentSummary(summary);
+      setChatHistory(prev => [
+        ...prev,
+        {
+          role: 'document',
+          content: message,
+          timestamp: new Date(),
+        },
+      ]);
+      // Auto generate/update the diagram using the website summary as context.
+      await handleGenerateDiagram(null, summary);
+    } catch (error) {
+      console.error('Error processing website:', error);
+      setError(error instanceof Error ? error.message : 'Failed to process website');
+    } finally {
+      setIsProcessingFile(false);
+    }
+  };
+
   // --- file upload handler ---
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -533,11 +604,14 @@ Requested changes: ${promptText}`;
       const formData = new FormData();
       formData.append('file', file);
       formData.append('diagramType', diagramType);
-      setChatHistory(prev => [...prev, {
-        role: 'system',
-        content: `Processing ${file.name}...`,
-        timestamp: new Date()
-      }]);
+      setChatHistory(prev => [
+        ...prev,
+        {
+          role: 'system',
+          content: `Processing ${file.name}...`,
+          timestamp: new Date(),
+        },
+      ]);
       const response = await fetch('/api/process-document', {
         method: 'POST',
         body: formData,
@@ -548,11 +622,14 @@ Requested changes: ${promptText}`;
       }
       const { summary, message } = await response.json();
       setDocumentSummary(summary);
-      setChatHistory(prev => [...prev, {
-        role: 'document',
-        content: message,
-        timestamp: new Date()
-      }]);
+      setChatHistory(prev => [
+        ...prev,
+        {
+          role: 'document',
+          content: message,
+          timestamp: new Date(),
+        },
+      ]);
       handleGenerateDiagram(null, summary);
     } catch (error) {
       console.error('Error processing document:', error);
@@ -616,6 +693,7 @@ Requested changes: ${promptText}`;
     handleCodeChange,
     readFileContent,
     processDocument,
+    processWebsite,
     handleFileUpload,
     handleDiagramVersionSelect,
   };
