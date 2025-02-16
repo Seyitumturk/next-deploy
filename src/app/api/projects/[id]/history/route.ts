@@ -29,8 +29,10 @@ export async function POST(
       });
     }
 
+    // Properly await params.id
+    const { id } = await params;
     const project = await Project.findOne({
-      _id: params.id,
+      _id: id,
       userId: user._id,
     });
 

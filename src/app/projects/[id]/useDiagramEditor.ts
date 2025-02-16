@@ -32,7 +32,16 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [currentDiagram, setCurrentDiagram] = useState('');
+  const [currentDiagram, setCurrentDiagram] = useState(() => {
+    // First try to get the latest diagram from history
+    const latestHistoryItem = history[0];
+    if (latestHistoryItem?.diagram) {
+      console.log(">> useDiagramEditor: Loading diagram from history:", latestHistoryItem.diagram);
+      return latestHistoryItem.diagram;
+    }
+    console.log(">> useDiagramEditor: No history diagram, loading initialDiagram:", initialDiagram);
+    return initialDiagram || '';
+  });
   const [streamBuffer, setStreamBuffer] = useState('');
   const svgRef = useRef<HTMLDivElement>(null);
   const bufferTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
@@ -92,53 +101,36 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
     const loadLatestDiagram = async () => {
       if (history.length > 0) {
         const latestHistoryItem = history[0];
-        if (latestHistoryItem) {
+        console.log(">> useDiagramEditor: loadLatestDiagram - history[0]:", latestHistoryItem);
+        
+        // Always set the current diagram from history if available
+        if (latestHistoryItem?.diagram) {
+          console.log(">> useDiagramEditor: Setting diagram from history:", latestHistoryItem.diagram);
           setCurrentDiagram(latestHistoryItem.diagram);
-          if (latestHistoryItem.diagram_img) {
-            setSvgOutput(latestHistoryItem.diagram_img);
-          } else {
-            try {
-              mermaid.initialize({
-                startOnLoad: false,
-                theme: 'neutral',
-                securityLevel: 'loose',
-                fontFamily: 'var(--font-geist-sans)',
-                logLevel: 0,
-                deterministicIds: true,
-                sequence: { useMaxWidth: false },
-                er: { useMaxWidth: false },
-                flowchart: { useMaxWidth: false },
-                gantt: { useMaxWidth: false },
-                journey: { useMaxWidth: false }
-              });
-              const container = document.createElement('div');
-              container.style.cssText = 'position: absolute; visibility: hidden; width: 0; height: 0; overflow: hidden;';
-              document.body.appendChild(container);
-              const { svg } = await mermaid.render('diagram-' + Date.now(), latestHistoryItem.diagram, container);
-              document.body.removeChild(container);
-              setSvgOutput(svg);
-            } catch (error) {
-              console.error('Error rendering initial diagram:', error);
-            }
-          }
+        } else {
+          console.log(">> useDiagramEditor: No diagram found in latest history");
         }
-      } else if (initialDiagram) {
-        setCurrentDiagram(initialDiagram);
-        try {
-          const container = document.createElement('div');
-          container.style.cssText = 'position: absolute; visibility: hidden; width: 0; height: 0; overflow: hidden;';
-          document.body.appendChild(container);
-          const { svg } = await mermaid.render('diagram-' + Date.now(), initialDiagram, container);
-          document.body.removeChild(container);
-          setSvgOutput(svg);
-        } catch (error) {
-          console.error('Error rendering initial diagram:', error);
+
+        // Handle SVG display
+        if (latestHistoryItem?.diagram_img) {
+          console.log(">> useDiagramEditor: Found diagram_img, setting svgOutput");
+          setSvgOutput(latestHistoryItem.diagram_img);
+        } else if (latestHistoryItem?.diagram) {
+          try {
+            const renderSuccess = await renderDiagram(latestHistoryItem.diagram);
+            if (!renderSuccess) {
+              setDiagramError('Failed to render initial diagram');
+            }
+          } catch (error) {
+            console.error(">> useDiagramEditor: Error rendering initial diagram:", error);
+            setDiagramError('Error rendering initial diagram');
+          }
         }
       }
     };
 
     loadLatestDiagram();
-  }, [history, initialDiagram]);
+  }, [history]);
 
   // --- render diagram with retries ---
   const renderDiagram = async (diagramText: string): Promise<boolean> => {
@@ -461,10 +453,31 @@ Requested changes: ${promptText}`;
   };
 
   // --- code change handler for the code editor mode ---
-  const handleCodeChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleCodeChange = async (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newCode = e.target.value;
     setCurrentDiagram(newCode);
-    renderDiagram(newCode);
+    
+    try {
+      // First render the diagram
+      const renderSuccess = await renderDiagram(newCode);
+      if (!renderSuccess) {
+        setDiagramError('Failed to render diagram');
+        return;
+      }
+
+      // If render successful, save to history
+      await fetch(`/api/projects/${projectId}/history`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          diagram: newCode,
+          updateType: 'code'
+        }),
+      });
+    } catch (err) {
+      console.error('Error updating diagram:', err);
+      setDiagramError(err instanceof Error ? err.message : 'Failed to update diagram');
+    }
   };
 
   const readFileContent = async (file: File): Promise<string> => {

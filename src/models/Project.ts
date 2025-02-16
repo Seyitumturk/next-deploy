@@ -18,6 +18,7 @@ export interface IProject extends Document {
   history: IHistoryItem[];
   createdAt: Date;
   updatedAt: Date;
+  currentDiagram: string;
 }
 
 const projectSchema = new Schema<IProject>({
@@ -84,6 +85,10 @@ const projectSchema = new Schema<IProject>({
       default: Date.now,
     },
   }],
+  currentDiagram: {
+    type: String,
+    required: false,
+  },
 }, {
   timestamps: true,
 });

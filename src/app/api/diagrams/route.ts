@@ -167,10 +167,12 @@ export async function POST(req: Request) {
                   gptResponse: diagram,
                   extractedSyntax: diagram.trim(),
                   diagramSvg: svgOutput,
+                  projectId: projectId,
                 });
                 await gptResponse.save();
                 console.log('Saved GPT response with SVG:', gptResponse._id);
 
+                // Save to project history
                 project.history.unshift({
                   _id: new mongoose.Types.ObjectId(),
                   prompt: textPrompt,
@@ -179,13 +181,15 @@ export async function POST(req: Request) {
                   updateType: 'chat',
                   updatedAt: new Date()
                 });
-
                 if (project.history.length > 30) {
                   project.history.pop();
                 }
 
+                // Save the latest diagram state to the project
                 project.diagramSVG = svgOutput;
+                project.currentDiagram = diagram.trim();
                 project.markModified('history');
+                console.log(">> diagrams API: Saved project.currentDiagram:", project.currentDiagram);
                 await project.save();
                 console.log('Saved project with SVG:', project._id);
 

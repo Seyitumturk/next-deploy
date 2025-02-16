@@ -54,19 +54,6 @@ const DiagramDisplay: React.FC<DiagramDisplayProps> = ({
         setShowExportMenu={setShowExportMenu}
       />
 
-      {/* Floating toggle button when left panel is hidden */}
-      {!showPromptPanel && (
-        <button 
-          onClick={() => setShowPromptPanel(true)}
-          className="absolute left-0 top-1/2 transform -translate-y-1/2 bg-white dark:bg-gray-800 p-2 rounded-r-lg shadow-lg hover:bg-gray-200 z-10"
-          title="Show Panel"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-800 dark:text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
-      )}
-
       <div 
         className="flex-1 overflow-hidden relative"
         ref={diagramRef}

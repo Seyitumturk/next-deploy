@@ -5,6 +5,7 @@ export interface IGptResponse extends Document {
   gptResponse: string;
   extractedSyntax: string;
   diagramSvg: string;
+  projectId: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -24,6 +25,10 @@ const gptResponseSchema = new Schema<IGptResponse>({
   },
   diagramSvg: {
     type: String,
+  },
+  projectId: {
+    type: String,
+    required: true,
   },
 }, {
   timestamps: true,

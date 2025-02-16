@@ -7,6 +7,7 @@ import ChatMessage, { ChatMessageData } from './ChatMessage';
 import FileUploadOptions from './FileUploadOptions';
 
 export interface PromptPanelProps {
+  handleCodeChange?: (code: string) => void;
   editorMode: 'chat' | 'code';
   setEditorMode: React.Dispatch<React.SetStateAction<'chat' | 'code'>>;
   chatHistory: ChatMessageData[];
@@ -26,6 +27,7 @@ export interface PromptPanelProps {
   renderDiagram: (diagramText: string) => Promise<boolean>;
   setIsEditorReady: React.Dispatch<React.SetStateAction<boolean>>;
   setShowPromptPanel: React.Dispatch<React.SetStateAction<boolean>>;
+  isVisible: boolean;
 }
 
 const monacoOptions = {
@@ -50,6 +52,7 @@ const monacoOptions = {
 };
 
 const PromptPanel: React.FC<PromptPanelProps> = ({
+  handleCodeChange,
   editorMode,
   setEditorMode,
   chatHistory,
@@ -69,14 +72,16 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
   renderDiagram,
   setIsEditorReady,
   setShowPromptPanel,
+  isVisible,
 }) => {
   return (
     <div
-      className={`w-96 flex flex-col bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ease-in-out`}
+      className="w-96 flex flex-col bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out"
       style={{
         position: 'absolute',
         height: 'calc(100% - 3rem)', // subtract header height
         zIndex: 10,
+        transform: isVisible ? 'translateX(0)' : 'translateX(-100%)',
       }}
     >
       {/* Chat Header */}
@@ -85,17 +90,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 rounded-lg bg-white dark:bg-white flex items-center justify-center hover:bg-secondary/10 transition-colors">
               <svg className="w-5 h-5 text-black dark:text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 
-                     3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 
-                     014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 
-                     3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 
-                     0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1.232 
-                     1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6" />
               </svg>
             </div>
             <div>
@@ -107,14 +102,28 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
               </p>
             </div>
           </div>
-          <button
-            onClick={() => setShowPromptPanel(false)}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L10 10.586 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-            </svg>
-          </button>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setEditorMode('code')}
+              className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors text-xs font-medium text-gray-600 dark:text-gray-300 flex items-center space-x-2"
+              title="Switch to Code Editor"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <polyline points="16 18 22 12 16 6" />
+                <polyline points="8 6 2 12 8 18" />
+              </svg>
+              <span>Code Editor</span>
+            </button>
+            <button
+              onClick={() => setShowPromptPanel(false)}
+              className="p-2 focus:outline-none"
+              title="Collapse Panel"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-800 dark:text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -193,7 +202,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
           </div>
         </>
       ) : (
-        // Code Editor Mode
+        // Code Editor Mode: show the latest Mermaid syntax code and update diagram on change
         <div className="flex-1 flex flex-col">
           <div className="p-4 border-b border-gray-200 dark:border-gray-800">
             <div className="flex items-center justify-between mb-4">
@@ -202,7 +211,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
                 className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors text-xs font-medium text-gray-600 dark:text-gray-300 flex items-center space-x-2"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h8" />
                 </svg>
                 <span>Switch to Chat</span>
               </button>
@@ -217,12 +226,13 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
                 if (value) {
                   setCurrentDiagram(value);
                   renderDiagram(value);
+                  handleCodeChange && handleCodeChange(value);
                 }
               }}
               onMount={() => setIsEditorReady(true)}
               options={monacoOptions}
               beforeMount={(monaco) => {
-                // Register Mermaid language
+                // Register Mermaid language and define theme
                 monaco.languages.register({ id: 'mermaid' });
                 monaco.languages.setMonarchTokensProvider('mermaid', {
                   tokenizer: {

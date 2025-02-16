@@ -34,8 +34,8 @@ const DiagramControls: React.FC<DiagramControlsProps> = ({
             className="p-2 hover:bg-white/10 rounded-full transition-colors"
             title="Show AI Assistant"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10 10.586l2.707 2.707a1 1 0 11-1.414 1.414L10 12.414l-1.293 1.293a1 1 0 01-1.414 0z" clipRule="evenodd" />
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M9 18l6-6-6-6" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </button>
         )}

@@ -58,6 +58,7 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
       {/* Main Content */}
       <div className="flex-1 flex">
         <PromptPanel
+          isVisible={editor.showPromptPanel}
           editorMode={editor.editorMode}
           setEditorMode={editor.setEditorMode}
           chatHistory={editor.chatHistory}
@@ -72,6 +73,7 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
           documentSummary={editor.documentSummary}
           showFileUpload={editor.showFileUpload}
           setShowFileUpload={editor.setShowFileUpload}
+          handleCodeChange={editor.handleCodeChange}
           currentDiagram={editor.currentDiagram}
           setCurrentDiagram={editor.setCurrentDiagram}
           renderDiagram={editor.renderDiagram}
