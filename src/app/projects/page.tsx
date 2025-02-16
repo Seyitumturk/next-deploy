@@ -7,6 +7,7 @@ import { UserButton } from '@clerk/nextjs';
 import CreateProjectModal from '@/components/CreateProjectModal';
 import { getProjects } from './actions';
 import DeleteProjectModal from '@/components/DeleteProjectModal';
+import OnboardingBar from '@/components/OnboardingBar';
 
 interface Project {
   _id: string;
@@ -77,8 +78,9 @@ export default function ProjectsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-      {/* Header */}
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 relative">
+      <OnboardingBar />
+      
       <nav className="bg-gray-900 text-white h-16 shadow-lg shadow-gray-900/10 dark:shadow-black/20 backdrop-blur-md">
         <div className="container h-full mx-auto px-6 flex justify-between items-center">
           <div className="flex items-center space-x-4">
@@ -105,7 +107,6 @@ export default function ProjectsPage() {
       </nav>
 
       <div className="container mx-auto px-6 py-8">
-        {/* AI Quick Start Section */}
         <div className="mb-12">
           <div className="max-w-3xl mx-auto">
             <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md rounded-2xl p-8 shadow-xl shadow-purple-500/10 border border-white/20 dark:border-white/10">

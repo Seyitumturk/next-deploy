@@ -1,0 +1,611 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
+import mermaid from 'mermaid';
+import type { ChatMessageData } from './ChatMessage';
+
+export interface EditorProps {
+  projectId: string;
+  projectTitle: string;
+  diagramType: string;
+  initialDiagram?: string;
+  user: {
+    credits: number;
+    initials: string;
+  };
+  history: {
+    _id: string;
+    prompt?: string;
+    diagram: string;
+    diagram_img?: string;
+    updateType: 'chat' | 'code' | 'reversion';
+    updatedAt: string;
+  }[];
+}
+
+function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram, user, history }: EditorProps) {
+  // --- state definitions ---
+  const [prompt, setPrompt] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState('');
+  const [showPromptPanel, setShowPromptPanel] = useState(true);
+  const [svgOutput, setSvgOutput] = useState<string>('');
+  const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [currentDiagram, setCurrentDiagram] = useState('');
+  const [streamBuffer, setStreamBuffer] = useState('');
+  const svgRef = useRef<HTMLDivElement>(null);
+  const bufferTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const diagramRef = useRef<HTMLDivElement>(null);
+  const [editorMode, setEditorMode] = useState<'chat' | 'code'>('chat');
+  const [isEditorReady, setIsEditorReady] = useState(false);
+  const [isProcessingFile, setIsProcessingFile] = useState(false);
+  const [documentSummary, setDocumentSummary] = useState<string>('');
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const [chatHistory, setChatHistory] = useState<ChatMessageData[]>(() => {
+    const uniqueHistory = history
+      .filter(item => item.updateType === 'chat' && item.prompt)
+      .reduce((acc, item) => {
+        if (item.prompt && !item.prompt.includes('Current diagram:') && 
+            !item.prompt.includes('Previous conversation:') && 
+            !item.prompt.includes('Requested changes:')) {
+          const isDuplicate = acc.some(
+            msg => 
+              msg.content === item.prompt &&
+              Math.abs(new Date(msg.timestamp).getTime() - new Date(item.updatedAt).getTime()) < 1000
+          );
+          
+          if (!isDuplicate) {
+            acc.push({
+              role: 'user',
+              content: item.prompt,
+              timestamp: new Date(item.updatedAt),
+              diagramVersion: item.diagram
+            });
+          }
+        }
+        return acc;
+      }, [] as ChatMessageData[]);
+    return uniqueHistory.reverse();
+  });
+  const [showFileUpload, setShowFileUpload] = useState(false);
+  const [diagramError, setDiagramError] = useState<string | null>(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+
+  // --- auto-scroll chat on update ---
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      const container = chatContainerRef.current;
+      const scrollOptions: ScrollIntoViewOptions = {
+        behavior: 'smooth',
+        block: 'end'
+      };
+      const scrollTarget = document.createElement('div');
+      container.appendChild(scrollTarget);
+      scrollTarget.scrollIntoView(scrollOptions);
+      container.removeChild(scrollTarget);
+    }
+  }, [chatHistory, isGenerating]);
+
+  // --- load initial diagram ---
+  useEffect(() => {
+    const loadLatestDiagram = async () => {
+      if (history.length > 0) {
+        const latestHistoryItem = history[0];
+        if (latestHistoryItem) {
+          setCurrentDiagram(latestHistoryItem.diagram);
+          if (latestHistoryItem.diagram_img) {
+            setSvgOutput(latestHistoryItem.diagram_img);
+          } else {
+            try {
+              mermaid.initialize({
+                startOnLoad: false,
+                theme: 'neutral',
+                securityLevel: 'loose',
+                fontFamily: 'var(--font-geist-sans)',
+                logLevel: 0,
+                deterministicIds: true,
+                sequence: { useMaxWidth: false },
+                er: { useMaxWidth: false },
+                flowchart: { useMaxWidth: false },
+                gantt: { useMaxWidth: false },
+                journey: { useMaxWidth: false }
+              });
+              const container = document.createElement('div');
+              container.style.cssText = 'position: absolute; visibility: hidden; width: 0; height: 0; overflow: hidden;';
+              document.body.appendChild(container);
+              const { svg } = await mermaid.render('diagram-' + Date.now(), latestHistoryItem.diagram, container);
+              document.body.removeChild(container);
+              setSvgOutput(svg);
+            } catch (error) {
+              console.error('Error rendering initial diagram:', error);
+            }
+          }
+        }
+      } else if (initialDiagram) {
+        setCurrentDiagram(initialDiagram);
+        try {
+          const container = document.createElement('div');
+          container.style.cssText = 'position: absolute; visibility: hidden; width: 0; height: 0; overflow: hidden;';
+          document.body.appendChild(container);
+          const { svg } = await mermaid.render('diagram-' + Date.now(), initialDiagram, container);
+          document.body.removeChild(container);
+          setSvgOutput(svg);
+        } catch (error) {
+          console.error('Error rendering initial diagram:', error);
+        }
+      }
+    };
+
+    loadLatestDiagram();
+  }, [history, initialDiagram]);
+
+  // --- render diagram with retries ---
+  const renderDiagram = async (diagramText: string): Promise<boolean> => {
+    const maxRetries = 3;
+    let currentTry = 0;
+    while (currentTry < maxRetries) {
+      try {
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: 'neutral',
+          securityLevel: 'loose',
+          fontFamily: 'var(--font-geist-sans)',
+          logLevel: 0,
+          deterministicIds: true,
+          sequence: { useMaxWidth: false },
+          er: { useMaxWidth: false },
+          flowchart: { useMaxWidth: false },
+          gantt: { useMaxWidth: false },
+          journey: { useMaxWidth: false }
+        });
+        const container = document.createElement('div');
+        container.style.cssText = 'position: absolute; visibility: hidden; width: 0; height: 0; overflow: hidden;';
+        document.body.appendChild(container);
+        const { svg } = await mermaid.render('diagram-' + Date.now(), diagramText, container);
+        document.body.removeChild(container);
+        setSvgOutput(svg);
+
+        // Save SVG asynchronously (do not block UI)
+        fetch('/api/diagrams/save-svg', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectId, svg }),
+        }).catch(console.error);
+
+        return true;
+      } catch (err) {
+        currentTry++;
+        if (currentTry === maxRetries) {
+          console.error('Diagram rendering failed:', err);
+          return false;
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+    return false;
+  };
+
+  // --- buffered update during streaming ---
+  const updateDiagramWithBuffer = (newContent: string) => {
+    setStreamBuffer(newContent);
+    if (bufferTimeoutRef.current) {
+      clearTimeout(bufferTimeoutRef.current);
+    }
+    bufferTimeoutRef.current = setTimeout(async () => {
+      setCurrentDiagram(newContent);
+      renderDiagram(newContent).catch(console.error);
+    }, 100);
+  };
+
+  // --- mouse wheel zoom ---
+  const handleWheel = useCallback((e: WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY * -0.0003;
+    const rect = diagramRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    setScale(prevScale => {
+      const newScale = Math.min(Math.max(prevScale * Math.exp(delta), 0.1), 5);
+      const scaleChange = newScale / prevScale;
+      const newPosition = {
+        x: position.x - (mouseX - rect.width / 2) * (scaleChange - 1),
+        y: position.y - (mouseY - rect.height / 2) * (scaleChange - 1)
+      };
+      setPosition(newPosition);
+      return newScale;
+    });
+  }, [position]);
+
+  // --- mouse move panning ---
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (isDragging) {
+      const dampingFactor = 0.75;
+      const targetX = e.clientX - dragStart.x;
+      const targetY = e.clientY - dragStart.y;
+      setPosition(prev => ({
+        x: prev.x + (targetX - prev.x) * dampingFactor,
+        y: prev.y + (targetY - prev.y) * dampingFactor,
+      }));
+    }
+  }, [isDragging, dragStart]);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button === 0) {
+      setIsDragging(true);
+      setDragStart({
+        x: e.clientX - position.x,
+        y: e.clientY - position.y,
+      });
+    }
+  }, [position]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  // --- attach event listeners ---
+  useEffect(() => {
+    const diagram = diagramRef.current;
+    if (!diagram) return;
+    const wheelHandler = (e: WheelEvent) => {
+      e.preventDefault();
+      handleWheel(e);
+    };
+    diagram.addEventListener('wheel', wheelHandler, { passive: false });
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      diagram.removeEventListener('wheel', wheelHandler);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [handleWheel, handleMouseMove, handleMouseUp]);
+
+  // --- helpers for file naming ---
+  const getFormattedDate = () => {
+    const date = new Date();
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  };
+
+  const getFormattedFileName = (extension: string, transparent: boolean = false) => {
+    const date = getFormattedDate();
+    const formattedTitle = projectTitle.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    const formattedType = diagramType.toLowerCase().replace('_', '-');
+    const transparentSuffix = transparent ? '-transparent' : '';
+    return `${formattedTitle}-${formattedType}-diagram-${date}${transparentSuffix}.${extension}`;
+  };
+
+  // --- download functions ---
+  const downloadSVG = () => {
+    if (!svgRef.current) return;
+    const svgElement = svgRef.current.querySelector('svg');
+    if (!svgElement) return;
+    const clonedSvg = svgElement.cloneNode(true) as SVGElement;
+    const styleElement = document.createElement('style');
+    styleElement.textContent = `
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+      * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    `;
+    clonedSvg.insertBefore(styleElement, clonedSvg.firstChild);
+    const bbox = svgElement.getBBox();
+    clonedSvg.setAttribute('width', bbox.width.toString());
+    clonedSvg.setAttribute('height', bbox.height.toString());
+    clonedSvg.setAttribute('viewBox', `${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}`);
+    clonedSvg.querySelectorAll('text').forEach(textElement => {
+      textElement.style.fontFamily = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    });
+    const svgData = new XMLSerializer().serializeToString(clonedSvg);
+    const svgBlob = new Blob([
+      '<?xml version="1.0" standalone="no"?>\r\n',
+      '<?xml-stylesheet type="text/css" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" ?>\r\n',
+      svgData
+    ], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = getFormattedFileName('svg');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadPNG = async (transparent: boolean = false) => {
+    if (!svgRef.current) return;
+    const svgElement = svgRef.current.querySelector('svg');
+    if (!svgElement) return;
+    const clonedSvg = svgElement.cloneNode(true) as SVGElement;
+    clonedSvg.querySelectorAll('text').forEach(textElement => {
+      textElement.style.fontFamily = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    });
+    const styleElement = document.createElement('style');
+    styleElement.textContent = `
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+      * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    `;
+    clonedSvg.insertBefore(styleElement, clonedSvg.firstChild);
+    const bbox = svgElement.getBBox();
+    const pngScale = 2;
+    const width = Math.ceil(bbox.width * pngScale);
+    const height = Math.ceil(bbox.height * pngScale);
+    clonedSvg.setAttribute('width', width.toString());
+    clonedSvg.setAttribute('height', height.toString());
+    clonedSvg.setAttribute('viewBox', `${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}`);
+    const svgData = new XMLSerializer().serializeToString(clonedSvg);
+    await document.fonts.load('12px "Inter"');
+    const svgUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+    const img = new Image();
+    img.src = svgUrl;
+    await new Promise((resolve) => {
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        if (!transparent) {
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, width, height);
+        const pngUrl = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.download = getFormattedFileName('png', transparent);
+        link.href = pngUrl;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        resolve(true);
+      };
+    });
+  };
+
+  // --- generate diagram via API ---
+  const handleGenerateDiagram = async (e: React.FormEvent<HTMLFormElement> | null, initialPrompt?: string) => {
+    if (e) e.preventDefault();
+    const promptText = initialPrompt || prompt;
+    if (!promptText.trim() && !documentSummary) return;
+    setIsGenerating(true);
+    setError('');
+    try {
+      setChatHistory(prev => [...prev, {
+        role: 'user',
+        content: promptText,
+        timestamp: new Date(),
+        diagramVersion: currentDiagram
+      }]);
+      const currentVersion = currentDiagram;
+      const currentSvg = svgRef.current?.querySelector('svg')?.outerHTML || '';
+      
+      // Updated aiPrompt—using plain string concatenation to avoid nested backticks
+      const aiPrompt = `Current diagram:
+\`\`\`mermaid
+${currentVersion}
+\`\`\`
+
+${documentSummary ? "Document context: " + documentSummary + "\n\n" : ""}
+Previous conversation:
+${chatHistory.slice(-3).map(msg => msg.role + ": " + msg.content).join('\n')}
+
+Requested changes: ${promptText}`;
+      
+      const response = await fetch('/api/diagrams', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId,
+          diagramType,
+          textPrompt: aiPrompt,
+          currentDiagram: currentVersion,
+          clientSvg: currentSvg
+        }),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to generate diagram');
+      }
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let finalDiagram: string | null = null;
+      if (!reader) throw new Error('Failed to get response reader');
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value);
+        const messages = chunk
+          .split('\n\n')
+          .filter(msg => msg.trim().startsWith('data: '))
+          .map(msg => JSON.parse(msg.replace('data: ', '')));
+        for (const message of messages) {
+          if (message.mermaidSyntax) {
+            updateDiagramWithBuffer(message.mermaidSyntax);
+            if (message.isComplete) {
+              finalDiagram = message.mermaidSyntax;
+            }
+          }
+        }
+      }
+      if (finalDiagram) {
+        await fetch(`/api/projects/${projectId}/history`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: promptText,
+            diagram: finalDiagram,
+            updateType: 'chat'
+          }),
+        });
+        const renderSuccess = await renderDiagram(finalDiagram);
+        if (!renderSuccess) {
+          throw new Error('Failed to render the final diagram');
+        }
+        if (prompt) setPrompt('');
+      } else {
+        throw new Error('No valid diagram was generated');
+      }
+    } catch (err) {
+      setChatHistory(prev => [...prev, {
+        role: 'system',
+        content: `Error: ${err instanceof Error ? err.message : 'Failed to generate diagram'}`,
+        timestamp: new Date()
+      }]);
+    } finally {
+      setIsGenerating(false);
+      if (bufferTimeoutRef.current) {
+        clearTimeout(bufferTimeoutRef.current);
+      }
+    }
+  };
+
+  // --- code change handler for the code editor mode ---
+  const handleCodeChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newCode = e.target.value;
+    setCurrentDiagram(newCode);
+    renderDiagram(newCode);
+  };
+
+  const readFileContent = async (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const fileReader = new FileReader();
+      fileReader.onload = (e) => resolve(e.target?.result as string);
+      fileReader.onerror = (e) => reject(e);
+      fileReader.readAsText(file);
+    });
+  };
+
+  // --- document processing ---
+  const processDocument = async (file: File) => {
+    setIsProcessingFile(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('diagramType', diagramType);
+      
+      const response = await fetch('/api/process-document', {
+        method: 'POST',
+        body: formData,
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to process document');
+      }
+      const { summary, message } = await response.json();
+      setDocumentSummary(summary);
+      setChatHistory(prev => [
+        ...prev,
+        {
+          role: 'document',
+          content: message,
+          timestamp: new Date(),
+        },
+      ]);
+      handleGenerateDiagram(null, summary);
+    } catch (error) {
+      console.error('Error processing document:', error);
+      setError('Failed to process document. Please try again.');
+    } finally {
+      setIsProcessingFile(false);
+    }
+  };
+
+  // --- file upload handler ---
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsProcessingFile(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('diagramType', diagramType);
+      setChatHistory(prev => [...prev, {
+        role: 'system',
+        content: `Processing ${file.name}...`,
+        timestamp: new Date()
+      }]);
+      const response = await fetch('/api/process-document', {
+        method: 'POST',
+        body: formData,
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to process document');
+      }
+      const { summary, message } = await response.json();
+      setDocumentSummary(summary);
+      setChatHistory(prev => [...prev, {
+        role: 'document',
+        content: message,
+        timestamp: new Date()
+      }]);
+      handleGenerateDiagram(null, summary);
+    } catch (error) {
+      console.error('Error processing document:', error);
+      setError(error instanceof Error ? error.message : 'Failed to process document');
+    } finally {
+      setIsProcessingFile(false);
+    }
+  };
+
+  // --- diagram version select ---
+  const handleDiagramVersionSelect = useCallback((version: string) => {
+    setCurrentDiagram(version);
+    renderDiagram(version);
+  }, []);
+
+  return {
+    prompt,
+    setPrompt,
+    isGenerating,
+    setIsGenerating,
+    error,
+    setError,
+    showPromptPanel,
+    setShowPromptPanel,
+    svgOutput,
+    setSvgOutput,
+    scale,
+    setScale,
+    position,
+    setPosition,
+    isDragging,
+    setIsDragging,
+    currentDiagram,
+    setCurrentDiagram,
+    editorMode,
+    setEditorMode,
+    isEditorReady,
+    setIsEditorReady,
+    isProcessingFile,
+    documentSummary,
+    chatContainerRef,
+    chatHistory,
+    setChatHistory,
+    showFileUpload,
+    setShowFileUpload,
+    showExportMenu,
+    setShowExportMenu,
+    svgRef,
+    diagramRef,
+    renderDiagram,
+    updateDiagramWithBuffer,
+    handleWheel,
+    handleMouseMove,
+    handleMouseDown,
+    handleMouseUp,
+    getFormattedDate,
+    getFormattedFileName,
+    downloadSVG,
+    downloadPNG,
+    handleGenerateDiagram,
+    handleCodeChange,
+    readFileContent,
+    processDocument,
+    handleFileUpload,
+    handleDiagramVersionSelect,
+  };
+}
+
+export default useDiagramEditor; 
