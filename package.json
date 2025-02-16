@@ -12,6 +12,7 @@
     "@clerk/clerk-react": "^5.22.12",
     "@clerk/nextjs": "^6.11.2",
     "@headlessui/react": "^2.2.0",
+    "@heroicons/react": "^2.2.0",
     "@langchain/community": "^0.3.30",
     "@langchain/core": "^0.3.40",
     "@langchain/openai": "^0.4.4",

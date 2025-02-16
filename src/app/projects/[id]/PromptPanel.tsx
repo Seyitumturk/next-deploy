@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Editor from '@monaco-editor/react';
 import ChatMessage, { ChatMessageData } from './ChatMessage';
 import FileUploadOptions from './FileUploadOptions';
+import { ChatBubbleLeftEllipsisIcon, CodeBracketIcon } from '@heroicons/react/24/outline';
 
 export interface PromptPanelProps {
   handleCodeChange?: (code: string) => void;
@@ -74,6 +75,12 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
   setShowPromptPanel,
   isVisible,
 }) => {
+  // Add a handler to revert to a previous diagram version.
+  const handleDiagramVersionSelect = (version: string) => {
+    setCurrentDiagram(version);
+    renderDiagram(version);
+  };
+
   return (
     <div
       className="w-96 flex flex-col bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out"
@@ -89,30 +96,35 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
         <div className="flex items-center justify-between w-full">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 rounded-lg bg-white dark:bg-white flex items-center justify-center hover:bg-secondary/10 transition-colors">
-              <svg className="w-5 h-5 text-black dark:text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6" />
-              </svg>
+              {editorMode === 'chat' ? (
+                <ChatBubbleLeftEllipsisIcon className="h-5 w-5 text-black dark:text-black" />
+              ) : (
+                <CodeBracketIcon className="h-5 w-5 text-black dark:text-black" />
+              )}
             </div>
             <div>
               <h2 className="text-base font-semibold text-gray-900 dark:text-white">
                 {editorMode === 'chat' ? 'AI Assistant' : 'Code Editor'}
               </h2>
-              <p className="text-xs text-gray-500">
-                {editorMode === 'chat' ? 'Helping you create diagrams' : 'Edit Mermaid syntax directly'}
-              </p>
             </div>
           </div>
           <div className="flex items-center space-x-2">
             <button
-              onClick={() => setEditorMode('code')}
+              onClick={() => setEditorMode(editorMode === 'chat' ? 'code' : 'chat')}
               className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors text-xs font-medium text-gray-600 dark:text-gray-300 flex items-center space-x-2"
-              title="Switch to Code Editor"
+              title={editorMode === 'chat' ? 'Switch to Code Editor' : 'Switch to Chat'}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <polyline points="16 18 22 12 16 6" />
-                <polyline points="8 6 2 12 8 18" />
-              </svg>
-              <span>Code Editor</span>
+              {editorMode === 'chat' ? (
+                <>
+                  <CodeBracketIcon className="h-4 w-4" />
+                  <span>Code Editor</span>
+                </>
+              ) : (
+                <>
+                  <ChatBubbleLeftEllipsisIcon className="h-4 w-4" />
+                  <span>Chat</span>
+                </>
+              )}
             </button>
             <button
               onClick={() => setShowPromptPanel(false)}
@@ -147,7 +159,11 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
               className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-secondary/10 hover:scrollbar-thumb-secondary/20 scrollbar-track-transparent"
             >
               {chatHistory.map((message, index) => (
-                <ChatMessage key={index} message={message} /* onDiagramVersionSelect can be added if needed */ />
+                <ChatMessage 
+                  key={index} 
+                  message={message} 
+                  onDiagramVersionSelect={handleDiagramVersionSelect} 
+                />
               ))}
             </div>
           </div>
@@ -204,19 +220,6 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
       ) : (
         // Code Editor Mode: show the latest Mermaid syntax code and update diagram on change
         <div className="flex-1 flex flex-col">
-          <div className="p-4 border-b border-gray-200 dark:border-gray-800">
-            <div className="flex items-center justify-between mb-4">
-              <button
-                onClick={() => setEditorMode('chat')}
-                className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors text-xs font-medium text-gray-600 dark:text-gray-300 flex items-center space-x-2"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h8" />
-                </svg>
-                <span>Switch to Chat</span>
-              </button>
-            </div>
-          </div>
           <div className="flex-1">
             <Editor
               height="100%"
