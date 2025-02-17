@@ -85,6 +85,9 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
     setIsDarkModeLocal(document.documentElement.classList.contains('dark'));
   }, []);
 
+  // New: Define textarea classes conditionally
+  const promptTextAreaClass = `w-full rounded-xl border border-gray-200 dark:border-gray-700 px-4 pb-4 pt-3 pr-14 text-sm focus:ring-2 focus:ring-secondary/50 focus:border-transparent resize-none min-h-[72px] max-h-[200px] transition-all duration-200 ease-in-out ${!isDarkModeLocal ? "placeholder-black" : "placeholder:text-gray-400 dark:placeholder:text-gray-500"} focus:placeholder:text-transparent overflow-y-auto scrollbar-none break-words overflow-x-hidden`;
+
   // Add a handler to revert to a previous diagram version.
   const handleDiagramVersionSelect = (version: string) => {
     setCurrentDiagram(version);
@@ -233,7 +236,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
                       }
                     }
                   }}
-                  className="w-full rounded-xl border border-gray-200 dark:border-gray-700 px-4 pb-4 pt-3 pr-14 text-sm focus:ring-2 focus:ring-secondary/50 focus:border-transparent resize-none min-h-[72px] max-h-[200px] transition-all duration-200 ease-in-out placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:placeholder:text-transparent overflow-y-auto scrollbar-none break-words overflow-x-hidden"
+                  className={promptTextAreaClass}
                   placeholder="Describe your diagram modifications... (Press Enter to send, Shift+Enter for new line)"
                   disabled={isGenerating}
                   style={
@@ -456,7 +459,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
                       }
                     }
                   }}
-                  className="w-full rounded-xl border border-gray-200 dark:border-gray-700 px-4 pb-4 pt-3 pr-14 text-sm focus:ring-2 focus:ring-secondary/50 focus:border-transparent resize-none min-h-[72px] max-h-[200px] transition-all duration-200 ease-in-out placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:placeholder:text-transparent overflow-y-auto scrollbar-none break-words overflow-x-hidden"
+                  className={promptTextAreaClass}
                   placeholder="Describe your diagram modifications... (Press Enter to send, Shift+Enter for new line)"
                   disabled={isGenerating}
                   style={
