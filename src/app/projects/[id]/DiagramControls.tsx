@@ -101,7 +101,10 @@ const DiagramControls: React.FC<DiagramControlsProps> = ({
             className={`absolute right-0 top-0 h-10 bg-white dark:bg-gray-800 rounded-lg shadow-lg ring-1 ring-black/5 dark:ring-white/10 flex items-center px-1 transition-all duration-300 ease-out origin-right ${showExportMenu ? 'opacity-100 scale-x-100' : 'opacity-0 scale-x-0 pointer-events-none'}`}
           >
             <button
-              onClick={downloadSVG}
+              onClick={() => {
+                downloadSVG();
+                setShowExportMenu(false);
+              }}
               className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors group relative"
               title="Download SVG"
             >
@@ -116,7 +119,10 @@ const DiagramControls: React.FC<DiagramControlsProps> = ({
               </span>
             </button>
             <button
-              onClick={() => downloadPNG(false)}
+              onClick={() => {
+                downloadPNG(false);
+                setShowExportMenu(false);
+              }}
               className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors group relative"
               title="Download PNG with Background"
             >
@@ -130,7 +136,10 @@ const DiagramControls: React.FC<DiagramControlsProps> = ({
               </span>
             </button>
             <button
-              onClick={() => downloadPNG(true)}
+              onClick={() => {
+                downloadPNG(true);
+                setShowExportMenu(false);
+              }}
               className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors group relative"
               title="Download Transparent PNG"
             >

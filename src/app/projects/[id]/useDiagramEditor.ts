@@ -157,7 +157,23 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
         document.body.appendChild(container);
         const { svg } = await mermaid.render('diagram-' + Date.now(), diagramText, container);
         document.body.removeChild(container);
-        setSvgOutput(svg);
+        // Process the SVG to make it responsive: remove fixed dimensions and set to full container width/height
+        let newSvg = svg;
+        try {
+          const parser = new DOMParser();
+          const xmlDoc = parser.parseFromString(svg, "image/svg+xml");
+          const svgElement = xmlDoc.documentElement;
+          // Remove fixed width and height so the SVG can scale
+          svgElement.removeAttribute('width');
+          svgElement.removeAttribute('height');
+          // Set the dimensions to 100% to let it adapt to the container size
+          svgElement.setAttribute('width', '100%');
+          svgElement.setAttribute('height', '100%');
+          newSvg = new XMLSerializer().serializeToString(svgElement);
+        } catch (error) {
+          console.error("Error processing SVG for responsive display:", error);
+        }
+        setSvgOutput(newSvg);
 
         // Save SVG asynchronously (do not block UI)
         fetch('/api/diagrams/save-svg', {

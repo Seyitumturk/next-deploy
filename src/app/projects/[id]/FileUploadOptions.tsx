@@ -140,24 +140,24 @@ const FileUploadOptions: React.FC<FileUploadOptionsProps> = ({
         onChange={handleFileUpload}
       />
 
-      <div className={`overflow-hidden transition-all duration-300 ease-in-out ${showWebsiteInput ? 'max-h-20 opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
-        <div className="flex items-center">
+      <div className={`overflow-hidden transition-all duration-300 ease-in-out ${showWebsiteInput ? 'max-h-16 opacity-100 mt-0' : 'max-h-0 opacity-0'}`}>
+        <div className="flex items-center space-x-2 mt-1 mb-1">
           <input
             id="website-url"
             type="text"
-            placeholder="Enter website URL..."
+            placeholder="Enter website URL"
             value={websiteUrl}
             onChange={(e) => setWebsiteUrl(e.target.value)}
-            className="w-full py-2 px-3 mb-4 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500"
+            className="w-full px-4 py-2 rounded-l-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
           />
           <button
-            onClick={() => { if (websiteUrl.trim()) { processWebsite(websiteUrl.trim()); } }}
-            className="ml-2 flex items-center gap-1 px-4 py-2 bg-purple-700 text-white rounded-md hover:bg-purple-800 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-400"
+            type="button"
+            onClick={() => processWebsite(websiteUrl)}
+            className="flex items-center justify-center p-2 rounded-r-xl bg-purple-600 hover:bg-purple-700 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2a10 10 0 00-7.07 17.07l-1.41 1.41A1 1 0 005 22h14a1 1 0 00.78-1.62l-1.41-1.41A10 10 0 0012 2zm0 2a8 8 0 01.894 15.978L12 20a8 8 0 01-6.32-13.32l1.45 1.45A6 6 0 1012 4z" />
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 010 5.656l-4 4a4 4 0 01-5.656-5.656l1.414-1.414M10.172 13.828a4 4 0 010-5.656l4-4a4 4 0 015.656 5.656l-1.414 1.414" />
             </svg>
-            <span className="text-sm">Go</span>
           </button>
         </div>
       </div>
