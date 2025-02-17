@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface DiagramControlsProps {
   showPromptPanel: boolean;
@@ -25,8 +25,19 @@ const DiagramControls: React.FC<DiagramControlsProps> = ({
   showExportMenu,
   setShowExportMenu,
 }) => {
+  // Set up local dark mode detection.
+  const [isDarkModeLocal, setIsDarkModeLocal] = useState(
+    typeof window !== 'undefined' && document.documentElement.classList.contains('dark')
+  );
+  useEffect(() => {
+    setIsDarkModeLocal(document.documentElement.classList.contains('dark'));
+  }, []);
+
   return (
-    <div className="h-12 glass-panel border-b backdrop-blur-xl px-4 flex items-center justify-between">
+    <div
+      className="h-12 glass-panel border-b backdrop-blur-xl px-4 flex items-center justify-between"
+      style={!isDarkModeLocal ? { backgroundColor: "#e8dccc", color: "#000000" } : {}}
+    >
       <div className="flex items-center space-x-2">
         {!showPromptPanel && (
           <button

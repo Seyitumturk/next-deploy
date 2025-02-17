@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Editor from '@monaco-editor/react';
@@ -22,8 +22,20 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
   const router = useRouter();
   const editor = useDiagramEditor(props);
 
+  // Add dark mode toggle state
+  const [isDarkMode, setIsDarkMode] = useState(true);
+
+  // Toggle the 'dark' class on the document element based on state
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
+
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+    <div className={`min-h-screen flex flex-col ${isDarkMode ? "bg-gradient-to-br from-gray-900 to-gray-800" : "bg-[#e8dccc]"}`}>
       {/* Header */}
       <header className="h-12 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
         <div className="h-full px-4 flex items-center justify-between">
@@ -38,6 +50,24 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
             </span>
           </div>
           <div className="flex items-center space-x-4">
+            {/* Dark/Light Mode Toggle Button */}
+            <button
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              className="p-2 rounded-full bg-gray-800 hover:bg-gray-700 transition-colors"
+              title="Toggle Dark Mode"
+            >
+              {isDarkMode ? (
+                // When in dark mode, show the sun icon (to allow switching to light mode)
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.364 4.364l-1.414-1.414M7.05 7.05L5.636 5.636m12.728 0l-1.414 1.414M7.05 16.95l-1.414 1.414M12 8a4 4 0 100 8 4 4 0 000-8z" />
+                </svg>
+              ) : (
+                // When in light mode, show the moon icon (to allow switching to dark mode)
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+                </svg>
+              )}
+            </button>
             <div className="flex items-center space-x-3">
               <div className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center space-x-2">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-500 dark:text-gray-400" viewBox="0 0 20 20" fill="currentColor">

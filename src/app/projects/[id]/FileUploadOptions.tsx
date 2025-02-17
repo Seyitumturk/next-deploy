@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface FileUploadOptionsProps {
   showFileUpload: boolean;
@@ -19,15 +19,19 @@ const FileUploadOptions: React.FC<FileUploadOptionsProps> = ({
 }) => {
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [showWebsiteInput, setShowWebsiteInput] = useState(false);
+  const [isDarkModeLocal, setIsDarkModeLocal] = useState(false);
+
+  useEffect(() => {
+    setIsDarkModeLocal(document.documentElement.classList.contains('dark'));
+  }, []);
 
   return (
     <div className="flex flex-col space-y-4">
       <div className="mb-4">
         <button
           onClick={() => setShowFileUpload(!showFileUpload)}
-          className="w-full flex items-center justify-between px-3 py-2 bg-white dark:bg-gray-800 
-            rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 
-            dark:hover:bg-gray-700 transition-colors text-sm font-medium text-gray-600 dark:text-gray-300"
+          className="w-full flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm font-medium"
+          style={!isDarkModeLocal ? { backgroundColor: "#e8dccc", color: "#000000", padding: "0.5rem 0.75rem" } : {}}
         >
           <div className="flex items-center space-x-2">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -148,7 +152,8 @@ const FileUploadOptions: React.FC<FileUploadOptionsProps> = ({
             placeholder="Enter website URL"
             value={websiteUrl}
             onChange={(e) => setWebsiteUrl(e.target.value)}
-            className="w-full px-4 py-2 rounded-l-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className="w-full px-4 py-2 rounded-l-xl border border-gray-200 dark:border-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            style={!isDarkModeLocal ? { backgroundColor: "#e8dccc", color: "#000000" } : {}}
           />
           <button
             type="button"

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Editor from '@monaco-editor/react';
 import ChatMessage, { ChatMessageData } from './ChatMessage';
@@ -77,6 +77,14 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
   setShowPromptPanel,
   isVisible,
 }) => {
+  // Add local state to detect whether dark mode is active.
+  const [isDarkModeLocal, setIsDarkModeLocal] = useState(
+    typeof window !== 'undefined' && document.documentElement.classList.contains('dark')
+  );
+  useEffect(() => {
+    setIsDarkModeLocal(document.documentElement.classList.contains('dark'));
+  }, []);
+
   // Add a handler to revert to a previous diagram version.
   const handleDiagramVersionSelect = (version: string) => {
     setCurrentDiagram(version);
@@ -87,12 +95,13 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
     <>
       {/* Desktop Prompt Panel */}
       <div
-        className="hidden md:flex w-96 flex-col bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out"
+        className="hidden md:flex w-96 flex-col bg-[#e8dccc] dark:bg-gray-900/90 backdrop-blur-md border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out"
         style={{
           position: 'absolute',
           height: 'calc(100% - 3rem)', // subtract header height
           zIndex: 10,
           transform: isVisible ? 'translateX(0)' : 'translateX(-100%)',
+          backgroundColor: !isDarkModeLocal ? "#e8dccc" : undefined,
         }}
       >
         {/* Chat Header */}
@@ -171,8 +180,14 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
             >
               {/* Welcome Message */}
               <div className="flex items-start space-x-3">
-                <div className="flex-1 bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm">
-                  <p className="text-gray-700 dark:text-gray-300">
+                <div
+                  className="flex-1 rounded-2xl p-4 shadow-sm"
+                  style={!isDarkModeLocal ? { backgroundColor: "#e8dccc" } : {}}
+                >
+                  <p
+                    className="text-gray-700 dark:text-gray-300"
+                    style={!isDarkModeLocal ? { color: "#000000" } : {}}
+                  >
                     Hello! I'm your AI assistant. Describe what you'd like to create or modify in your diagram, and I'll help you bring it to life.
                   </p>
                 </div>
@@ -218,10 +233,14 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
                       }
                     }
                   }}
-                  className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 pb-4 pt-3 pr-14 text-sm focus:ring-2 focus:ring-secondary/50 focus:border-transparent resize-none min-h-[72px] max-h-[200px] transition-all duration-200 ease-in-out placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:placeholder:text-transparent overflow-y-auto scrollbar-none break-words overflow-x-hidden"
+                  className="w-full rounded-xl border border-gray-200 dark:border-gray-700 px-4 pb-4 pt-3 pr-14 text-sm focus:ring-2 focus:ring-secondary/50 focus:border-transparent resize-none min-h-[72px] max-h-[200px] transition-all duration-200 ease-in-out placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:placeholder:text-transparent overflow-y-auto scrollbar-none break-words overflow-x-hidden"
                   placeholder="Describe your diagram modifications... (Press Enter to send, Shift+Enter for new line)"
                   disabled={isGenerating}
-                  style={{ height: '72px' }}
+                  style={
+                    !isDarkModeLocal
+                      ? { backgroundColor: "#e8dccc", color: "#000000", height: '72px' }
+                      : { height: '72px' }
+                  }
                 />
                 <button
                   type="submit"
@@ -313,13 +332,14 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
 
       {/* Mobile Prompt Panel */}
       <div
-        className="flex md:hidden w-full flex-col bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border-t border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out"
+        className="flex md:hidden w-full flex-col bg-[#e8dccc] dark:bg-gray-900/90 backdrop-blur-md border-t border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out"
         style={{
           position: 'fixed',
           bottom: 0,
           height: '50vh',
           zIndex: 10,
           transform: isVisible ? 'translateY(0)' : 'translateY(100%)',
+          backgroundColor: !isDarkModeLocal ? "#e8dccc" : undefined,
         }}
       >
         {/* Chat Header */}
@@ -383,8 +403,14 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
             >
               {/* Welcome Message */}
               <div className="flex items-start space-x-3">
-                <div className="flex-1 bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm">
-                  <p className="text-gray-700 dark:text-gray-300">
+                <div
+                  className="flex-1 rounded-2xl p-4 shadow-sm"
+                  style={!isDarkModeLocal ? { backgroundColor: "#e8dccc" } : {}}
+                >
+                  <p
+                    className="text-gray-700 dark:text-gray-300"
+                    style={!isDarkModeLocal ? { color: "#000000" } : {}}
+                  >
                     Hello! I'm your AI assistant. Describe what you'd like to create or modify in your diagram, and I'll help you bring it to life.
                   </p>
                 </div>
@@ -430,10 +456,14 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
                       }
                     }
                   }}
-                  className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 pb-4 pt-3 pr-14 text-sm focus:ring-2 focus:ring-secondary/50 focus:border-transparent resize-none min-h-[72px] max-h-[200px] transition-all duration-200 ease-in-out placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:placeholder:text-transparent overflow-y-auto scrollbar-none break-words overflow-x-hidden"
+                  className="w-full rounded-xl border border-gray-200 dark:border-gray-700 px-4 pb-4 pt-3 pr-14 text-sm focus:ring-2 focus:ring-secondary/50 focus:border-transparent resize-none min-h-[72px] max-h-[200px] transition-all duration-200 ease-in-out placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:placeholder:text-transparent overflow-y-auto scrollbar-none break-words overflow-x-hidden"
                   placeholder="Describe your diagram modifications... (Press Enter to send, Shift+Enter for new line)"
                   disabled={isGenerating}
-                  style={{ height: '72px' }}
+                  style={
+                    !isDarkModeLocal
+                      ? { backgroundColor: "#e8dccc", color: "#000000", height: '72px' }
+                      : { height: '72px' }
+                  }
                 />
                 <button
                   type="submit"

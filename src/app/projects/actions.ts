@@ -37,9 +37,10 @@ interface UserResponse {
 interface GetProjectsResponse {
   projects: ProjectResponse[];
   user: UserResponse;
+  hasMore: boolean;
 }
 
-export async function getProjects(): Promise<GetProjectsResponse> {
+export async function getProjects(page: number = 1, limit: number = 10): Promise<GetProjectsResponse> {
   const { userId } = await auth();
   
   if (!userId) {
@@ -55,7 +56,12 @@ export async function getProjects(): Promise<GetProjectsResponse> {
 
   const rawProjects = await Project.find({ userId: user._id })
     .sort({ updatedAt: -1 })
+    .skip((page - 1) * limit)
+    .limit(limit)
     .lean();
+
+  const totalCount = await Project.countDocuments({ userId: user._id });
+  const hasMore = (page - 1) * limit + rawProjects.length < totalCount;
 
   const projects = rawProjects.map(project => {
     const typedProject = project as unknown as ProjectDocument;
@@ -74,5 +80,6 @@ export async function getProjects(): Promise<GetProjectsResponse> {
       _id: user._id.toString(),
       wordCountBalance: user.wordCountBalance,
     },
+    hasMore,
   };
 } 
