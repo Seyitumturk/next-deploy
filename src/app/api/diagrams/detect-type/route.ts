@@ -5,9 +5,19 @@ import yaml from 'yaml';
 import fs from 'fs';
 import path from 'path';
 
+// Define the DiagramDefinition interface
 interface DiagramDefinition {
   description: string;
   // You can add other properties if needed.
+}
+
+// Define the interface for the diagram config
+interface DiagramConfig {
+  definitions: Record<string, DiagramDefinition>;
+  prompts: {
+    system_template: string;
+    user_template: string;
+  };
 }
 
 const openai = new OpenAI({
@@ -17,7 +27,13 @@ const openai = new OpenAI({
 
 // Load diagram definitions from YAML file
 const diagramConfigPath = path.join(process.cwd(), 'src/config/diagram-definitions.yml');
-const diagramConfig = yaml.parse(fs.readFileSync(diagramConfigPath, 'utf8'));
+// Cast the parsed config to DiagramConfig
+const diagramConfig = yaml.parse(fs.readFileSync(diagramConfigPath, 'utf8')) as DiagramConfig;
+
+// Create a description of available diagram types from the config
+const diagramTypes = Object.entries(diagramConfig.definitions)
+  .map(([type, def]) => `${type}: ${def.description.split('\n')[0]}`)
+  .join('\n');
 
 export async function POST(req: Request) {
   try {
@@ -30,11 +46,6 @@ export async function POST(req: Request) {
     if (!prompt) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
     }
-
-    // Create a description of available diagram types from the config
-    const diagramTypes = Object.entries(diagramConfig.definitions)
-      .map(([type, def]: [string, DiagramDefinition]) => `${type}: ${def.description.split('\n')[0]}`)
-      .join('\n');
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
