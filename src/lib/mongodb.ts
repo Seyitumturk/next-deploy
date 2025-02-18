@@ -28,13 +28,21 @@ async function connectDB() {
 
   if (!cached.promise) {
     console.log("MongoDB: No existing connection promise, connecting now...");
-    const opts = { bufferCommands: false };
+    const opts = { 
+      bufferCommands: false,
+      // Optionally add a connection timeout
+      connectTimeoutMS: 10000
+    };
     cached.promise = mongoose.connect(MONGODB_URI, opts);
   }
 
+  // Add a timer to log if connection takes too long
+  const start = Date.now();
+
   try {
     cached.conn = await cached.promise;
-    console.log("MongoDB: Connection established successfully on host:", cached.conn.connection.host);
+    const duration = Date.now() - start;
+    console.log(`MongoDB: Connection established successfully on host: ${cached.conn.connection.host} (took ${duration}ms)`);
   } catch (e) {
     console.error("MongoDB: Connection error:", e);
     cached.promise = null;
