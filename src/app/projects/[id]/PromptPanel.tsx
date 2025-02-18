@@ -85,8 +85,8 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
     setIsDarkModeLocal(document.documentElement.classList.contains('dark'));
   }, []);
 
-  // New: Define textarea classes conditionally
-  const promptTextAreaClass = `w-full rounded-xl border border-gray-200 dark:border-gray-700 px-4 pb-4 pt-3 pr-14 text-sm focus:ring-2 focus:ring-secondary/50 focus:border-transparent resize-none min-h-[72px] max-h-[200px] transition-all duration-200 ease-in-out ${!isDarkModeLocal ? "placeholder-black" : "placeholder:text-gray-400 dark:placeholder:text-gray-500"} focus:placeholder:text-transparent overflow-y-auto scrollbar-none break-words overflow-x-hidden`;
+  // Define conditional textarea classes without scrollbar classes
+  const promptTextAreaClass = `w-full rounded-xl border border-gray-200 dark:border-gray-700 px-4 pb-4 pt-3 pr-14 text-sm focus:ring-2 focus:ring-secondary/50 focus:border-transparent resize-none min-h-[72px] max-h-[200px] transition-all duration-200 ease-in-out ${!isDarkModeLocal ? "placeholder-black" : "placeholder:text-gray-400 dark:placeholder:text-gray-500"} focus:placeholder:text-transparent overflow-y-auto break-words overflow-x-hidden`;
 
   // Add a handler to revert to a previous diagram version.
   const handleDiagramVersionSelect = (version: string) => {
@@ -179,7 +179,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
           <>
             <div
               ref={chatContainerRef}
-              className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-secondary/10 hover:scrollbar-thumb-secondary/20 scrollbar-track-transparent"
+              className="flex-1 overflow-y-auto p-4 space-y-4"
             >
               {/* Welcome Message */}
               <div className="flex items-start space-x-3">
@@ -197,7 +197,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
               </div>
               {/* Chat History */}
               <div
-                className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-secondary/10 hover:scrollbar-thumb-secondary/20 scrollbar-track-transparent"
+                className="flex-1 overflow-y-auto p-4 space-y-4"
               >
                 {chatHistory.map((message, index) => (
                   <ChatMessage 
@@ -402,7 +402,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
           <>
             <div
               ref={chatContainerRef}
-              className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-secondary/10 hover:scrollbar-thumb-secondary/20 scrollbar-track-transparent"
+              className="flex-1 overflow-y-auto p-4 space-y-4"
             >
               {/* Welcome Message */}
               <div className="flex items-start space-x-3">
@@ -420,7 +420,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
               </div>
               {/* Chat History */}
               <div
-                className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-secondary/10 hover:scrollbar-thumb-secondary/20 scrollbar-track-transparent"
+                className="flex-1 overflow-y-auto p-4 space-y-4"
               >
                 {chatHistory.map((message, index) => (
                   <ChatMessage 
