@@ -16,7 +16,7 @@ export default function Home() {
 
   return (
     <SignedOut>
-      <SignInButton mode="modal" redirectUrl="/projects">
+      <SignInButton mode="modal" forceRedirectUrl="/projects">
         <button className="px-4 py-2 rounded-lg bg-transparent border border-white hover:bg-white hover:text-gray-900 transition-colors">
           Sign In
         </button>
