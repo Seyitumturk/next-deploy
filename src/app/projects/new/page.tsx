@@ -4,6 +4,7 @@ import Link from 'next/link';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import CreateForm from './create-form';
+import Image from 'next/image';
 
 async function getUser(userId: string) {
   await connectDB();
@@ -36,7 +37,7 @@ export default async function NewProjectPage() {
         <div className="container mx-auto flex justify-between items-center">
           <div className="flex items-center space-x-2">
             <Link href="/projects" className="flex items-center space-x-2 hover:opacity-80">
-              <img src="/logo-green.svg" alt="Chartable Logo" className="h-8 w-8" />
+              <Image src="/logo-green.svg" alt="Chartable Logo" width={32} height={32} className="h-8 w-8" />
               <span className="text-xl font-bold">Chartable</span>
             </Link>
           </div>

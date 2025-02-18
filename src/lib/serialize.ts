@@ -22,4 +22,9 @@ export function serializeMongoObject<T extends { _id?: any }>(obj: T): any {
   }
 
   return serialized;
+}
+
+export function serialize(data: unknown): string {
+  // Example implementation: JSON stringify your data.
+  return JSON.stringify(data);
 } 

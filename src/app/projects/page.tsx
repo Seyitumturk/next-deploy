@@ -8,6 +8,7 @@ import CreateProjectModal from '@/components/CreateProjectModal';
 import { getProjects } from './actions';
 import DeleteProjectModal from '@/components/DeleteProjectModal';
 import OnboardingBar from '@/components/OnboardingBar';
+import Image from 'next/image';
 
 interface Project {
   _id: string;
@@ -70,10 +71,12 @@ export default function ProjectsPage() {
   const getDiagramIcon = (type: string) => {
     const iconPath = `/diagrams/${type}.svg`;
     return (
-      <img 
+      <Image 
         src={iconPath} 
         alt={`${type} diagram icon`}
         className="w-full h-full object-contain"
+        width={100}
+        height={100}
       />
     );
   };
@@ -117,7 +120,7 @@ export default function ProjectsPage() {
         <div className="container h-full mx-auto px-6 flex justify-between items-center">
           <div className="flex items-center space-x-4">
             <Link href="/" className="flex items-center space-x-3 hover:opacity-80 transition-all">
-              <img src="/logo-green.svg" alt="Chartable Logo" className="h-8 w-8" />
+              <Image src="/logo-green.svg" alt="Chartable Logo" width={32} height={32} className="h-8 w-8" />
               <span className="text-xl font-bold font-geist">Chartable</span>
             </Link>
           </div>

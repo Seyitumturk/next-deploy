@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 
 interface DeleteProjectModalProps {
   isOpen: boolean;
@@ -12,7 +11,6 @@ interface DeleteProjectModalProps {
 }
 
 export default function DeleteProjectModal({ isOpen, projectId, projectTitle, onClose, onDelete }: DeleteProjectModalProps) {
-  const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
 
   if (!isOpen) return null;
@@ -55,7 +53,7 @@ export default function DeleteProjectModal({ isOpen, projectId, projectTitle, on
               </h3>
               <div className="mt-2">
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Are you sure you want to delete "{projectTitle}"? This action cannot be undone.
+                  Are you sure you want to delete &quot;{projectTitle}&quot;? This action cannot be undone.
                 </p>
               </div>
             </div>

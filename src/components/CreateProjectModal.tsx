@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import Image from 'next/image';
 
 interface CreateProjectModalProps {
   isOpen: boolean;
@@ -171,9 +172,11 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
                         >
                           <div className="flex items-start space-x-3">
                             <div className="w-10 h-10 flex-shrink-0 rounded-lg bg-white/10 dark:bg-white/5 backdrop-blur-sm shadow-lg shadow-purple-500/10 border border-white/20 dark:border-white/10 p-2">
-                              <img 
+                              <Image 
                                 src={type.icon} 
                                 alt={`${type.label} icon`}
+                                width={40}
+                                height={40}
                                 className="w-full h-full object-contain"
                               />
                             </div>
