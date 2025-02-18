@@ -1,25 +1,17 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Editor from '@monaco-editor/react';
 import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
-import { DocxLoader } from "@langchain/community/document_loaders/fs/docx";
-import { PPTXLoader } from "@langchain/community/document_loaders/fs/pptx";
-import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 
 // Modularized component imports
-import ChatMessage from './ChatMessage';
-import FileUploadOptions from './FileUploadOptions';
-import DiagramControls from './DiagramControls';
 import PromptPanel from './PromptPanel';
 import DiagramDisplay from './DiagramDisplay';
 // Import our custom hook
 import useDiagramEditor, { EditorProps } from './useDiagramEditor';
 
 const DiagramEditor: React.FC<EditorProps> = (props) => {
-  const router = useRouter();
   const editor = useDiagramEditor(props);
 
   // Add dark mode toggle state

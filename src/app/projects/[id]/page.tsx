@@ -1,20 +1,11 @@
 import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
-import Link from 'next/link';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
-import Project, { IProject } from '@/models/Project';
+import Project from '@/models/Project';
 import DiagramEditor from './editor';
 import { Types } from 'mongoose';
-
-interface MongoHistoryItem {
-  _id: Types.ObjectId;
-  prompt?: string;
-  diagram: string;
-  diagram_img?: string;
-  updateType: 'chat' | 'code' | 'reversion';
-  updatedAt: Date;
-}
+import Image from 'next/image';
 
 interface SerializedHistoryItem {
   _id: string;

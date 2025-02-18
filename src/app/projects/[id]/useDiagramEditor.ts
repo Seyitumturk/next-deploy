@@ -1,6 +1,7 @@
-                                                                  import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import mermaid from 'mermaid';
 import type { ChatMessageData } from './ChatMessage';
+import React from 'react';
 
 export interface EditorProps {
   projectId: string;
@@ -21,7 +22,7 @@ export interface EditorProps {
   }[];
 }
 
-function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram, user, history }: EditorProps) {
+function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram, user: _user, history }: EditorProps) {
   // --- state definitions ---
   const [prompt, setPrompt] = useState('');
   const [lastPrompt, setLastPrompt] = useState('');
@@ -43,7 +44,6 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
     console.log(">> useDiagramEditor: No history diagram, loading initialDiagram:", initialDiagram);
     return initialDiagram || '';
   });
-  const [streamBuffer, setStreamBuffer] = useState('');
   const svgRef = useRef<HTMLDivElement>(null);
   const bufferTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const diagramRef = useRef<HTMLDivElement>(null);
@@ -79,7 +79,6 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
     return uniqueHistory.reverse();
   });
   const [showFileUpload, setShowFileUpload] = useState(false);
-  const [diagramError, setDiagramError] = useState<string | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
 
   // --- auto-scroll chat on update ---
@@ -97,44 +96,8 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
     }
   }, [chatHistory, isGenerating]);
 
-  // --- load initial diagram ---
-  useEffect(() => {
-    const loadLatestDiagram = async () => {
-      if (history.length > 0) {
-        const latestHistoryItem = history[0];
-        console.log(">> useDiagramEditor: loadLatestDiagram - history[0]:", latestHistoryItem);
-        
-        // Always set the current diagram from history if available
-        if (latestHistoryItem?.diagram) {
-          console.log(">> useDiagramEditor: Setting diagram from history:", latestHistoryItem.diagram);
-          setCurrentDiagram(latestHistoryItem.diagram);
-        } else {
-          console.log(">> useDiagramEditor: No diagram found in latest history");
-        }
-
-        // Handle SVG display
-        if (latestHistoryItem?.diagram_img) {
-          console.log(">> useDiagramEditor: Found diagram_img, setting svgOutput");
-          setSvgOutput(latestHistoryItem.diagram_img);
-        } else if (latestHistoryItem?.diagram) {
-          try {
-            const renderSuccess = await renderDiagram(latestHistoryItem.diagram);
-            if (!renderSuccess) {
-              setDiagramError('Failed to render initial diagram');
-            }
-          } catch (error) {
-            console.error(">> useDiagramEditor: Error rendering initial diagram:", error);
-            setDiagramError('Error rendering initial diagram');
-          }
-        }
-      }
-    };
-
-    loadLatestDiagram();
-  }, [history]);
-
-  // --- render diagram with retries ---
-  const renderDiagram = async (diagramText: string): Promise<boolean> => {
+  // --- Moved renderDiagram above useEffect and wrapped it in a useCallback ---
+  const renderDiagram = React.useCallback(async (diagramText: string): Promise<boolean> => {
     const maxRetries = 3;
     let currentTry = 0;
     while (currentTry < maxRetries) {
@@ -193,18 +156,47 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
       }
     }
     return false;
-  };
+  }, []);
+
+  // Now use renderDiagram in the useEffect
+  useEffect(() => {
+    const loadLatestDiagram = async () => {
+      if (history.length > 0) {
+        const latestHistoryItem = history[0];
+        console.log('>> useDiagramEditor: loadLatestDiagram - history[0]:', latestHistoryItem);
+        
+        // Always set the current diagram from history if available
+        if (latestHistoryItem?.diagram) {
+          console.log('>> useDiagramEditor: Setting diagram from history:', latestHistoryItem.diagram);
+          setCurrentDiagram(latestHistoryItem.diagram);
+        } else {
+          console.log('>> useDiagramEditor: No diagram found in latest history');
+        }
+
+        // Handle SVG display
+        if (latestHistoryItem?.diagram_img) {
+          console.log('>> useDiagramEditor: Found diagram_img, setting svgOutput');
+          setSvgOutput(latestHistoryItem.diagram_img);
+        } else if (latestHistoryItem?.diagram) {
+          try {
+            const renderSuccess = await renderDiagram(latestHistoryItem.diagram);
+            if (!renderSuccess) {
+              // Optionally log error if needed
+            }
+          } catch (error) {
+            console.error('Error rendering initial diagram:', error);
+          }
+        }
+      }
+    };
+
+    loadLatestDiagram();
+  }, [history, renderDiagram]);
 
   // --- buffered update during streaming ---
   const updateDiagramWithBuffer = (newContent: string) => {
-    setStreamBuffer(newContent);
-    if (bufferTimeoutRef.current) {
-      clearTimeout(bufferTimeoutRef.current);
-    }
-    bufferTimeoutRef.current = setTimeout(async () => {
-      setCurrentDiagram(newContent);
-      renderDiagram(newContent).catch(console.error);
-    }, 100);
+    setCurrentDiagram(newContent);
+    renderDiagram(newContent).catch(console.error);
   };
 
   // --- mouse wheel zoom ---
@@ -504,7 +496,7 @@ Requested changes: ${promptText}`;
       // First render the diagram
       const renderSuccess = await renderDiagram(newCode);
       if (!renderSuccess) {
-        setDiagramError('Failed to render diagram');
+        setError('Failed to render diagram');
         return;
       }
 
@@ -519,7 +511,7 @@ Requested changes: ${promptText}`;
       });
     } catch (err) {
       console.error('Error updating diagram:', err);
-      setDiagramError(err instanceof Error ? err.message : 'Failed to update diagram');
+      setError(err instanceof Error ? err.message : 'Failed to update diagram');
     }
   };
 
@@ -659,7 +651,7 @@ Requested changes: ${promptText}`;
   const handleDiagramVersionSelect = useCallback((version: string) => {
     setCurrentDiagram(version);
     renderDiagram(version);
-  }, []);
+  }, [renderDiagram]);
 
   return {
     prompt,

@@ -6,6 +6,7 @@ import Editor from '@monaco-editor/react';
 import ChatMessage, { ChatMessageData } from './ChatMessage';
 import FileUploadOptions from './FileUploadOptions';
 import { ChatBubbleLeftEllipsisIcon, CodeBracketIcon } from '@heroicons/react/24/outline';
+import Image from 'next/image';
 
 export interface PromptPanelProps {
   handleCodeChange?: (code: string) => void;
@@ -26,7 +27,7 @@ export interface PromptPanelProps {
   setShowFileUpload: React.Dispatch<React.SetStateAction<boolean>>;
   currentDiagram: string;
   setCurrentDiagram: React.Dispatch<React.SetStateAction<string>>;
-  renderDiagram: (diagramText: string) => Promise<boolean>;
+  onRenderDiagram: (diagramText: string) => Promise<boolean>;
   setIsEditorReady: React.Dispatch<React.SetStateAction<boolean>>;
   setShowPromptPanel: React.Dispatch<React.SetStateAction<boolean>>;
   isVisible: boolean;
@@ -36,7 +37,7 @@ const monacoOptions = {
   fontSize: 14,
   fontFamily: 'var(--font-geist-mono)',
   minimap: { enabled: false },
-  lineNumbers: 'on',
+  lineNumbers: 'on' as const,
   roundedSelection: true,
   scrollBeyondLastLine: false,
   automaticLayout: true,
@@ -72,7 +73,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
   setShowFileUpload,
   currentDiagram,
   setCurrentDiagram,
-  renderDiagram,
+  onRenderDiagram,
   setIsEditorReady,
   setShowPromptPanel,
   isVisible,
@@ -91,7 +92,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
   // Add a handler to revert to a previous diagram version.
   const handleDiagramVersionSelect = (version: string) => {
     setCurrentDiagram(version);
-    renderDiagram(version);
+    onRenderDiagram(version);
   };
 
   return (
@@ -272,7 +273,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
                 onChange={(value) => {
                   if (value) {
                     setCurrentDiagram(value);
-                    renderDiagram(value);
+                    onRenderDiagram(value);
                     handleCodeChange && handleCodeChange(value);
                   }
                 }}
@@ -495,7 +496,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
                 onChange={(value) => {
                   if (value) {
                     setCurrentDiagram(value);
-                    renderDiagram(value);
+                    onRenderDiagram(value);
                     handleCodeChange && handleCodeChange(value);
                   }
                 }}
