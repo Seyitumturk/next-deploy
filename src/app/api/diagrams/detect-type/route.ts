@@ -5,6 +5,11 @@ import yaml from 'yaml';
 import fs from 'fs';
 import path from 'path';
 
+interface DiagramDefinition {
+  description: string;
+  // You can add other properties if needed.
+}
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
   organization: process.env.OPENAI_ORGANIZATION_ID,
@@ -28,7 +33,7 @@ export async function POST(req: Request) {
 
     // Create a description of available diagram types from the config
     const diagramTypes = Object.entries(diagramConfig.definitions)
-      .map(([type, def]: [string, any]) => `${type}: ${def.description.split('\n')[0]}`)
+      .map(([type, def]: [string, DiagramDefinition]) => `${type}: ${def.description.split('\n')[0]}`)
       .join('\n');
 
     const completion = await openai.chat.completions.create({

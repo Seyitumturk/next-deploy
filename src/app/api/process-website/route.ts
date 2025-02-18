@@ -18,7 +18,7 @@ export async function POST(request: Request) {
       },
       // Evaluate function returns the text content from the page,
       // and optimizes the text by removing extra whitespace and unwanted symbols.
-      async evaluate(page, browser, response) {
+      async evaluate(page, _browser, _response) {
         let textContent = await page.evaluate(() => document.body.innerText);
         // Remove excessive whitespace.
         textContent = textContent.replace(/\s+/g, ' ').trim();
