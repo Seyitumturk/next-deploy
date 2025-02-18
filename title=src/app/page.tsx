@@ -16,12 +16,12 @@ export default function Home() {
 
   return (
     <SignedOut>
-      <SignInButton mode="modal" afterSignInUrl="/projects">
+      <SignInButton mode="modal" redirectUrl="/projects">
         <button className="px-4 py-2 rounded-lg bg-transparent border border-white hover:bg-white hover:text-gray-900 transition-colors">
           Sign In
         </button>
       </SignInButton>
-      <SignUpButton mode="modal" afterSignUpUrl="/projects">
+      <SignUpButton mode="modal" redirectUrl="/projects">
         <button className="px-4 py-2 rounded-lg bg-green-500 hover:bg-green-600 transition-colors">
           Get Started
         </button>
