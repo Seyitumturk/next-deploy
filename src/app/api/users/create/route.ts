@@ -5,26 +5,31 @@ import User from '@/models/User';
 
 export async function POST() {
   try {
+    // Get the Clerk user ID
     const { userId } = await auth();
+    console.log("API create user: Received userId:", userId);
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get the user's information from Clerk
+    // Retrieve the user's details from Clerk
     const clerkUser = await currentUser();
+    console.log("API create user: Retrieved Clerk user:", clerkUser);
     if (!clerkUser) {
       return NextResponse.json({ error: 'User not found in Clerk' }, { status: 404 });
     }
 
+    // Connect to MongoDB
     await connectDB();
 
-    // Check if user already exists in MongoDB
+    // Check for an existing user in MongoDB
     const existingUser = await User.findOne({ clerkId: userId });
     if (existingUser) {
+      console.log("API create user: User already exists in MongoDB:", existingUser);
       return NextResponse.json({ user: existingUser });
     }
 
-    // Create new user in MongoDB
+    // Create a new user in MongoDB
     const newUser = await User.create({
       username: clerkUser.username || `${clerkUser.firstName}${clerkUser.lastName}`.toLowerCase(),
       clerkId: userId,
@@ -33,6 +38,7 @@ export async function POST() {
       email: clerkUser.emailAddresses[0]?.emailAddress || '',
       wordCountBalance: 5000, // Default word count balance
     });
+    console.log("API create user: New user created:", newUser);
 
     return NextResponse.json({ user: newUser });
   } catch (error) {
