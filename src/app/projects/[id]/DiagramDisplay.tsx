@@ -42,7 +42,26 @@ const DiagramDisplay: React.FC<DiagramDisplayProps> = ({
 }) => {
   return (
     <>
-      <div className={`relative flex-1 flex flex-col transition-all duration-300 ease-in-out ${showPromptPanel ? "md:ml-96 md:mb-0 mb-96" : "md:ml-0"}`}>
+      {/* Mobile Controls */}
+      <div 
+        className="md:hidden fixed left-0 right-0 z-50" 
+        style={{ bottom: showPromptPanel ? "50vh" : "0" }}
+      >
+        <DiagramControls 
+          showPromptPanel={showPromptPanel}
+          setShowPromptPanel={setShowPromptPanel}
+          scale={scale}
+          setScale={setScale}
+          setPosition={setPosition}
+          downloadSVG={downloadSVG}
+          downloadPNG={downloadPNG}
+          showExportMenu={showExportMenu}
+          setShowExportMenu={setShowExportMenu}
+        />
+      </div>
+
+      {/* Main Diagram Container */}
+      <div className={`relative flex-1 flex flex-col transition-all duration-300 ease-in-out ${showPromptPanel ? "md:ml-96" : "md:ml-0"}`}>
         <div className="hidden md:block">
           <DiagramControls 
             showPromptPanel={showPromptPanel}
@@ -99,20 +118,6 @@ const DiagramDisplay: React.FC<DiagramDisplayProps> = ({
             )}
           </div>
         </div>
-      </div>
-
-      <div className="md:hidden fixed left-0 right-0 z-50" style={{ bottom: showPromptPanel ? "50vh" : "0" }}>
-        <DiagramControls 
-          showPromptPanel={showPromptPanel}
-          setShowPromptPanel={setShowPromptPanel}
-          scale={scale}
-          setScale={setScale}
-          setPosition={setPosition}
-          downloadSVG={downloadSVG}
-          downloadPNG={downloadPNG}
-          showExportMenu={showExportMenu}
-          setShowExportMenu={setShowExportMenu}
-        />
       </div>
     </>
   );
