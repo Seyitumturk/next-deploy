@@ -1,20 +1,12 @@
 "use client";
 
-import { useEffect } from 'react';
 import { useClerk, useUser, SignInButton, SignUpButton, SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
 import Image from 'next/image';
 import Link from 'next/link';
 
 export default function Home() {
-  const { isSignedIn, isLoaded } = useUser();
-  const { openSignUp } = useClerk();
-
-  // Auto open the registration modal for new users only after the user state is loaded.
-  useEffect(() => {
-    if (isLoaded && !isSignedIn) {
-      openSignUp({ afterSignUpUrl: '/projects' });
-    }
-  }, [isLoaded, isSignedIn, openSignUp]);
+  // We no longer auto-open the modal—users must click a button.
+  const { isSignedIn } = useUser();
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white">
@@ -26,7 +18,7 @@ export default function Home() {
           </div>
           <div className="space-x-4">
             <SignedOut>
-              <SignInButton mode="modal" signInProps={{ afterSignInUrl: '/projects' }}>
+              <SignInButton mode="modal">
                 <button className="px-4 py-2 rounded-lg bg-transparent border border-white hover:bg-white hover:text-gray-900 transition-colors">
                   Sign In
                 </button>
