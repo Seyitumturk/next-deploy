@@ -12,6 +12,7 @@ interface DiagramControlsProps {
   downloadPNG: (transparent?: boolean) => void;
   showExportMenu: boolean;
   setShowExportMenu: React.Dispatch<React.SetStateAction<boolean>>;
+  isDarkMode: boolean;
 }
 
 const DiagramControls: React.FC<DiagramControlsProps> = ({
@@ -24,19 +25,12 @@ const DiagramControls: React.FC<DiagramControlsProps> = ({
   downloadPNG,
   showExportMenu,
   setShowExportMenu,
+  isDarkMode,
 }) => {
-  // Set up local dark mode detection.
-  const [isDarkModeLocal, setIsDarkModeLocal] = useState(
-    typeof window !== 'undefined' && document.documentElement.classList.contains('dark')
-  );
-  useEffect(() => {
-    setIsDarkModeLocal(document.documentElement.classList.contains('dark'));
-  }, []);
-
   return (
     <div
       className="h-12 glass-panel border-b backdrop-blur-xl px-4 flex items-center justify-between"
-      style={!isDarkModeLocal ? { backgroundColor: "#e8dccc", color: "#000000" } : {}}
+      style={!isDarkMode ? { backgroundColor: "#e8dccc", color: "#000000" } : {}}
     >
       <div className="flex items-center space-x-2">
         {!showPromptPanel && (

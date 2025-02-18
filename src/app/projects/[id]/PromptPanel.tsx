@@ -31,6 +31,7 @@ export interface PromptPanelProps {
   setIsEditorReady: React.Dispatch<React.SetStateAction<boolean>>;
   setShowPromptPanel: React.Dispatch<React.SetStateAction<boolean>>;
   isVisible: boolean;
+  isDarkMode: boolean;
 }
 
 const monacoOptions = {
@@ -77,17 +78,10 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
   setIsEditorReady,
   setShowPromptPanel,
   isVisible,
+  isDarkMode,
 }) => {
-  // Add local state to detect whether dark mode is active.
-  const [isDarkModeLocal, setIsDarkModeLocal] = useState(
-    typeof window !== 'undefined' && document.documentElement.classList.contains('dark')
-  );
-  useEffect(() => {
-    setIsDarkModeLocal(document.documentElement.classList.contains('dark'));
-  }, []);
-
   // Define conditional textarea classes without scrollbar classes
-  const promptTextAreaClass = `w-full rounded-xl border border-gray-200 dark:border-gray-700 px-4 pb-4 pt-3 pr-14 text-sm focus:ring-2 focus:ring-secondary/50 focus:border-transparent resize-none min-h-[72px] max-h-[200px] transition-all duration-200 ease-in-out ${!isDarkModeLocal ? "placeholder-black" : "placeholder:text-gray-400 dark:placeholder:text-gray-500"} focus:placeholder:text-transparent overflow-y-auto break-words overflow-x-hidden`;
+  const promptTextAreaClass = `w-full rounded-xl border border-gray-200 dark:border-gray-700 px-4 pb-4 pt-3 pr-14 text-sm focus:ring-2 focus:ring-secondary/50 focus:border-transparent resize-none min-h-[72px] max-h-[200px] transition-all duration-200 ease-in-out ${!isDarkMode ? "placeholder-black" : "placeholder:text-gray-400 dark:placeholder:text-gray-500"} focus:placeholder:text-transparent overflow-y-auto break-words overflow-x-hidden`;
 
   // Add a handler to revert to a previous diagram version.
   const handleDiagramVersionSelect = (version: string) => {
@@ -105,7 +99,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
           height: 'calc(100% - 3rem)', // subtract header height
           zIndex: 10,
           transform: isVisible ? 'translateX(0)' : 'translateX(-100%)',
-          backgroundColor: !isDarkModeLocal ? "#e8dccc" : undefined,
+          backgroundColor: !isDarkMode ? "#e8dccc" : undefined,
         }}
       >
         {/* Chat Header */}
@@ -186,11 +180,11 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
               <div className="flex items-start space-x-3">
                 <div
                   className="flex-1 rounded-2xl p-4 shadow-sm"
-                  style={!isDarkModeLocal ? { backgroundColor: "#e8dccc" } : {}}
+                  style={!isDarkMode ? { backgroundColor: "#e8dccc" } : {}}
                 >
                   <p
                     className="text-gray-700 dark:text-gray-300"
-                    style={!isDarkModeLocal ? { color: "#000000" } : {}}
+                    style={!isDarkMode ? { color: "#000000" } : {}}
                   >
                     Hello! I'm your AI assistant. Describe what you'd like to create or modify in your diagram, and I'll help you bring it to life.
                   </p>
@@ -241,7 +235,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
                   placeholder="Describe your diagram modifications... (Press Enter to send, Shift+Enter for new line)"
                   disabled={isGenerating}
                   style={
-                    !isDarkModeLocal
+                    !isDarkMode
                       ? { backgroundColor: "#e8dccc", color: "#000000", height: '72px' }
                       : { height: '72px' }
                   }
@@ -343,7 +337,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
           height: '50vh',
           zIndex: 10,
           transform: isVisible ? 'translateY(0)' : 'translateY(100%)',
-          backgroundColor: !isDarkModeLocal ? "#e8dccc" : undefined,
+          backgroundColor: !isDarkMode ? "#e8dccc" : undefined,
         }}
       >
         {/* Chat Header */}
@@ -409,11 +403,11 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
               <div className="flex items-start space-x-3">
                 <div
                   className="flex-1 rounded-2xl p-4 shadow-sm"
-                  style={!isDarkModeLocal ? { backgroundColor: "#e8dccc" } : {}}
+                  style={!isDarkMode ? { backgroundColor: "#e8dccc" } : {}}
                 >
                   <p
                     className="text-gray-700 dark:text-gray-300"
-                    style={!isDarkModeLocal ? { color: "#000000" } : {}}
+                    style={!isDarkMode ? { color: "#000000" } : {}}
                   >
                     Hello! I'm your AI assistant. Describe what you'd like to create or modify in your diagram, and I'll help you bring it to life.
                   </p>
@@ -464,7 +458,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
                   placeholder="Describe your diagram modifications... (Press Enter to send, Shift+Enter for new line)"
                   disabled={isGenerating}
                   style={
-                    !isDarkModeLocal
+                    !isDarkMode
                       ? { backgroundColor: "#e8dccc", color: "#000000", height: '72px' }
                       : { height: '72px' }
                   }

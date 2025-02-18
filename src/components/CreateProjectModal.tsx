@@ -18,7 +18,6 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
   const [formData, setFormData] = useState({
     title: '',
     diagramType: '',
-    description: '',
   });
 
   const diagramTypes = [
@@ -65,7 +64,6 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
 
   const handleNext = () => {
     if (step === 1 && !formData.title.trim()) return;
-    if (step === 2 && !formData.diagramType) return;
     setStep(step + 1);
   };
 
@@ -89,7 +87,7 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
           onClick={(e) => e.stopPropagation()}
-          className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden"
+          className="rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden bg-[#e8dccc] dark:bg-gray-800"
         >
           <form onSubmit={handleSubmit} className="relative">
             {/* Header */}
@@ -113,7 +111,6 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
               <div className="flex items-center space-x-4 mt-6">
                 <div className={`h-2 flex-1 rounded-full ${step >= 1 ? 'bg-primary' : 'bg-gray-200 dark:bg-gray-700'}`} />
                 <div className={`h-2 flex-1 rounded-full ${step >= 2 ? 'bg-primary' : 'bg-gray-200 dark:bg-gray-700'}`} />
-                <div className={`h-2 flex-1 rounded-full ${step === 3 ? 'bg-primary' : 'bg-gray-200 dark:bg-gray-700'}`} />
               </div>
             </div>
 
@@ -140,13 +137,18 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
                       type="text"
                       value={formData.title}
                       onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                      className="w-full px-4 py-2 rounded-lg border dark:border-gray-700 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary focus:border-transparent"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && formData.title.trim()) {
+                          e.preventDefault();
+                          handleNext();
+                        }
+                      }}
+                      className="w-full px-4 py-2 rounded-lg border dark:border-gray-700 bg-[#e8dccc] dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
                       placeholder="Enter a descriptive title..."
                       autoFocus
                     />
                   </motion.div>
                 )}
-
                 {step === 2 && (
                   <motion.div
                     key="step2"
@@ -170,48 +172,26 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
                               : 'hover:border-primary/30'
                           }`}
                         >
-                          <div className="flex items-start space-x-3">
-                            <div className="w-10 h-10 flex-shrink-0 rounded-lg bg-white/10 dark:bg-white/5 backdrop-blur-sm shadow-lg shadow-purple-500/10 border border-white/20 dark:border-white/10 p-2">
-                              <Image 
-                                src={type.icon} 
-                                alt={`${type.label} icon`}
-                                width={40}
-                                height={40}
-                                className="w-full h-full object-contain"
-                              />
-                            </div>
-                            <div className="flex-1">
-                              <span className="font-medium block text-gray-900 dark:text-white">
-                                {type.label}
-                              </span>
-                              <span className="text-xs text-gray-500 dark:text-gray-400">
-                                Click to select
-                              </span>
-                            </div>
+                          <div className="w-10 h-10 flex-shrink-0 rounded-lg bg-white/10 dark:bg-white/5 backdrop-blur-sm shadow-lg shadow-purple-500/10 border border-white/20 dark:border-white/10 p-2">
+                            <Image 
+                              src={type.icon} 
+                              alt={`${type.label} icon`}
+                              width={40}
+                              height={40}
+                              className="w-full h-full object-contain"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <span className="font-medium block text-gray-900 dark:text-white">
+                              {type.label}
+                            </span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              Click to select
+                            </span>
                           </div>
                         </button>
                       ))}
                     </div>
-                  </motion.div>
-                )}
-
-                {step === 3 && (
-                  <motion.div
-                    key="step3"
-                    initial={{ x: -20, opacity: 0 }}
-                    animate={{ x: 0, opacity: 1 }}
-                    exit={{ x: 20, opacity: 0 }}
-                  >
-                    <label className="block text-sm font-medium mb-2">
-                      Would you like to add an initial description? (Optional)
-                    </label>
-                    <textarea
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      rows={4}
-                      className="w-full px-4 py-2 rounded-lg border dark:border-gray-700 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary focus:border-transparent"
-                      placeholder="Describe what you want to create (AI will help you generate the diagram)"
-                    />
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -227,11 +207,11 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
                 {step === 1 ? 'Cancel' : 'Back'}
               </button>
               
-              {step < 3 ? (
+              {step < 2 ? (
                 <button
                   type="button"
                   onClick={handleNext}
-                  disabled={step === 1 && !formData.title.trim() || step === 2 && !formData.diagramType}
+                  disabled={step === 1 && !formData.title.trim()}
                   className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white transition-colors disabled:opacity-50"
                 >
                   Next
