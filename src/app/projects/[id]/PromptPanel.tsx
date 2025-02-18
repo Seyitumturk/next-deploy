@@ -46,8 +46,8 @@ const monacoOptions = {
   wordWrap: 'on',
   theme: 'vs-dark',
   scrollbar: {
-    vertical: 'visible',
-    horizontal: 'visible',
+    vertical: 'visible' as const,
+    horizontal: 'visible' as const,
     useShadows: false,
     verticalScrollbarSize: 8,
     horizontalScrollbarSize: 8
