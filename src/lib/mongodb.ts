@@ -22,20 +22,21 @@ const cached = globalThis.mongooseCache;
 
 async function connectDB() {
   if (cached.conn) {
+    console.log("MongoDB: Already connected");
     return cached.conn;
   }
 
   if (!cached.promise) {
-    const opts = {
-      bufferCommands: false,
-    };
-
+    console.log("MongoDB: No existing connection promise, connecting now...");
+    const opts = { bufferCommands: false };
     cached.promise = mongoose.connect(MONGODB_URI, opts);
   }
 
   try {
     cached.conn = await cached.promise;
+    console.log("MongoDB: Connection established successfully on host:", cached.conn.connection.host);
   } catch (e) {
+    console.error("MongoDB: Connection error:", e);
     cached.promise = null;
     throw e;
   }
