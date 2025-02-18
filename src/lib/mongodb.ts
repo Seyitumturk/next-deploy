@@ -13,11 +13,9 @@ if (!MONGODB_URI) {
   throw new Error('Please define the MONGODB_URI environment variable inside .env.local');
 }
 
-let cached = globalThis.mongoose;
-
-if (!cached) {
-  cached = globalThis.mongoose = { conn: null, promise: null };
-}
+// Ensure the global variable is defined
+globalThis.mongoose = globalThis.mongoose ?? { conn: null, promise: null };
+const cached = globalThis.mongoose;
 
 async function connectDB() {
   if (cached.conn) {
