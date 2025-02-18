@@ -9,6 +9,7 @@ import { getProjects } from './actions';
 import DeleteProjectModal from '@/components/DeleteProjectModal';
 import OnboardingBar from '@/components/OnboardingBar';
 import Image from 'next/image';
+import type { IGptResponse } from '@/models/GptResponse';
 
 interface Project {
   _id: string;
