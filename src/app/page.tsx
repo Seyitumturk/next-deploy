@@ -13,12 +13,12 @@ export default function Home() {
           </div>
           <div className="space-x-4">
             <SignedOut>
-              <SignInButton mode="modal">
+              <SignInButton mode="modal" afterSignInUrl="/projects">
                 <button className="px-4 py-2 rounded-lg bg-transparent border border-white hover:bg-white hover:text-gray-900 transition-colors">
                   Sign In
                 </button>
               </SignInButton>
-              <SignUpButton mode="modal">
+              <SignUpButton mode="modal" afterSignInUrl="/projects">
                 <button className="px-4 py-2 rounded-lg bg-green-500 hover:bg-green-600 transition-colors">
                   Get Started
                 </button>
