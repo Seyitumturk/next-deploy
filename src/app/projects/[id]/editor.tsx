@@ -2,8 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Editor from '@monaco-editor/react';
-import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
 
 // Modularized component imports
 import PromptPanel from './PromptPanel';
