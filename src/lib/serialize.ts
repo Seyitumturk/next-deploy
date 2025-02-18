@@ -1,7 +1,8 @@
 export function serializeMongoObject<T extends { _id?: any }>(obj: T): any {
   if (!obj) return null;
 
-  const serialized = { ...obj };
+  // Cast the spread object to allow indexing by string keys
+  const serialized = { ...obj } as Record<string, any>;
 
   // Convert _id if it exists
   if (serialized._id) {
