@@ -6,6 +6,7 @@ import Project from '@/models/Project';
 import DiagramEditor from './editor';
 import { Types } from 'mongoose';
 import Image from 'next/image';
+import type { IGptResponse } from '@/models/GptResponse';
 
 interface SerializedHistoryItem {
   _id: string;
