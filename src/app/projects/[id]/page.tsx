@@ -102,7 +102,7 @@ async function getProject(userId: string, projectId: string) {
   };
 }
 
-export default async function ProjectPage({ params }: { params: { id: string } }) {
+export default async function ProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { userId } = await auth();
   if (!userId) {
     redirect('/login');
