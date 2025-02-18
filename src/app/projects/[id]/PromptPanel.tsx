@@ -13,7 +13,7 @@ export interface PromptPanelProps {
   editorMode: 'chat' | 'code';
   setEditorMode: React.Dispatch<React.SetStateAction<'chat' | 'code'>>;
   chatHistory: ChatMessageData[];
-  chatContainerRef: React.RefObject<HTMLDivElement>;
+  chatContainerRef: React.RefObject<HTMLDivElement | null>;
   prompt: string;
   setPrompt: React.Dispatch<React.SetStateAction<string>>;
   isGenerating: boolean;
