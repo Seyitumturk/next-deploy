@@ -63,7 +63,7 @@ async function getProject(userId: string, projectId: string) {
     const GptResponse = (await import('@/models/GptResponse')).default;
     const latestGPT = await GptResponse.findOne({ projectId: projectId })
       .sort({ createdAt: -1 })
-      .lean();
+      .lean() as IGptResponse | null;
     if (latestGPT && latestGPT.extractedSyntax) {
       rawProject.currentDiagram = latestGPT.extractedSyntax;
       console.log(">> getProject fallback: Retrieved currentDiagram from GPTResponse:", rawProject.currentDiagram);
