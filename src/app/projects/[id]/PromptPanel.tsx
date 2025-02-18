@@ -43,7 +43,7 @@ const monacoOptions = {
   automaticLayout: true,
   padding: { top: 16, bottom: 16 },
   tabSize: 2,
-  wordWrap: 'on',
+  wordWrap: 'on' as const,
   theme: 'vs-dark',
   scrollbar: {
     vertical: 'visible' as const,
