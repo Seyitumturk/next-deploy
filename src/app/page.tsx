@@ -26,12 +26,12 @@ export default function Home() {
           </div>
           <div className="space-x-4">
             <SignedOut>
-              <SignInButton mode="modal" redirectUrl="/projects">
+              <SignInButton mode="modal" afterSignInUrl="/projects">
                 <button className="px-4 py-2 rounded-lg bg-transparent border border-white hover:bg-white hover:text-gray-900 transition-colors">
                   Sign In
                 </button>
               </SignInButton>
-              <SignUpButton mode="modal" redirectUrl="/projects">
+              <SignUpButton mode="modal" afterSignUpUrl="/projects">
                 <button className="px-4 py-2 rounded-lg bg-green-500 hover:bg-green-600 transition-colors">
                   Get Started
                 </button>
@@ -53,7 +53,7 @@ export default function Home() {
             Transform your ideas into professional diagrams instantly using AI. Support for ERD, Flowcharts, Sequence diagrams, and more.
           </p>
           <SignedOut>
-            <SignUpButton mode="modal">
+            <SignUpButton mode="modal" afterSignUpUrl="/projects">
               <button className="px-8 py-4 text-lg rounded-lg bg-green-500 hover:bg-green-600 transition-colors">
                 Start Creating
               </button>
