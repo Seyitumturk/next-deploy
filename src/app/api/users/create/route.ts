@@ -20,14 +20,18 @@ export async function POST() {
     }
 
     // Connect to MongoDB
+    console.log("API create user: Attempting to connect to MongoDB");
     await connectDB();
+    console.log("API create user: Connected to MongoDB successfully");
 
     // Check for an existing user in MongoDB
+    console.log("API create user: Checking for existing user in MongoDB with clerkId:", userId);
     const existingUser = await User.findOne({ clerkId: userId });
     if (existingUser) {
       console.log("API create user: User already exists in MongoDB:", existingUser);
       return NextResponse.json({ user: existingUser });
     }
+    console.log("API create user: No existing user found, proceeding to create new user.");
 
     // Create a new user in MongoDB
     const newUser = await User.create({
@@ -38,7 +42,7 @@ export async function POST() {
       email: clerkUser.emailAddresses[0]?.emailAddress || '',
       wordCountBalance: 5000, // Default word count balance
     });
-    console.log("API create user: New user created:", newUser);
+    console.log("API create user: New user record saved:", newUser);
 
     return NextResponse.json({ user: newUser });
   } catch (error) {
