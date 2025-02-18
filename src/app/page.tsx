@@ -26,7 +26,7 @@ export default function Home() {
           </div>
           <div className="space-x-4">
             <SignedOut>
-              <SignInButton mode="modal">
+              <SignInButton mode="modal" signInProps={{ afterSignInUrl: '/projects' }}>
                 <button className="px-4 py-2 rounded-lg bg-transparent border border-white hover:bg-white hover:text-gray-900 transition-colors">
                   Sign In
                 </button>
