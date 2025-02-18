@@ -6,15 +6,15 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 export default function Home() {
-  const { isSignedIn } = useUser();
+  const { isSignedIn, isLoaded } = useUser();
   const { openSignUp } = useClerk();
 
-  // Auto open the registration modal for new users on landing
+  // Auto open the registration modal for new users only after the user state is loaded.
   useEffect(() => {
-    if (!isSignedIn) {
+    if (isLoaded && !isSignedIn) {
       openSignUp({ afterSignUpUrl: '/projects' });
     }
-  }, [isSignedIn, openSignUp]);
+  }, [isLoaded, isSignedIn, openSignUp]);
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white">
