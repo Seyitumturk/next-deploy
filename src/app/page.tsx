@@ -1,4 +1,6 @@
 import { SignInButton, SignUpButton, SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
+import Image from 'next/image';
+import Link from 'next/link';
 
 export default function Home() {
   return (
@@ -45,9 +47,9 @@ export default function Home() {
             </SignUpButton>
           </SignedOut>
           <SignedIn>
-            <a href="/projects" className="px-8 py-4 text-lg rounded-lg bg-green-500 hover:bg-green-600 transition-colors inline-block">
+            <Link href="/projects/" className="px-8 py-4 text-lg rounded-lg bg-green-500 hover:bg-green-600 transition-colors inline-block">
               Go to Projects
-            </a>
+            </Link>
           </SignedIn>
         </div>
 

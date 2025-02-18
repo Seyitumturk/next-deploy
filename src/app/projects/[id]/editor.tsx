@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 // Modularized component imports
 import PromptPanel from './PromptPanel';
@@ -35,7 +36,7 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
               href="/projects"
               className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
             >
-              <img src="/logo-green.svg" alt="Chartable Logo" className="h-6 w-6" />
+              <Image src="/logo-green.svg" alt="Chartable Logo" width={24} height={24} className="h-6 w-6" />
               <span className="font-semibold text-gray-900 dark:text-white truncate max-w-[150px] md:max-w-none">
                 {props.projectTitle}
               </span>
@@ -49,7 +50,7 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
           {/* Mobile view: show logo and diagram type */}
           <div className="flex md:hidden items-center space-x-2">
             <Link href="/projects" className="flex items-center hover:opacity-80 transition-opacity">
-              <img src="/logo-green.svg" alt="Chartable Logo" className="h-6 w-6" />
+              <Image src="/logo-green.svg" alt="Chartable Logo" width={24} height={24} className="h-6 w-6" />
             </Link>
             <span className="text-sm text-gray-500 dark:text-gray-400">
               {props.diagramType.charAt(0).toUpperCase() +

@@ -156,7 +156,7 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
       }
     }
     return false;
-  }, []);
+  }, [projectId]);
 
   // Now use renderDiagram in the useEffect
   useEffect(() => {
