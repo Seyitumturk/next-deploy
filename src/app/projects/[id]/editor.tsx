@@ -144,7 +144,7 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
           }
           currentDiagram={editor.currentDiagram}
           setCurrentDiagram={editor.setCurrentDiagram}
-          renderDiagram={editor.renderDiagram}
+          onRenderDiagram={editor.renderDiagram}
           setIsEditorReady={editor.setIsEditorReady}
           setShowPromptPanel={editor.setShowPromptPanel}
         />
