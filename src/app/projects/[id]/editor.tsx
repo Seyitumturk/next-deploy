@@ -139,7 +139,9 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
           documentSummary={editor.documentSummary}
           showFileUpload={editor.showFileUpload}
           setShowFileUpload={editor.setShowFileUpload}
-          handleCodeChange={editor.handleCodeChange}
+          handleCodeChange={(code: string) =>
+            editor.handleCodeChange({ target: { value: code } } as React.ChangeEvent<HTMLTextAreaElement>)
+          }
           currentDiagram={editor.currentDiagram}
           setCurrentDiagram={editor.setCurrentDiagram}
           renderDiagram={editor.renderDiagram}
