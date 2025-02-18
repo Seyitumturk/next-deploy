@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect } from 'react';
 import { useClerk, useUser, SignInButton, SignUpButton, SignedIn, SignedOut, UserButton } from '@clerk/nextjs';
 import Image from 'next/image';
