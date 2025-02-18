@@ -23,7 +23,7 @@ export default function Home() {
                   Sign In
                 </button>
               </SignInButton>
-              <SignUpButton mode="modal" signUpForceRedirectUrl="/projects">
+              <SignUpButton mode="modal" {...({ signUpForceRedirectUrl: "/projects" } as any)}>
                 <button className="px-4 py-2 rounded-lg bg-green-500 hover:bg-green-600 transition-colors">
                   Get Started
                 </button>
