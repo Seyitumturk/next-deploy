@@ -16,8 +16,8 @@ interface DiagramDisplayProps {
   isGenerating: boolean;
   isDragging: boolean;
   svgOutput: string;
-  diagramRef: React.RefObject<HTMLDivElement>;
-  svgRef: React.RefObject<HTMLDivElement>;
+  diagramRef: React.RefObject<HTMLDivElement | null>;
+  svgRef: React.RefObject<HTMLDivElement | null>;
   handleMouseDown: (e: React.MouseEvent) => void;
   position: { x: number; y: number };
 }
