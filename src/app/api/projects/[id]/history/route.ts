@@ -1,12 +1,12 @@
 import { auth } from '@clerk/nextjs/server';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import Project from '@/models/Project';
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -29,6 +29,7 @@ export async function POST(
       });
     }
 
+    const { params } = await context;
     const { id } = params;
     const project = await Project.findOne({
       _id: id,
@@ -52,10 +53,7 @@ export async function POST(
 
     await project.save();
 
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error updating history:', error);
     return new Response(
