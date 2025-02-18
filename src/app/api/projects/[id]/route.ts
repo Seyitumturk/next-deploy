@@ -4,10 +4,8 @@ import connectDB from '@/lib/mongodb';
 import Project from '@/models/Project';
 import User from '@/models/User';
 
-export async function DELETE(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(req: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const { userId } = await auth();
     if (!userId) {
