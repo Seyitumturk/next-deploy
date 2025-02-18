@@ -33,7 +33,7 @@ export default function Home() {
                 </button>
               </SignInButton>
               {/* @ts-ignore: Bypass type errors for SignUpButton */}
-              <SignUpButton mode="modal" redirectUrl="/projects">
+              <SignUpButton mode="modal" afterSignUpUrl="/projects">
                 <button className="px-4 py-2 rounded-lg bg-green-500 hover:bg-green-600 transition-colors">
                   Get Started
                 </button>
