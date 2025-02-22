@@ -20,6 +20,7 @@ interface DiagramDisplayProps {
   svgRef: React.RefObject<HTMLDivElement>;
   handleMouseDown: (e: React.MouseEvent) => void;
   position: { x: number; y: number };
+  isDarkMode: boolean;
 }
 
 const DiagramDisplay: React.FC<DiagramDisplayProps> = ({
@@ -39,6 +40,7 @@ const DiagramDisplay: React.FC<DiagramDisplayProps> = ({
   svgRef,
   handleMouseDown,
   position,
+  isDarkMode,
 }) => {
   return (
     <>
@@ -54,6 +56,7 @@ const DiagramDisplay: React.FC<DiagramDisplayProps> = ({
             downloadPNG={downloadPNG}
             showExportMenu={showExportMenu}
             setShowExportMenu={setShowExportMenu}
+            isDarkMode={isDarkMode}
           />
         </div>
 
@@ -112,6 +115,7 @@ const DiagramDisplay: React.FC<DiagramDisplayProps> = ({
           downloadPNG={downloadPNG}
           showExportMenu={showExportMenu}
           setShowExportMenu={setShowExportMenu}
+          isDarkMode={isDarkMode}
         />
       </div>
     </>

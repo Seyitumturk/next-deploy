@@ -115,11 +115,42 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
           gantt: { useMaxWidth: false },
           journey: { useMaxWidth: false }
         });
+        
+        // --- Updated: Use a container with proper dimensions for gantt rendering ---
         const container = document.createElement('div');
-        container.style.cssText = 'position: absolute; visibility: hidden; width: 0; height: 0; overflow: hidden;';
+        // Previously: 
+        // container.style.cssText = 'position: absolute; visibility: hidden; width: 0; height: 0; overflow: hidden;';
+        // Updated container style to allow mermaid to compute layout correctly:
+        container.style.cssText = 'position: absolute; top: -9999px; left: -9999px; width: 1200px; height: auto; overflow: hidden;';
         document.body.appendChild(container);
-        const { svg } = await mermaid.render('diagram-' + Date.now(), diagramText, container);
+        // --- End of container style update ---
+
+        // --- Begin: Remove markdown code fences if present ---
+        let diagramToRender = diagramText;
+        if (diagramToRender.trim().startsWith("```")) {
+          const lines = diagramToRender.split("\n");
+          // Remove first line if it starts with ```
+          if (lines[0].startsWith("```")) {
+            lines.shift();
+          }
+          // Remove last line if it ends with ```
+          if (lines[lines.length - 1].trim().endsWith("```")) {
+            lines.pop();
+          }
+          diagramToRender = lines.join("\n");
+        }
+        // --- End: Remove markdown code fences ---
+
+        // --- Begin: Sanitize gantt diagram text ---
+        if (diagramToRender.trim().toLowerCase().startsWith('gantt')) {
+          // Replace any instance of the word "parallel" with "after"
+          diagramToRender = diagramToRender.replace(/\bparallel\b/gi, 'after');
+        }
+        // --- End: Sanitize gantt diagram text ---
+
+        const { svg } = await mermaid.render('diagram-' + Date.now(), diagramToRender, container);
         document.body.removeChild(container);
+        
         // Process the SVG to make it responsive: remove fixed dimensions and set to full container width/height
         let newSvg = svg;
         try {
@@ -648,10 +679,24 @@ Requested changes: ${promptText}`;
   };
 
   // --- diagram version select ---
-  const handleDiagramVersionSelect = useCallback((version: string) => {
+  const handleDiagramVersionSelect = useCallback(async (version: string) => {
     setCurrentDiagram(version);
-    renderDiagram(version);
-  }, [renderDiagram]);
+    await renderDiagram(version);
+    
+    // Optionally save this version to history
+    try {
+      await fetch(`/api/projects/${projectId}/history`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          diagram: version,
+          updateType: 'reversion',
+        }),
+      });
+    } catch (error) {
+      console.error('Error saving diagram version:', error);
+    }
+  }, [projectId, renderDiagram]);
 
   return {
     prompt,

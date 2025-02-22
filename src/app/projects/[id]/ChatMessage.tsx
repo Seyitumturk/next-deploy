@@ -121,12 +121,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onDiagramVersionSele
 
   // Update the diagram version button click handler
   const handleDiagramVersionClick = () => {
-    if (message.diagramVersion) {
-      if (onDiagramVersionSelect) {
-        onDiagramVersionSelect(message.diagramVersion);
-      } else {
-        console.log("Diagram version clicked:", message.diagramVersion);
-      }
+    if (message.diagramVersion && onDiagramVersionSelect) {
+      onDiagramVersionSelect(message.diagramVersion);
     }
   };
 

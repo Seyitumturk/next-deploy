@@ -18,6 +18,9 @@ export async function POST(
     }
 
     const { prompt, diagram, updateType } = await req.json();
+    
+    // Get params.id asynchronously using object destructuring
+    const { id } = params;
 
     await connectDB();
     
@@ -29,7 +32,6 @@ export async function POST(
       });
     }
 
-    const { id } = params;
     const project = await Project.findOne({
       _id: id,
       userId: user._id,

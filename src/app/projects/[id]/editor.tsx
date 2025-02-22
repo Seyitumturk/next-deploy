@@ -145,6 +145,7 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
           renderDiagram={editor.renderDiagram}
           setIsEditorReady={editor.setIsEditorReady}
           setShowPromptPanel={editor.setShowPromptPanel}
+          isDarkMode={isDarkMode}
         />
         <DiagramDisplay
           showPromptPanel={editor.showPromptPanel}
@@ -163,6 +164,7 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
           svgRef={editor.svgRef}
           handleMouseDown={editor.handleMouseDown}
           position={editor.position}
+          isDarkMode={isDarkMode}
         />
       </div>
     </div>

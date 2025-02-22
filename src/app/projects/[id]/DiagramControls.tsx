@@ -12,6 +12,7 @@ interface DiagramControlsProps {
   downloadPNG: (transparent?: boolean) => void;
   showExportMenu: boolean;
   setShowExportMenu: React.Dispatch<React.SetStateAction<boolean>>;
+  isDarkMode: boolean;
 }
 
 const DiagramControls: React.FC<DiagramControlsProps> = ({
@@ -24,19 +25,11 @@ const DiagramControls: React.FC<DiagramControlsProps> = ({
   downloadPNG,
   showExportMenu,
   setShowExportMenu,
+  isDarkMode,
 }) => {
-  // Set up local dark mode detection.
-  const [isDarkModeLocal, setIsDarkModeLocal] = useState(
-    typeof window !== 'undefined' && document.documentElement.classList.contains('dark')
-  );
-  useEffect(() => {
-    setIsDarkModeLocal(document.documentElement.classList.contains('dark'));
-  }, []);
-
   return (
     <div
-      className="h-12 glass-panel border-b backdrop-blur-xl px-4 flex items-center justify-between"
-      style={!isDarkModeLocal ? { backgroundColor: "#e8dccc", color: "#000000" } : {}}
+      className={`h-12 glass-panel border-b backdrop-blur-xl px-4 flex items-center justify-between ${isDarkMode ? "bg-gray-900 text-gray-100" : "bg-[#e8dccc] text-black"}`}
     >
       <div className="flex items-center space-x-2">
         {!showPromptPanel && (
@@ -50,7 +43,7 @@ const DiagramControls: React.FC<DiagramControlsProps> = ({
             </svg>
           </button>
         )}
-        <div className="h-6 border-r border-gray-200 dark:border-gray-700 mx-2" />
+        <div className={`h-6 border-r ${isDarkMode ? "border-gray-700" : "border-gray-200"} mx-2`} />
         <div className="flex items-center space-x-1 bg-white/10 dark:bg-gray-800/50 rounded-lg p-1">
           <button 
             onClick={() => setScale(s => Math.min(s + 0.1, 5))} 
