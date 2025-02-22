@@ -29,7 +29,7 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
     { value: 'mindmap', label: 'Mind Map', icon: '/diagrams/mindmap.svg' },
     { value: 'timeline', label: 'Timeline', icon: '/diagrams/timeline.svg' },
     { value: 'gantt', label: 'Gantt Chart', icon: '/diagrams/gantt.svg' },
-    { value: 'pie', label: 'Pie Chart', icon: '/diagrams/pie.svg' },
+    { value: 'architecture', label: 'Architecture Diagram', icon: '/diagrams/architecture.svg' },
     { value: 'git', label: 'Git Graph', icon: '/diagrams/git.svg' },
   ];
 

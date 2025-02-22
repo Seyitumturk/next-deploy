@@ -514,51 +514,77 @@ definitions:
 
       Now, create a detailed Gantt chart based on the requirements above.
 
-  pie:
+  architecture:
     description: |
-      Create a pie chart that shows:
-      - Clear title using title [text]
-      - Data points with:
-        * Labels
-        * Values
-        * Optional comments
-      - Supports:
-        * Percentage calculations
-        * Custom colors
-        * Sorting options
-      - Uses modern syntax:
-        * title [Chart title]
-        * "[label]" : [value]
-      - Maintains readability
-      - Includes legend when needed
+      Create a production-ready architecture diagram using Mermaid's latest architecture-beta syntax (v11.1.0+). Your diagram should illustrate cloud, microservice, or CI/CD deployments with all modern details. Follow these guidelines:
+      
+      - Start with the keyword "architecture-beta" on the first line.
+      - Declare individual components using the "service" keyword with fully qualified icon identifiers and clear labels:
+          service <service_id>(<icon-name>)[<Label>]
+      - Optionally, group related services using:
+          group <group_id>(<icon-name>)[<Label>]
+        (Nested groups can be declared with "in <parent_group_id>" if required.)
+      - For multi-directional routing, use junction nodes:
+          junction <junction_id> (in <group_id>)?
+      - Connect components using explicit side indicators:
+          <source>:<side> [-- or -->] <side>:<target>
+        For example: auth:R --> L:authDb
+      - Ensure every connection specifies a source and target side (T, B, L, R) for an optimal layout.
+      - Avoid fixed dimensions in groups to allow responsive rendering.
     example: |
-      pie title Annual Revenue Distribution
-        "Product Sales" : 45.5
-        "Services" : 30.2
-        "Subscriptions" : 15.8
-        "Consulting" : 8.5
+      architecture-beta
+        %% DNS and CDN
+        service dns(logos:aws-route53)[Route 53]
+        service cf(logos:aws-cloudfront)[CloudFront]
+        dns:R --> L:cf
+        
+        %% Load Balancer and UI
+        service lb(logos:aws-ec2)[Load Balancer]
+        service ui(logos:nextjs)[UI]
+        cf:R --> L:lb
+        lb:B --> T:ui
+        
+        %% API Gateway and Services
+        service gateway(logos:aws-api-gateway)[API Gateway]
+        service auth(logos:aws-lambda)[Auth Service]
+        service authDb(logos:aws-dynamodb)[Auth DB]
+        auth:R --> L:authDb
+        
+        service blog(logos:aws-lambda)[Blog Service]
+        service blogDb(logos:aws-dynamodb)[Blog DB]
+        blog:R --> L:blogDb
+        
+        service analytics(logos:aws-lambda)[Analytics Service]
+        service analyticsIndex(logos:aws-open-search)[OpenSearch]
+        analytics:R --> L:analyticsIndex
+        
+        %% Connect API Gateway to services
+        gateway:R --> L:auth
+        gateway:R --> L:blog
+        gateway:R --> L:analytics
+        cf:R --> L:gateway
+
     prompt_template: |
-      As an expert Mermaid.js diagram creator, create a professional pie chart that follows modern best practices. Your task is to:
-
+      As an expert Mermaid.js diagram creator, design a detailed, production-ready architecture diagram using the latest architecture-beta syntax (v11.1.0+). Your task is to:
+      
       1. Analyze the requirements: {prompt}
-      2. Create a pie chart that:
-         - Has a clear title
-         - Shows data points with values
-         - Uses descriptive labels
-         - Maintains proper proportions
-         - Includes any necessary comments
-
-      Reference this example for structure and styling:
-      {example}
-
+      2. Create an architecture diagram that:
+         - Begins with the keyword "architecture-beta"
+         - Declares services using the "service" keyword with fully qualified icons and clear labels
+         - Optionally organizes related services into groups using the "group" syntax if necessary
+         - Uses junctions as needed for multi-directional routing
+         - Connects components with explicit side indicators (T, B, L, R) and proper arrow modifiers (e.g., auth:R --> L:authDb)
+         - Adheres to best practices for production-ready diagrams and responsive rendering
+         
+      Reference the example above for structure and advanced styling.
+      
       Important:
       - Start with ```mermaid
-      - Include title
-      - Use proper value format
-      - Add descriptive labels
-      - End with ```
-
-      Now, create a detailed pie chart based on the requirements above.
+      - Use the updated architecture-beta syntax and modern icon formats as specified in the documentation
+      - Always specify side indicators for edges (e.g., auth:R --> L:authDb)
+      - End with ```      
+      
+      Now, create a detailed, production-ready architecture diagram based on the requirements above.
 
   git:
     description: |
@@ -627,11 +653,6 @@ definitions:
         * Internal actions
         * Composite states
         * Parallel states
-      - Modern features:
-        * Choice points using <<choice>>
-        * History states using [H] and [H*]
-        * Fork and join
-        * Notes and comments
       - Proper state hierarchy using:
         state stateName {
           [nested states]
@@ -680,8 +701,10 @@ definitions:
       - Add clear comments using %%
       - Use descriptive transition labels
       - End with ```
-
+      
       Now, create a detailed state diagram based on the requirements above.
+
+
 
 # Example sections with modern, practical use cases
 flowchartExamples: |
@@ -972,40 +995,6 @@ ganttExamples: |
     Production Deploy :crit, milestone, 2024-04-01, 0d
   ```
 
-pieExamples: |
-  Example: Revenue Distribution
-  ```mermaid
-  pie title Annual Revenue Distribution
-    "Product Sales" : 45.5
-    "Services" : 30.2
-    "Subscriptions" : 15.8
-    "Consulting" : 8.5
-  ```
-
-gitExamples: |
-  Example: Feature Development Flow
-  ```mermaid
-  gitGraph
-    commit id: "initial"
-    branch develop
-    checkout develop
-    commit id: "feature-start"
-    branch feature/login
-    checkout feature/login
-    commit id: "auth-basic"
-    commit id: "auth-social"
-    checkout develop
-    merge feature/login
-    branch feature/profile
-    checkout feature/profile
-    commit id: "user-profile"
-    commit id: "profile-photo"
-    checkout develop
-    merge feature/profile
-    checkout main
-    merge develop tag: "v1.0.0"
-  ```
-
 mindmapExamples: |
   Example: Project Planning Mindmap
   ```mermaid
@@ -1047,39 +1036,15 @@ mindmapExamples: |
   ```
 
 prompts:
-  system_template: |
-    You are an expert Mermaid.js diagram creator specializing in {diagram_type} diagrams. Your task is to create clear, professional, and modern diagrams that follow best practices.
-
-    Follow these specific guidelines:
-
+  system_template: >
+    You are a helpful assistant that creates a {diagram_type} diagram. Your job is to use the description below and the example provided to generate a professional diagram:
     {description}
-
-    Additional requirements:
-    1. Always start with ```mermaid
-    2. Use descriptive names and labels
-    3. Follow consistent formatting and spacing
-    4. Add comments using %% for complex sections
-    5. Use modern Mermaid.js features
-    6. Ensure the diagram is both functional and visually appealing
-    7. Follow best practices for layout and organization
-    8. Include all necessary relationships and connections
-
-    Here's a reference example of a well-structured {diagram_type} diagram:
-    ```mermaid
+    --
+    Example:
     {example}
-    ```
-
-    Create a diagram that follows these guidelines and maintains similar quality and structure.
-
-  user_template: |
-    Based on the following requirements:
+  user_template: >
+    Please create a {diagram_type} diagram based on the following prompt:
     {prompt}
-
-    Create a professional {diagram_type} diagram that follows the structure and best practices shown in the example, while incorporating the specific requirements above.
-
-    Important:
-    1. Follow the exact syntax and formatting guidelines
-    2. Use appropriate node shapes and connections
-    3. Include clear comments and documentation
-    4. Maintain consistent styling
-    5. Ensure proper relationships and hierarchy
+    --
+    Use the example as guidance:
+    {example}

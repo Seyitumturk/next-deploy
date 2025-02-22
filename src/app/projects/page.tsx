@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { UserButton } from '@clerk/nextjs';
@@ -29,6 +29,81 @@ interface User {
   _id: string;
   wordCountBalance: number;
 }
+
+const EditableTitle = ({ 
+  initialTitle, 
+  projectId, 
+  onUpdate 
+}: { 
+  initialTitle: string;
+  projectId: string;
+  onUpdate: (projectId: string, newTitle: string) => void;
+}) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [title, setTitle] = useState(initialTitle);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const handleSubmit = async () => {
+    if (title.trim() === '') {
+      setTitle(initialTitle);
+      setIsEditing(false);
+      return;
+    }
+
+    if (title !== initialTitle) {
+      onUpdate(projectId, title);
+    }
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSubmit();
+    } else if (e.key === 'Escape') {
+      setTitle(initialTitle);
+      setIsEditing(false);
+    }
+  };
+
+  const handleTitleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsEditing(true);
+  };
+
+  if (isEditing) {
+    return (
+      <div onClick={(e) => e.preventDefault()}>
+        <input
+          ref={inputRef}
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onBlur={handleSubmit}
+          onKeyDown={handleKeyDown}
+          onClick={(e) => e.preventDefault()}
+          className="bg-transparent w-full font-semibold text-lg focus:outline-none focus:ring-2 focus:ring-primary rounded px-1"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <h3 
+      onClick={handleTitleClick}
+      className="font-semibold text-lg mb-1 group-hover:text-primary transition-colors cursor-pointer hover:opacity-80"
+    >
+      {title}
+    </h3>
+  );
+};
 
 export default function ProjectsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -115,19 +190,45 @@ export default function ProjectsPage() {
     }
   }
 
+  const handleTitleUpdate = async (projectId: string, newTitle: string) => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/update`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: newTitle }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update title');
+      }
+
+      // Update the projects state with the new title
+      setProjects(prevProjects =>
+        prevProjects.map(project =>
+          project._id === projectId
+            ? { ...project, title: newTitle }
+            : project
+        )
+      );
+    } catch (error) {
+      console.error('Error updating project title:', error);
+      // You might want to add error handling UI here
+    }
+  };
+
   return (
     <div className={`min-h-screen relative ${isDarkMode ? "bg-gradient-to-br from-gray-900 to-gray-800" : "bg-[#f0eee6]"}`}>
       <OnboardingBar />
       
       <nav
         style={{ backgroundColor: isDarkMode ? "#111827" : "#e8dccc", color: isDarkMode ? "#ffffff" : "#1f2937" }}
-        className="h-16 shadow-lg backdrop-blur-md"
+        className="sticky top-0 z-50 h-16 border-b border-gray-800/10"
       >
         <div className="container h-full mx-auto px-6 flex justify-between items-center">
           <div className="flex items-center space-x-4">
             <Link href="/" className="flex items-center space-x-3 hover:opacity-80 transition-all">
               <Image src="/logo-green.svg" alt="Chartable Logo" width={32} height={32} className="h-8 w-8" />
-              <span className="text-xl font-bold font-geist">Chartable</span>
+              <span className="text-xl font-bold font-geist hidden md:block">Chartable</span>
             </Link>
           </div>
           <div className="flex items-center space-x-6">
@@ -147,7 +248,7 @@ export default function ProjectsPage() {
               )}
             </button>
             {user && (
-              <div className="flex items-center space-x-2 px-4 py-2 rounded-lg backdrop-blur-sm">
+              <div className="hidden md:flex items-center space-x-2 px-4 py-2 rounded-lg backdrop-blur-sm">
                 <svg 
                   xmlns="http://www.w3.org/2000/svg" 
                   className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`} 
@@ -161,6 +262,13 @@ export default function ProjectsPage() {
                   <span className={`ml-1 font-mono ${isDarkMode ? 'text-white' : 'text-black'}`}>
                     {user.wordCountBalance.toLocaleString()}
                   </span>
+                </span>
+              </div>
+            )}
+            {user && (
+              <div className="md:hidden flex items-center space-x-1">
+                <span className={`font-mono text-sm ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                  {user.wordCountBalance.toLocaleString()}
                 </span>
               </div>
             )}
@@ -194,7 +302,7 @@ export default function ProjectsPage() {
           </h1>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors flex items-center space-x-2 shadow-lg shadow-primary/20"
+            className="hidden md:flex px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors flex items-center space-x-2 shadow-lg shadow-primary/20"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
@@ -235,7 +343,7 @@ export default function ProjectsPage() {
           </div>
         ) : searchQuery && filteredProjects.length === 0 ? (
           <div className="text-center py-12">
-            <h3 className="text-xl font-semibold mb-2">No diagrams match &quot;{searchQuery}&quot;</h3>
+            <h3 className="text-xl font-semibold mb-2 dark:text-white text-black">No diagrams match &quot;{searchQuery}&quot;</h3>
           </div>
         ) : (
           <>
@@ -245,11 +353,11 @@ export default function ProjectsPage() {
                   key={project._id}
                   className={`group relative ${isDarkMode ? 'bg-gray-800' : 'bg-[#e8dccc]'} rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300`}
                 >
+                  {/* Preview section - clickable */}
                   <Link
                     href={`/projects/${project._id}`}
                     className="block"
                   >
-                    {/* Diagram Preview */}
                     <div className="h-48 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900/50 dark:to-gray-800/50 border-b dark:border-gray-700/50 p-4 flex items-center justify-center relative overflow-hidden group-hover:from-gray-100 group-hover:to-gray-200 dark:group-hover:from-gray-800/50 dark:group-hover:to-gray-700/50 transition-all duration-300">
                       {project.history?.[0]?.diagram_img ? (
                         <div 
@@ -267,14 +375,18 @@ export default function ProjectsPage() {
                         </div>
                       )}
                     </div>
+                  </Link>
 
-                    {/* Project Info */}
-                    <div className="p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex-1">
-                          <h3 className={`font-semibold text-lg mb-1 group-hover:text-primary transition-colors ${isDarkMode ? "text-white" : "text-black"} line-clamp-1`}>
-                            {project.title}
-                          </h3>
+                  {/* Info section - title editable, rest clickable */}
+                  <div className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <EditableTitle
+                          initialTitle={project.title}
+                          projectId={project._id}
+                          onUpdate={handleTitleUpdate}
+                        />
+                        <Link href={`/projects/${project._id}`}>
                           <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center space-x-3">
                             <span className="w-5 h-5 flex items-center justify-center">
                               <span className="w-4 h-4">
@@ -283,18 +395,20 @@ export default function ProjectsPage() {
                             </span>
                             <span className="capitalize">{project.diagramType.replace('_', ' ')} Diagram</span>
                           </p>
-                        </div>
-                        <span className="text-sm text-gray-500 dark:text-gray-400">
-                          {formatDate(project.updatedAt)}
-                        </span>
+                        </Link>
                       </div>
-                      {project.description && (
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
+                        {formatDate(project.updatedAt)}
+                      </span>
+                    </div>
+                    {project.description && (
+                      <Link href={`/projects/${project._id}`}>
                         <p className="text-gray-600 dark:text-gray-400 text-sm line-clamp-2">
                           {project.description}
                         </p>
-                      )}
-                    </div>
-                  </Link>
+                      </Link>
+                    )}
+                  </div>
 
                   {/* Delete Button */}
                   <button
@@ -341,6 +455,19 @@ export default function ProjectsPage() {
             onDelete={handleDeleteProject}
           />
         )}
+        
+        { /* Mobile Floating Action Button: Visible only on screens smaller than md */ }
+        <div className="md:hidden">
+          <button
+            onClick={() => setIsModalOpen(true)}
+            title="New Diagram"
+            className="fixed bottom-4 right-4 p-4 bg-primary hover:bg-primary-dark text-white rounded-full shadow-lg z-50"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   );

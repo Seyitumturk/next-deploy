@@ -148,7 +148,92 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
         }
         // --- End: Sanitize gantt diagram text ---
 
-        const { svg } = await mermaid.render('diagram-' + Date.now(), diagramToRender, container);
+        // Remove markdown code fences (```mermaid ... ```) and extra whitespace
+        const cleanedDiagram = diagramToRender
+          .replace(/```(mermaid)?/gi, '')  // remove opening "```mermaid" if present
+          .replace(/```/g, '')            // remove closing fences
+          .trim();
+
+        // Additional cleaning: Extract the diagram portion if extra text exists.
+        // For architecture diagrams, start from "architecture-beta".
+        let finalDiagramText = cleanedDiagram;
+        if (finalDiagramText.includes('architecture-beta')) {
+          finalDiagramText = finalDiagramText.slice(finalDiagramText.indexOf('architecture-beta'));
+        }
+
+        // --- If this is an architecture diagram but doesn't start with "architecture-beta", prepend it.
+        if (
+          diagramType.toLowerCase() === 'architecture' &&
+          !finalDiagramText.trim().toLowerCase().startsWith('architecture-beta')
+        ) {
+          finalDiagramText = "architecture-beta\n" + finalDiagramText;
+        }
+
+        // --- Sanitize architecture diagrams by removing ampersands and cleaning group/service labels.
+        if (finalDiagramText.trim().toLowerCase().startsWith('architecture-beta')) {
+          // Remove ampersand characters that can break the parser.
+          finalDiagramText = finalDiagramText.replace(/&/g, '');
+          // Replace forward slashes in the label portions of group and service declarations.
+          finalDiagramText = finalDiagramText.replace(
+            /(group|service)(\s+\S+\(\S+\)\[)([^\]]+)(\])/gi,
+            (_, type, prefix, label, suffix) => {
+              const cleanedLabel = label.replace(/\//g, ' '); // Replace "/" with a space.
+              return type + prefix + cleanedLabel + suffix;
+            }
+          );
+        }
+
+        // --- Final whitespace normalization ---
+        finalDiagramText = finalDiagramText
+          .split('\n')
+          .map(line => line.trim())
+          .join('\n');
+        
+        // --- Remove extraneous 'end' lines for architecture diagrams ---
+        if (diagramType.toLowerCase() === 'architecture') {
+          finalDiagramText = finalDiagramText
+            .split('\n')
+            .filter(line => line.trim().toLowerCase() !== 'end')
+            .join('\n');
+        }
+
+        // --- Additional sanitization for architecture diagrams ---
+        if (
+          diagramType.toLowerCase() === 'architecture' &&
+          finalDiagramText.toLowerCase().startsWith('architecture-beta')
+        ) {
+          // Remove any comment lines (start with "//") to avoid stray arrow tokens.
+          finalDiagramText = finalDiagramText
+            .split('\n')
+            .filter(line => !line.trim().startsWith('//'))
+            .join('\n');
+          
+          // Replace any "->" with "--" globally to correct stray arrow tokens.
+          finalDiagramText = finalDiagramText.replace(/->/g, '--');
+          // Process the diagram text line by line.
+          finalDiagramText = finalDiagramText.split('\n').map(line => {
+            // If the line appears to be an edge declaration (contains '--')
+            if (line.includes('--')) {
+              const match = line.match(/^(\S+)\s+(-->|--)\s+(\S+)$/);
+              if (match) {
+                let left = match[1];
+                const op = match[2];
+                let right = match[3];
+                // Append default port directions if missing.
+                if (!left.includes(':')) {
+                  left = left + ':R';
+                }
+                if (!right.includes(':')) {
+                  right = 'L:' + right;
+                }
+                return `${left} ${op} ${right}`;
+              }
+            }
+            return line;
+          }).join('\n');
+        }
+
+        const { svg } = await mermaid.render('diagram-' + Date.now(), finalDiagramText, container);
         document.body.removeChild(container);
         
         // Process the SVG to make it responsive: remove fixed dimensions and set to full container width/height

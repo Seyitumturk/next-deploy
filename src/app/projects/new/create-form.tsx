@@ -84,7 +84,7 @@ export default function CreateForm() {
           <option value="state">State Diagram</option>
           <option value="user_journey">User Journey Map</option>
           <option value="gantt">Gantt Chart</option>
-          <option value="pie_chart">Pie Chart</option>
+          <option value="architecture">Architecture Diagram</option>
           <option value="quadrant">Quadrant Chart</option>
           <option value="requirement">Requirement Diagram</option>
           <option value="c4_diagram">C4 Architecture Diagram</option>

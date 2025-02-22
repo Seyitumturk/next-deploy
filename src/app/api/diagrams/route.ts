@@ -37,7 +37,7 @@ function getPromptForDiagramType(diagramType: string, userPrompt: string) {
     throw new Error(`Unsupported diagram type: ${diagramType}`);
   }
 
-  // Use the diagram-specific prompt template if available, otherwise use the default
+  // Use the diagram-specific prompt template
   const promptTemplate = config.prompt_template || diagramConfig.prompts.user_template;
 
   return promptTemplate
@@ -69,12 +69,21 @@ export async function POST(req: Request) {
     await connectDB();
 
     const { textPrompt, diagramType, projectId, clientSvg } = await req.json();
-    
-    // Add debug logging
-    console.log('Received clientSvg:', clientSvg ? clientSvg.substring(0, 100) + '...' : 'No SVG received');
+    console.log("[Diagrams API] Received payload:", {
+      textPrompt,
+      diagramType,
+      projectId,
+      clientSvg: clientSvg ? clientSvg.substring(0, 100) + "..." : "No SVG"
+    });
 
     // Validate diagram type
+    const availableTypes = Object.keys(diagramConfig.definitions);
+    console.log("Available diagram types:", availableTypes);
+    console.log("Requested diagram type:", diagramType);
     if (!diagramConfig.definitions[diagramType]) {
+      console.error(
+        `Unsupported diagram type: ${diagramType}. Available types: ${JSON.stringify(availableTypes)}`
+      );
       return NextResponse.json(
         { error: `Unsupported diagram type: ${diagramType}` },
         { status: 400 }

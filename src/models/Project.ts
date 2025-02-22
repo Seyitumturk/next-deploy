@@ -52,7 +52,6 @@ const projectSchema = new Schema<IProject>({
       'state',
       'user_journey',
       'gantt',
-      'pie_chart',
       'quadrant',
       'requirement',
       'c4_diagram',
@@ -60,6 +59,7 @@ const projectSchema = new Schema<IProject>({
       'timeline',
       'sankey',
       'git',
+      'architecture'
     ],
   },
   history: [{
