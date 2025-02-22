@@ -81,7 +81,11 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
   isDarkMode,
 }) => {
   // Updated textarea class without scrollbar styling
-  const promptTextAreaClass = `w-full rounded-xl border ${isDarkMode ? "border-gray-700 bg-gray-800 text-gray-100 placeholder-gray-400" : "border-gray-200 bg-[#e8dccc] text-gray-900 placeholder-gray-600"} px-4 pb-4 pt-3 text-sm focus:ring-2 focus:ring-secondary/50 focus:border-transparent resize-none min-h-[72px] max-h-[200px] transition-all duration-200 ease-in-out focus:placeholder:text-transparent`;
+  const promptTextAreaClass = `w-full rounded-xl border ${
+    isDarkMode 
+      ? "border-gray-700 bg-gray-800 text-gray-100 placeholder-gray-400" 
+      : "border-gray-200 bg-gray-900/80 text-gray-100 placeholder-gray-400"
+  } px-4 pb-4 pt-3 text-sm focus:ring-2 focus:ring-secondary/50 focus:border-transparent resize-none min-h-[72px] max-h-[200px] transition-all duration-200 ease-in-out focus:placeholder:text-transparent`;
 
   // Add a handler to revert to a previous diagram version.
   const handleDiagramVersionSelect = async (version: string) => {
@@ -104,7 +108,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
         {/* Modern Chat Header */}
         <div className={`h-14 px-4 border-b ${isDarkMode ? "border-gray-700/50" : "border-gray-200"} flex items-center justify-between`}>
           <div className="flex items-center space-x-3">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isDarkMode ? "bg-gray-800 text-gray-100" : "bg-white/80 text-gray-900"}`}>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gray-900 text-white">
               {editorMode === 'chat' ? (
                 <ChatBubbleLeftEllipsisIcon className="h-5 w-5" />
               ) : (
@@ -121,7 +125,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
           <div className="flex items-center space-x-2">
             <button
               onClick={() => setEditorMode(editorMode === 'chat' ? 'code' : 'chat')}
-              className="px-3 py-2 rounded-xl transition-colors text-sm font-medium flex items-center space-x-2 bg-white/80 dark:bg-gray-800 text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="px-3 py-2 rounded-xl transition-colors text-sm font-medium flex items-center space-x-2 bg-gray-900 text-white hover:bg-gray-800 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
               title={editorMode === 'chat' ? 'Switch to Code Editor' : 'Switch to Chat'}
             >
               {editorMode === 'chat' ? (
@@ -188,7 +192,11 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
                 <button
                   type="submit"
                   disabled={!prompt.trim() || isGenerating}
-                  className="absolute right-3 bottom-3 p-2 text-secondary hover:text-secondary-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className={`absolute right-3 bottom-3 p-2 ${
+                    isDarkMode 
+                      ? "text-secondary hover:text-secondary-dark" 
+                      : "text-white hover:text-gray-200"
+                  } disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}
                 >
                   {isGenerating ? (
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-secondary" />
@@ -403,7 +411,11 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
                 <button
                   type="submit"
                   disabled={!prompt.trim() || isGenerating}
-                  className="absolute right-2 bottom-2 p-2 text-secondary hover:text-secondary-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className={`absolute right-2 bottom-2 p-2 ${
+                    isDarkMode 
+                      ? "text-secondary hover:text-secondary-dark" 
+                      : "text-white hover:text-gray-200"
+                  } disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}
                 >
                   {isGenerating ? (
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-secondary" />

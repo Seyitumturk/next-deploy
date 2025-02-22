@@ -18,7 +18,6 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
   const [formData, setFormData] = useState({
     title: '',
     diagramType: '',
-    description: '',
   });
 
   const diagramTypes = [
@@ -65,8 +64,7 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
 
   const handleNext = () => {
     if (step === 1 && !formData.title.trim()) return;
-    if (step === 2 && !formData.diagramType) return;
-    setStep(step + 1);
+    setStep(2);
   };
 
   const handleBack = () => {
@@ -89,13 +87,27 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
           onClick={(e) => e.stopPropagation()}
-          className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden"
+          className="bg-[#f0eee6] dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden"
         >
-          <form onSubmit={handleSubmit} className="relative">
+          <form
+            onSubmit={handleSubmit}
+            className="relative"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                if (step === 1 && formData.title.trim()) {
+                  e.preventDefault();
+                  handleNext();
+                } else if (step === 2 && formData.diagramType && !isSubmitting) {
+                  e.preventDefault();
+                  handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>);
+                }
+              }
+            }}
+          >
             {/* Header */}
             <div className="p-6 border-b dark:border-gray-700">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-semibold font-geist text-white">
+                <h2 className="text-2xl font-semibold font-geist text-gray-900 dark:text-white">
                   Create New Diagram
                 </h2>
                 <button
@@ -104,7 +116,7 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
                   className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 011.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                   </svg>
                 </button>
               </div>
@@ -113,7 +125,6 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
               <div className="flex items-center space-x-4 mt-6">
                 <div className={`h-2 flex-1 rounded-full ${step >= 1 ? 'bg-primary' : 'bg-gray-200 dark:bg-gray-700'}`} />
                 <div className={`h-2 flex-1 rounded-full ${step >= 2 ? 'bg-primary' : 'bg-gray-200 dark:bg-gray-700'}`} />
-                <div className={`h-2 flex-1 rounded-full ${step === 3 ? 'bg-primary' : 'bg-gray-200 dark:bg-gray-700'}`} />
               </div>
             </div>
 
@@ -133,14 +144,14 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
                     animate={{ x: 0, opacity: 1 }}
                     exit={{ x: 20, opacity: 0 }}
                   >
-                    <label className="block text-sm font-medium mb-2">
+                    <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-white">
                       What would you like to name your diagram?
                     </label>
                     <input
                       type="text"
                       value={formData.title}
                       onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                      className="w-full px-4 py-2 rounded-lg border dark:border-gray-700 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary focus:border-transparent"
+                      className="w-full px-4 py-2 rounded-lg border dark:border-gray-700 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary focus:border-transparent text-gray-900 dark:text-white"
                       placeholder="Enter a descriptive title..."
                       autoFocus
                     />
@@ -155,7 +166,7 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
                     exit={{ x: 20, opacity: 0 }}
                     className="space-y-4"
                   >
-                    <label className="block text-sm font-medium mb-2">
+                    <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-white">
                       What type of diagram would you like to create?
                     </label>
                     <div className="grid grid-cols-2 gap-4">
@@ -194,26 +205,6 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
                     </div>
                   </motion.div>
                 )}
-
-                {step === 3 && (
-                  <motion.div
-                    key="step3"
-                    initial={{ x: -20, opacity: 0 }}
-                    animate={{ x: 0, opacity: 1 }}
-                    exit={{ x: 20, opacity: 0 }}
-                  >
-                    <label className="block text-sm font-medium mb-2">
-                      Would you like to add an initial description? (Optional)
-                    </label>
-                    <textarea
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      rows={4}
-                      className="w-full px-4 py-2 rounded-lg border dark:border-gray-700 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary focus:border-transparent"
-                      placeholder="Describe what you want to create (AI will help you generate the diagram)"
-                    />
-                  </motion.div>
-                )}
               </AnimatePresence>
             </div>
 
@@ -222,16 +213,16 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
               <button
                 type="button"
                 onClick={step === 1 ? onClose : handleBack}
-                className="px-4 py-2 rounded-lg border dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                className="px-4 py-2 rounded-lg border dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-gray-900 dark:text-white"
               >
                 {step === 1 ? 'Cancel' : 'Back'}
               </button>
               
-              {step < 3 ? (
+              {step < 2 ? (
                 <button
                   type="button"
                   onClick={handleNext}
-                  disabled={step === 1 && !formData.title.trim() || step === 2 && !formData.diagramType}
+                  disabled={!formData.title.trim()}
                   className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white transition-colors disabled:opacity-50"
                 >
                   Next

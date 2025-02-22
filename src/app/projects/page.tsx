@@ -42,6 +42,12 @@ export default function ProjectsPage() {
   const router = useRouter();
 
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Calculate projects that match the search query (case-insensitive)
+  const filteredProjects = projects.filter(project =>
+    project.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   useEffect(() => {
     async function loadInitialProjects() {
@@ -162,72 +168,26 @@ export default function ProjectsPage() {
           </div>
         </div>
       </nav>
+      <div className="w-full h-1 bg-gradient-to-r from-transparent via-[#a855f7] to-transparent shadow-md" />
 
       <div className="container mx-auto px-6 py-8">
-        <div className="mb-12">
-          <div className="max-w-3xl mx-auto">
-            <div className={`${isDarkMode ? "bg-white/5" : "!bg-[#e8dccc]"} backdrop-blur-md rounded-2xl p-8 shadow-xl shadow-purple-500/10 border border-white/20 dark:border-white/10`}>
-              <form className="relative" onSubmit={async (e) => {
-                e.preventDefault();
-                const input = e.currentTarget.querySelector('input') as HTMLInputElement;
-                const prompt = input.value.trim();
-                if (!prompt) return;
-
-                try {
-                  // First, detect the diagram type
-                  const typeResponse = await fetch('/api/diagrams/detect-type', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt }),
-                  });
-
-                  if (!typeResponse.ok) {
-                    throw new Error('Failed to detect diagram type');
-                  }
-
-                  const { diagramType } = await typeResponse.json();
-
-                  // Then create the project with the detected type
-                  const projectResponse = await fetch('/api/projects', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      title: prompt,
-                      diagramType,
-                      description: prompt,
-                    }),
-                  });
-
-                  if (!projectResponse.ok) {
-                    throw new Error('Failed to create project');
-                  }
-
-                  const project = await projectResponse.json();
-                  router.push(`/projects/${project._id}`);
-                } catch (error) {
-                  console.error('Error:', error);
-                }
-              }}>
-                <input
-                  type="text"
-                  placeholder="Describe what you want to visualize..."
-                  className={`w-full px-6 py-4 rounded-xl bg-black/20 border border-white/10 ${isDarkMode ? "text-white placeholder-gray-400" : "text-black placeholder-black"} focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent font-geist text-lg transition-all`}
-                />
-                <button
-                  type="submit"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-lg 
-                    bg-primary/20 hover:bg-primary/30 text-primary-light transition-colors
-                    focus:outline-none focus:ring-2 focus:ring-primary/50"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                </button>
-              </form>
+        <div className="mb-8">
+          <div className="relative max-w-md mx-auto">
+            <input
+              type="text"
+              placeholder="Search diagrams..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full px-4 py-3 pl-10 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1110.5 3a7.5 7.5 0 016.15 12.65z" />
+              </svg>
             </div>
           </div>
         </div>
-
+        
         <div className="flex justify-between items-center mb-8">
           <h1 className={`text-3xl font-bold ${isDarkMode ? "text-white" : "text-black"}`}>
             Diagrams
@@ -273,10 +233,14 @@ export default function ProjectsPage() {
               <span>Create Diagram</span>
             </button>
           </div>
+        ) : searchQuery && filteredProjects.length === 0 ? (
+          <div className="text-center py-12">
+            <h3 className="text-xl font-semibold mb-2">No diagrams match &quot;{searchQuery}&quot;</h3>
+          </div>
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {projects.map((project) => (
+              {filteredProjects.map((project) => (
                 <div
                   key={project._id}
                   className={`group relative ${isDarkMode ? 'bg-gray-800' : 'bg-[#e8dccc]'} rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300`}
@@ -349,7 +313,7 @@ export default function ProjectsPage() {
               ))}
             </div>
 
-            {hasMore && (
+            { !searchQuery && hasMore && (
               <div className="flex justify-center py-4">
                 <button
                   onClick={loadMoreProjects}

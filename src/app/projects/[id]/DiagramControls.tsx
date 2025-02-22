@@ -29,7 +29,9 @@ const DiagramControls: React.FC<DiagramControlsProps> = ({
 }) => {
   return (
     <div
-      className={`h-12 glass-panel border-b backdrop-blur-xl px-4 flex items-center justify-between ${isDarkMode ? "bg-gray-900 text-gray-100" : "bg-[#e8dccc] text-black"}`}
+      className={`h-14 glass-panel border-b backdrop-blur-xl px-4 flex items-center justify-between ${
+        isDarkMode ? "bg-gray-900 text-gray-100" : "bg-[#e8dccc] text-black"
+      }`}
     >
       <div className="flex items-center space-x-2">
         {!showPromptPanel && (

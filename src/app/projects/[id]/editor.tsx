@@ -28,7 +28,7 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
   return (
     <div className={`min-h-screen flex flex-col ${isDarkMode ? "bg-gradient-to-br from-gray-900 to-gray-800" : "bg-[#e8dccc]"}`}>
       {/* Header */}
-      <header className="h-12 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
+      <header className="h-12 bg-gray-900/80 backdrop-blur-md border-b border-gray-800">
         <div className="h-full px-4 flex items-center justify-between">
           {/* Desktop view: show project title and diagram type */}
           <div className="hidden md:flex items-center space-x-4">
@@ -37,12 +37,12 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
               className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
             >
               <Image src="/logo-green.svg" alt="Chartable Logo" width={24} height={24} className="h-6 w-6" />
-              <span className="font-semibold text-gray-900 dark:text-white truncate max-w-[150px] md:max-w-none">
+              <span className="font-semibold text-white truncate max-w-[150px] md:max-w-none">
                 {props.projectTitle}
               </span>
             </Link>
-            <div className="h-4 w-px bg-gray-200 dark:bg-gray-700" />
-            <span className="text-sm text-gray-500 dark:text-gray-400">
+            <div className="h-4 w-px bg-gray-700" />
+            <span className="text-sm text-gray-400">
               {props.diagramType.charAt(0).toUpperCase() +
                 props.diagramType.slice(1).replace('_', ' ')} Diagram
             </span>

@@ -27,7 +27,11 @@ const FileUploadOptions: React.FC<FileUploadOptionsProps> = ({
       <div className="mb-4">
         <button
           onClick={() => setShowFileUpload(!showFileUpload)}
-          className="w-full flex items-center justify-between rounded-lg border border-gray-700 hover:bg-gray-700 bg-gray-800 text-white transition-colors text-sm font-medium px-3 py-2"
+          className={`w-full flex items-center justify-between rounded-lg border ${
+            isDarkMode
+              ? "border-gray-700 hover:bg-gray-700 bg-gray-800"
+              : "border-gray-200 hover:bg-gray-800 bg-gray-900/80"
+          } text-white transition-colors text-sm font-medium px-3 py-2`}
         >
           <div className="flex items-center space-x-2">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
