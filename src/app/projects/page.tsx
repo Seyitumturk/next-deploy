@@ -302,7 +302,7 @@ export default function ProjectsPage() {
           </h1>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="hidden md:flex px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors flex items-center space-x-2 shadow-lg shadow-primary/20"
+            className="px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors flex items-center space-x-2 shadow-lg shadow-primary/20"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
@@ -455,19 +455,6 @@ export default function ProjectsPage() {
             onDelete={handleDeleteProject}
           />
         )}
-        
-        { /* Mobile Floating Action Button: Visible only on screens smaller than md */ }
-        <div className="md:hidden">
-          <button
-            onClick={() => setIsModalOpen(true)}
-            title="New Diagram"
-            className="fixed bottom-4 right-4 p-4 bg-primary hover:bg-primary-dark text-white rounded-full shadow-lg z-50"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-            </svg>
-          </button>
-        </div>
       </div>
     </div>
   );

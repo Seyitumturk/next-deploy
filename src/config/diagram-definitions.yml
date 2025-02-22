@@ -704,7 +704,49 @@ definitions:
       
       Now, create a detailed state diagram based on the requirements above.
 
+  kanban:
+    description: |
+      Create a detailed Kanban diagram following these guidelines:
+      - Start with the "kanban" keyword.
+      - Define columns representing workflow stages (e.g., Todo, In Progress, Done).
+      - Under each column, list tasks with proper indentation. Each task should have a unique identifier and a description.
+      - Optionally include task metadata using the "@{...}" syntax for properties like assigned, ticket, and priority.
+      - Optionally include a configuration block at the top to set global settings (e.g., ticketBaseUrl).
+    example: |
+      mermaid
+      ---
+      config:
+        kanban:
+          ticketBaseUrl: 'https://mermaidchart.atlassian.net/browse/#TICKET#'
+      ---
+      kanban
+        Todo
+          task1[Create Documentation]
+          docs[Create Blog about the new diagram]
+        InProgress
+          id6[Implement renderer and update styling]@{ assigned: 'dev', priority: 'High' }
+        Done
+          id2[Finalize testing]
+    prompt_template: |
+      As an expert Mermaid.js diagram creator, create a professional Kanban diagram that follows modern best practices. Your task is to:
 
+      1. Analyze the requirements: {prompt}
+      2. Create a Kanban diagram that:
+         - Starts with the "kanban" keyword
+         - Defines columns for different workflow stages (e.g., Todo, In Progress, Done)
+         - Lists tasks under each column with proper indentation
+         - Optionally includes task metadata (e.g., assigned, ticket, priority)
+         - Applies a configuration block if needed for global settings like ticketBaseUrl
+
+      Reference this example for structure and styling:
+      {example}
+
+      Important:
+      - Start with ```mermaid
+      - Use proper diagram syntax for Kanban boards as described in the documentation
+      - End with ```
+
+      Now, create a detailed Kanban diagram based on the requirements above.
 
 # Example sections with modern, practical use cases
 flowchartExamples: |

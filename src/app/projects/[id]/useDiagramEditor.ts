@@ -233,6 +233,15 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
           }).join('\n');
         }
 
+        // --- New processing for Kanban diagrams ---
+        if (diagramType.toLowerCase() === 'kanban') {
+          // Ensure the diagram starts with the 'kanban' keyword.
+          if (!finalDiagramText.trim().toLowerCase().startsWith('kanban')) {
+            finalDiagramText = "kanban\n" + finalDiagramText;
+          }
+          // (Optional) Add any additional kanban-specific sanitization here if needed.
+        }
+
         const { svg } = await mermaid.render('diagram-' + Date.now(), finalDiagramText, container);
         document.body.removeChild(container);
         

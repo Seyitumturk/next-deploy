@@ -169,19 +169,19 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
                     <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-white">
                       What type of diagram would you like to create?
                     </label>
-                    <div className="grid grid-cols-2 gap-4">
-                      {diagramTypes.map((type) => (
-                        <button
-                          key={type.value}
-                          type="button"
-                          onClick={() => setFormData({ ...formData, diagramType: type.value })}
-                          className={`p-4 rounded-xl border dark:border-gray-700 text-left transition-all ${
-                            formData.diagramType === type.value
-                              ? 'ring-2 ring-primary border-transparent bg-primary/5'
-                              : 'hover:border-primary/30'
-                          }`}
-                        >
-                          <div className="flex items-start space-x-3">
+                    <div className="max-h-64 overflow-y-auto md:max-h-full md:overflow-visible">
+                      <div className="grid grid-cols-2 gap-4">
+                        {diagramTypes.map((type) => (
+                          <button
+                            key={type.value}
+                            type="button"
+                            onClick={() => setFormData({ ...formData, diagramType: type.value })}
+                            className={`p-4 rounded-xl border dark:border-gray-700 text-left transition-all ${
+                              formData.diagramType === type.value
+                                ? 'ring-2 ring-primary border-transparent bg-primary/5'
+                                : 'hover:border-primary/30'
+                            }`}
+                          >
                             <div className="w-10 h-10 flex-shrink-0 rounded-lg bg-white/10 dark:bg-white/5 backdrop-blur-sm shadow-lg shadow-purple-500/10 border border-white/20 dark:border-white/10 p-2">
                               <Image 
                                 src={type.icon} 
@@ -199,9 +199,9 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
                                 Click to select
                               </span>
                             </div>
-                          </div>
-                        </button>
-                      ))}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </motion.div>
                 )}
