@@ -176,7 +176,7 @@ export default function CreateProjectModal({ isOpen, onClose, isDarkMode }: Crea
                       What type of diagram would you like to create?
                     </label>
                     <div className="max-h-64 overflow-y-auto md:max-h-full md:overflow-visible">
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="mx-auto grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-md md:mx-0 md:max-w-full">
                         {diagramTypes.map((type) => (
                           <button
                             key={type.value}
@@ -184,28 +184,15 @@ export default function CreateProjectModal({ isOpen, onClose, isDarkMode }: Crea
                             onClick={() =>
                               setFormData({ ...formData, diagramType: type.value })
                             }
-                            className={`flex items-center space-x-4 p-4 rounded-xl border dark:border-gray-700 text-left transition-transform cursor-pointer transform hover:scale-105 ${
+                            className={`flex items-center space-x-4 p-3 md:p-4 rounded-xl border dark:border-gray-700 text-left transition-all duration-200 cursor-pointer transform hover:scale-105 hover:shadow-lg ${
                               formData.diagramType === type.value
                                 ? 'ring-2 ring-primary border-transparent bg-primary/5'
                                 : 'hover:border-primary/30'
                             }`}
                           >
-                            <div className="w-10 h-10 flex-shrink-0 rounded-lg bg-white/10 dark:bg-white/5 backdrop-blur-sm shadow-lg shadow-purple-500/10 border border-white/20 dark:border-white/10 p-2">
-                              <Image
-                                src={type.icon}
-                                alt={`${type.label} icon`}
-                                width={40}
-                                height={40}
-                                className="w-full h-full object-contain"
-                              />
-                            </div>
-                            <div className="flex-1">
-                              <span className="font-medium block text-gray-900 dark:text-white">
-                                {type.label}
-                              </span>
-                              <span className="text-xs text-gray-500 dark:text-gray-400">
-                                Click to select
-                              </span>
+                            <Image src={type.icon} alt={type.label} width={40} height={40} />
+                            <div className="text-sm font-medium whitespace-normal">
+                              {type.label}
                             </div>
                           </button>
                         ))}

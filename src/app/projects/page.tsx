@@ -7,7 +7,6 @@ import { UserButton } from '@clerk/nextjs';
 import CreateProjectModal from '@/components/CreateProjectModal';
 import { getProjects } from './actions';
 import DeleteProjectModal from '@/components/DeleteProjectModal';
-import OnboardingBar from '@/components/OnboardingBar';
 import Image from 'next/image';
 
 interface Project {
@@ -226,8 +225,6 @@ export default function ProjectsPage() {
 
   return (
     <div className={`min-h-screen relative ${isDarkMode ? "bg-gradient-to-br from-gray-900 to-gray-800" : "bg-[#f0eee6]"}`}>
-      <OnboardingBar />
-      
       <nav
         style={{ backgroundColor: isDarkMode ? "#111827" : "#e8dccc", color: isDarkMode ? "#ffffff" : "#1f2937" }}
         className="sticky top-0 z-50 h-16 border-b border-gray-800/10"
