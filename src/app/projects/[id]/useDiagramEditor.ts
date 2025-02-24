@@ -597,10 +597,18 @@ Requested changes: ${promptText}`;
           return newHistory;
         });
         // --------------------------------------------------------------------------
+
+        // Save the diagram version to the project history
         await updateHistory(promptText, finalDiagram, 'chat');
+        
+        // Now try rendering the final syntax.
+        // Instead of throwing on render failure, we just log a warning.
         const renderSuccess = await renderDiagram(finalDiagram);
         if (!renderSuccess) {
-          throw new Error('Failed to render the final diagram');
+          console.error(
+            'Warning: Diagram rendered with errors, but history has been updated with the correct syntax'
+          );
+          // We do NOT throw an error here so that the saved version remains accessible.
         }
       } else {
         throw new Error('No valid diagram was generated');
@@ -636,15 +644,15 @@ Requested changes: ${promptText}`;
     setCurrentDiagram(newCode);
     
     try {
-      // First render the diagram
+      // First save to history - do this BEFORE attempting to render
+      await updateHistory(prompt, newCode, 'code');
+      
+      // Then try rendering the diagram
       const renderSuccess = await renderDiagram(newCode);
       if (!renderSuccess) {
-        setError('Failed to render diagram');
-        return;
+        console.error('Warning: Diagram rendered with errors, but history has been updated with the correct syntax');
+        setError('Diagram may have rendering issues, but your changes have been saved');
       }
-
-      // If render successful, save to history
-      await updateHistory(prompt, newCode, 'code');
     } catch (err) {
       console.error('Error updating diagram:', err);
       setError(err instanceof Error ? err.message : 'Failed to update diagram');
