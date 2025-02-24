@@ -107,21 +107,39 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
           theme: 'neutral',
           securityLevel: 'loose',
           fontFamily: 'var(--font-geist-sans)',
-          logLevel: 0,
+          logLevel: 1,
           deterministicIds: true,
           sequence: { useMaxWidth: false },
-          er: { useMaxWidth: false },
-          flowchart: { useMaxWidth: false },
-          gantt: { useMaxWidth: false },
-          journey: { useMaxWidth: false }
+          gantt: {
+            titleTopMargin: 25,
+            barHeight: 30,
+            barGap: 8,
+            topPadding: 50,
+            leftPadding: 100,
+            rightPadding: 100,
+            fontSize: 12,
+            numberSectionStyles: 4,
+            axisFormat: '%Y-%m-%d',
+            displayMode: 'full',
+            useMaxWidth: false
+          }
         });
         
+        // Add specific handling for Gantt diagrams
+        if (diagramText.trim().toLowerCase().startsWith('gantt')) {
+          diagramText = sanitizeGanttDiagram(diagramText);
+        }
+
         // --- Updated: Use a container with proper dimensions for gantt rendering ---
         const container = document.createElement('div');
-        // Previously: 
-        // container.style.cssText = 'position: absolute; visibility: hidden; width: 0; height: 0; overflow: hidden;';
-        // Updated container style to allow mermaid to compute layout correctly:
-        container.style.cssText = 'position: absolute; top: -9999px; left: -9999px; width: 1200px; height: auto; overflow: hidden;';
+        // Use a different container style if rendering a mindmap so that streaming works properly.
+        if (diagramType.toLowerCase() === 'mindmap') {
+          // Use the legacy hidden container style (as in the old version)
+          container.style.cssText = 'position: absolute; visibility: hidden; width: 0; height: 0; overflow: hidden;';
+        } else {
+          // Updated container style for other diagram types
+          container.style.cssText = 'position: absolute; top: -9999px; left: -9999px; width: 1200px; height: auto; overflow: hidden;';
+        }
         document.body.appendChild(container);
         // --- End of container style update ---
 
@@ -142,10 +160,10 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
         // --- End: Remove markdown code fences ---
 
         // --- Begin: Sanitize gantt diagram text ---
-        if (diagramToRender.trim().toLowerCase().startsWith('gantt')) {
-          // Replace any instance of the word "parallel" with "after"
-          diagramToRender = diagramToRender.replace(/\bparallel\b/gi, 'after');
-        }
+        // Removed extra replacement of "parallel" since it conflicts with the latest Gantt chart syntax.
+        // if (diagramToRender.trim().toLowerCase().startsWith('gantt')) {
+        //   diagramToRender = diagramToRender.replace(/\bparallel\b/gi, 'after');
+        // }
         // --- End: Sanitize gantt diagram text ---
 
         // Remove markdown code fences (```mermaid ... ```) and extra whitespace
@@ -184,10 +202,12 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
         }
 
         // --- Final whitespace normalization ---
-        finalDiagramText = finalDiagramText
-          .split('\n')
-          .map(line => line.trim())
-          .join('\n');
+        if (diagramType.toLowerCase() !== 'mindmap') {
+          finalDiagramText = finalDiagramText
+            .split('\n')
+            .map(line => line.trim())
+            .join('\n');
+        }
         
         // --- Remove extraneous 'end' lines for architecture diagrams ---
         if (diagramType.toLowerCase() === 'architecture') {
@@ -250,6 +270,12 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
         try {
           const parser = new DOMParser();
           const xmlDoc = parser.parseFromString(svg, "image/svg+xml");
+          // Check for any parsing errors in the SVG markup
+          if (xmlDoc.getElementsByTagName("parsererror").length > 0) {
+            console.error("SVG parser error:", xmlDoc.getElementsByTagName("parsererror")[0].textContent);
+            setError("The diagram contains syntax errors. Please correct them and try again.");
+            return false; // Abort updating SVG output
+          }
           const svgElement = xmlDoc.documentElement;
           // Remove fixed width and height so the SVG can scale
           svgElement.removeAttribute('width');
@@ -272,10 +298,10 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
 
         return true;
       } catch (err) {
+        console.error('Mermaid initialization error:', err);
         currentTry++;
         if (currentTry === maxRetries) {
-          console.error('Diagram rendering failed:', err);
-          return false;
+          throw err;
         }
         await new Promise(resolve => setTimeout(resolve, 100));
       }
@@ -847,3 +873,69 @@ Requested changes: ${promptText}`;
 }
 
 export default useDiagramEditor; 
+
+function sanitizeGanttDiagram(diagramText: string): string {
+  // First, split and clean all lines
+  let lines = diagramText
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line); // Remove empty lines
+
+  // Initialize the sanitized lines array
+  const sanitizedLines: string[] = [];
+  
+  // Process each line with proper indentation
+  lines.forEach(line => {
+    if (line.startsWith('gantt')) {
+      sanitizedLines.push('gantt');
+    }
+    else if (line.startsWith('title ')) {
+      sanitizedLines.push('    ' + line);
+    }
+    else if (line.startsWith('dateFormat ')) {
+      sanitizedLines.push('    ' + line);
+    }
+    else if (line.startsWith('excludes ')) {
+      sanitizedLines.push('    ' + line);
+    }
+    else if (line.startsWith('todayMarker ')) {
+      sanitizedLines.push('    ' + line);
+    }
+    else if (line.startsWith('section ')) {
+      // Add blank line before sections (except first section)
+      if (sanitizedLines.some(l => l.includes('section'))) {
+        sanitizedLines.push('');
+      }
+      sanitizedLines.push('section ' + line.substring(8));
+    }
+    else if (line.includes(':')) {
+      // This is a task line
+      const taskParts = line.split(':').map(part => part.trim());
+      const taskName = taskParts[0];
+      const taskDetails = taskParts[1];
+      
+      // Ensure task name has consistent spacing and task details are properly formatted
+      sanitizedLines.push(`    ${taskName} :${taskDetails}`);
+    }
+  });
+
+  // Ensure required headers are present and properly formatted
+  if (!lines.some(l => l.startsWith('dateFormat'))) {
+    sanitizedLines.splice(1, 0, '    dateFormat YYYY-MM-DD');
+  }
+
+  // Add proper spacing between sections
+  const finalLines = sanitizedLines.join('\n');
+
+  // Clean up any invalid dependencies
+  return finalLines
+    .split('\n')
+    .map(line => {
+      if (line.includes('after')) {
+        // Ensure proper spacing around 'after' keyword
+        return line.replace(/\s*after\s*/, ' after ');
+      }
+      return line;
+    })
+    .join('\n');
+} 

@@ -16,13 +16,22 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
   // Add dark mode toggle state
   const [isDarkMode, setIsDarkMode] = useState(true);
 
-  // Toggle the 'dark' class on the document element based on state
+  // Add a new useEffect to load the dark mode preference from localStorage:
+  useEffect(() => {
+    const storedPref = localStorage.getItem('isDarkMode');
+    if (storedPref !== null) {
+      setIsDarkMode(storedPref === 'true');
+    }
+  }, []);
+
+  // Update the dark mode effect to also persist the new setting:
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
+    localStorage.setItem('isDarkMode', isDarkMode.toString());
   }, [isDarkMode]);
 
   return (

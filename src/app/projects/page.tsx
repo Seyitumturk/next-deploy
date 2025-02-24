@@ -119,6 +119,22 @@ export default function ProjectsPage() {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
+  useEffect(() => {
+    const storedPref = localStorage.getItem('isDarkMode');
+    if (storedPref !== null) {
+      setIsDarkMode(storedPref === 'true');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('isDarkMode', isDarkMode.toString());
+  }, [isDarkMode]);
+
   // Calculate projects that match the search query (case-insensitive)
   const filteredProjects = projects.filter(project =>
     project.title.toLowerCase().includes(searchQuery.toLowerCase())
@@ -140,14 +156,6 @@ export default function ProjectsPage() {
     }
     loadInitialProjects();
   }, []);
-
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [isDarkMode]);
 
   const getDiagramIcon = (type: string) => {
     const iconPath = `/diagrams/${type}.svg`;
@@ -381,11 +389,13 @@ export default function ProjectsPage() {
                   <div className="p-6">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
-                        <EditableTitle
-                          initialTitle={project.title}
-                          projectId={project._id}
-                          onUpdate={handleTitleUpdate}
-                        />
+                        <div className={`${isDarkMode ? "text-white" : "text-black"}`}>
+                          <EditableTitle
+                            initialTitle={project.title}
+                            projectId={project._id}
+                            onUpdate={handleTitleUpdate}
+                          />
+                        </div>
                         <Link href={`/projects/${project._id}`}>
                           <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center space-x-3">
                             <span className="w-5 h-5 flex items-center justify-center">
@@ -444,6 +454,7 @@ export default function ProjectsPage() {
         <CreateProjectModal
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
+          isDarkMode={isDarkMode}
         />
         
         {projectToDelete && (

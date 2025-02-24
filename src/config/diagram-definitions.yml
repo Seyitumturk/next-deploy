@@ -427,7 +427,7 @@ definitions:
         
         section Planning Phase
           Initial Concept : 2024-01-15 : Brainstorming and research
-          Requirements : 2024-01-20 : Feature specification
+          Requirements Gathering : 2024-01-20 : Feature specification
         
         section Development
           Sprint 1 : 2024-02-01 : Core functionality
@@ -468,124 +468,93 @@ definitions:
         * Weekend highlighting
         * Today marker
         * Progress indicators
-      - Supports:
-        * Task exclusion
-        * Critical path
-        * Different date formats
-      - Uses modern syntax:
-        * dateFormat YYYY-MM-DD
-        * section [Section name]
-        * [Task] :[status], [start], [end]
-      - Includes clear dependencies
     example: |
       gantt
-        title Software Release Plan
-        dateFormat YYYY-MM-DD
-        excludes weekends
-        
-        section Planning
-        Project Kickoff    :done, milestone, 2024-01-01, 0d
-        Requirements      :active, req1, 2024-01-01, 10d
-        
-        section Development
-        Core Features    :crit, 2024-01-15, 30d
-        API Development  :2024-01-20, 25d
+      title Project Lifecycle Overview
+      dateFormat YYYY-MM-DD
+      excludes weekends
+
+      section Initiation
+      Project Approval    :done, a1, 2024-02-01, 0d
+      Stakeholder Meeting :done, a2, 2024-02-02, 2d
+
+      section Planning
+      Requirements Gathering :active, req1, 2024-02-05, 10d
+      Feasibility Study     :fs1, after req1, 5d
+      Project Plan Approval :milestone, pa1, after fs1, 0d
+
+      section Execution
+      Design Phase      :crit, des1, after pa1, 15d
+      Development Phase :crit, dev1, after des1, 30d
+      Testing          :test1, after des1, 20d
+
+      section Monitoring
+      Performance Review :pr1, 2024-04-01, 10d
+      Quality Assurance  :qa1, after des1, 15d
+
+      section Closure
+      Final Review     :milestone, rev1, after qa1, 0d
+      Project Handover :hand1, after rev1, 5d
     prompt_template: |
       As an expert Mermaid.js diagram creator, create a professional Gantt chart that follows modern best practices. Your task is to:
 
       1. Analyze the requirements: {prompt}
       2. Create a Gantt chart that:
-         - Shows clear project timeline
-         - Includes task dependencies
-         - Uses proper date formatting
-         - Marks milestones and critical paths
-         - Groups tasks into sections
+         - Always includes dateFormat YYYY-MM-DD
+         - Has a clear title
+         - Groups tasks into logical sections
+         - Specifies task duration using either exact dates or relative durations (e.g., 5d)
+         - Uses task dependencies with 'after' keyword
+         - Marks milestones with 0d duration
+         - Uses status indicators (active, done, crit) where appropriate
 
       Reference this example for structure and styling:
       {example}
 
       Important:
       - Start with ```mermaid
-      - Set date format
-      - Define sections
-      - Include dependencies
-      - Mark critical tasks
+      - Include dateFormat
+      - Always specify task duration
+      - Use proper section grouping
       - End with ```
 
       Now, create a detailed Gantt chart based on the requirements above.
 
-  architecture:
+  sankey:
     description: |
-      Create a production-ready architecture diagram using Mermaid's latest architecture-beta syntax (v11.1.0+). Your diagram should illustrate cloud, microservice, or CI/CD deployments with all modern details. Follow these guidelines:
-      
-      - Start with the keyword "architecture-beta" on the first line.
-      - Declare individual components using the "service" keyword with fully qualified icon identifiers and clear labels:
-          service <service_id>(<icon-name>)[<Label>]
-      - Optionally, group related services using:
-          group <group_id>(<icon-name>)[<Label>]
-        (Nested groups can be declared with "in <parent_group_id>" if required.)
-      - For multi-directional routing, use junction nodes:
-          junction <junction_id> (in <group_id>)?
-      - Connect components using explicit side indicators:
-          <source>:<side> [-- or -->] <side>:<target>
-        For example: auth:R --> L:authDb
-      - Ensure every connection specifies a source and target side (T, B, L, R) for an optimal layout.
-      - Avoid fixed dimensions in groups to allow responsive rendering.
+      Create an insightful sankey diagram to visualize flows from one set of values to another. Use an experimental CSV-like syntax where each line describes a connection between a source node and a target node along with an associated numerical value. Note that this diagram type (v10.3.0+) is experimental and its syntax might evolve.
     example: |
-      architecture-beta
-        %% DNS and CDN
-        service dns(logos:aws-route53)[Route 53]
-        service cf(logos:aws-cloudfront)[CloudFront]
-        dns:R --> L:cf
-        
-        %% Load Balancer and UI
-        service lb(logos:aws-ec2)[Load Balancer]
-        service ui(logos:nextjs)[UI]
-        cf:R --> L:lb
-        lb:B --> T:ui
-        
-        %% API Gateway and Services
-        service gateway(logos:aws-api-gateway)[API Gateway]
-        service auth(logos:aws-lambda)[Auth Service]
-        service authDb(logos:aws-dynamodb)[Auth DB]
-        auth:R --> L:authDb
-        
-        service blog(logos:aws-lambda)[Blog Service]
-        service blogDb(logos:aws-dynamodb)[Blog DB]
-        blog:R --> L:blogDb
-        
-        service analytics(logos:aws-lambda)[Analytics Service]
-        service analyticsIndex(logos:aws-open-search)[OpenSearch]
-        analytics:R --> L:analyticsIndex
-        
-        %% Connect API Gateway to services
-        gateway:R --> L:auth
-        gateway:R --> L:blog
-        gateway:R --> L:analytics
-        cf:R --> L:gateway
-
+      mermaid
+      ---
+      config:
+        sankey:
+          showValues: false
+      ---
+      sankey-beta
+      %% Define flows using CSV format: source,target,value
+      Agricultural 'waste',Bio-conversion,124.729
+      Bio-conversion,Liquid,0.597
+      Bio-conversion,Losses,26.862
+      Bio-conversion,Solid,280.322
+      Bio-conversion,Gas,81.144
     prompt_template: |
-      As an expert Mermaid.js diagram creator, design a detailed, production-ready architecture diagram using the latest architecture-beta syntax (v11.1.0+). Your task is to:
+      As an expert Mermaid.js diagram creator, create a professional sankey diagram that follows modern best practices. Your task is to:
+
+      1. Analyze the data: {prompt}
+      2. Create a sankey diagram that:
+         - Visualizes flows between nodes using a CSV-like syntax where each line has three values: source, target, and numerical value
+         - Utilizes the experimental sankey-beta syntax along with any necessary configuration settings (such as showing or hiding values, dimensions, or link colors)
       
-      1. Analyze the requirements: {prompt}
-      2. Create an architecture diagram that:
-         - Begins with the keyword "architecture-beta"
-         - Declares services using the "service" keyword with fully qualified icons and clear labels
-         - Optionally organizes related services into groups using the "group" syntax if necessary
-         - Uses junctions as needed for multi-directional routing
-         - Connects components with explicit side indicators (T, B, L, R) and proper arrow modifiers (e.g., auth:R --> L:authDb)
-         - Adheres to best practices for production-ready diagrams and responsive rendering
-         
-      Reference the example above for structure and advanced styling.
-      
+      Reference this example for structure and styling:
+      {example}
+
       Important:
       - Start with ```mermaid
-      - Use the updated architecture-beta syntax and modern icon formats as specified in the documentation
-      - Always specify side indicators for edges (e.g., auth:R --> L:authDb)
-      - End with ```      
+      - Include the optional configuration using a front-matter block if needed
+      - Follow the CSV format: source,target,value for each connection
+      - End with ```
       
-      Now, create a detailed, production-ready architecture diagram based on the requirements above.
-
+      Now, create a detailed sankey diagram based on the requirements above.
   git:
     description: |
       Create a Git graph that shows:
@@ -638,8 +607,7 @@ definitions:
       - Show merges correctly
       - End with ```
 
-      Now, create a detailed Git graph based on the requirements above.
-
+      Now, create a detailed Git graph based on the requirements above.  
   state:
     description: |
       Create a detailed state diagram showing:
@@ -651,23 +619,21 @@ definitions:
       - State descriptions:
         * Entry and exit actions
         * Internal actions
-        * Composite states
+        * Composite states (use state stateName { ... })
         * Parallel states
-      - Proper state hierarchy using:
-        state stateName {
-          [nested states]
-        }
-      - Transition types:
-        * Internal
-        * External
-        * Local
-      - Use direction statements for better layout
+      - Modern features:
+        * Choice points using <<choice>>
+        * History states using [H] and [H*]
+        * Fork and join using <<fork>> / <<join>>
+        * Notes and comments (use "note right of" or "note left of")
+      - Supports start ([*]) and end ([*]) states to indicate initial and final state
+      - Allows layout customization with direction statements (e.g. direction LR)
     example: |
       stateDiagram-v2
         [*] --> Created: Order Placed
         
         state "Order Processing" as Processing {
-          Created --> PaymentPending: Initialize Payment
+          [*] --> PaymentPending: Initialize Payment
           
           state "Payment Processing" as PaymentProcess {
             PaymentPending --> PaymentValidation: Payment Submitted
@@ -675,21 +641,25 @@ definitions:
             PaymentValidation --> PaymentFailed: Invalid Payment
             PaymentFailed --> PaymentPending: Retry Payment
           }
+          
+          %% Example of adding a note for clarification
+          PaymentConfirmed --> Shipped: Order Shipped
+          note right of Shipped: This state triggers shipment.
         }
         
-        PaymentConfirmed --> Shipped: Order Shipped
         Shipped --> [*]: Delivery Complete
     prompt_template: |
       As an expert Mermaid.js diagram creator, create a professional state diagram that follows modern best practices. Your task is to:
 
       1. Analyze the requirements: {prompt}
       2. Create a state diagram that:
-         - Shows clear state transitions
-         - Uses proper state hierarchy
-         - Implements composite states where needed
-         - Includes entry/exit actions
-         - Uses modern transition syntax
-         - Adds helpful comments for complex flows
+         - Describes the behavior of a system as a finite set of states and transitions.
+         - Uses modern syntax (stateDiagram-v2) with clear state definitions and transitions.
+         - Defines clear start ([*]) and end ([*]) states.
+         - Organizes related states into composite states where needed.
+         - Uses transitions with conditions or actions appropriately.
+         - Adds descriptive notes (using note left/right) to clarify behavior.
+         - Allows layout customizations (such as direction statements) for clarity.
 
       Reference this example for structure and styling:
       {example}
@@ -697,57 +667,11 @@ definitions:
       Important:
       - Start with ```mermaid
       - Use stateDiagram-v2 syntax
-      - Include proper state nesting
-      - Add clear comments using %%
-      - Use descriptive transition labels
+      - Include clear state definitions with transitions, notes, and composite state sections
+      - Keep text concise and descriptive
       - End with ```
       
       Now, create a detailed state diagram based on the requirements above.
-
-  kanban:
-    description: |
-      Create a detailed Kanban diagram following these guidelines:
-      - Start with the "kanban" keyword.
-      - Define columns representing workflow stages (e.g., Todo, In Progress, Done).
-      - Under each column, list tasks with proper indentation. Each task should have a unique identifier and a description.
-      - Optionally include task metadata using the "@{...}" syntax for properties like assigned, ticket, and priority.
-      - Optionally include a configuration block at the top to set global settings (e.g., ticketBaseUrl).
-    example: |
-      mermaid
-      ---
-      config:
-        kanban:
-          ticketBaseUrl: 'https://mermaidchart.atlassian.net/browse/#TICKET#'
-      ---
-      kanban
-        Todo
-          task1[Create Documentation]
-          docs[Create Blog about the new diagram]
-        InProgress
-          id6[Implement renderer and update styling]@{ assigned: 'dev', priority: 'High' }
-        Done
-          id2[Finalize testing]
-    prompt_template: |
-      As an expert Mermaid.js diagram creator, create a professional Kanban diagram that follows modern best practices. Your task is to:
-
-      1. Analyze the requirements: {prompt}
-      2. Create a Kanban diagram that:
-         - Starts with the "kanban" keyword
-         - Defines columns for different workflow stages (e.g., Todo, In Progress, Done)
-         - Lists tasks under each column with proper indentation
-         - Optionally includes task metadata (e.g., assigned, ticket, priority)
-         - Applies a configuration block if needed for global settings like ticketBaseUrl
-
-      Reference this example for structure and styling:
-      {example}
-
-      Important:
-      - Start with ```mermaid
-      - Use proper diagram syntax for Kanban boards as described in the documentation
-      - End with ```
-
-      Now, create a detailed Kanban diagram based on the requirements above.
-
 # Example sections with modern, practical use cases
 flowchartExamples: |
   Example: Modern Microservice Architecture
@@ -1012,29 +936,35 @@ ganttExamples: |
   Example: Software Release Plan
   ```mermaid
   gantt
-    title Software Release Plan
     dateFormat  YYYY-MM-DD
+    title       Adding GANTT diagram functionality to mermaid
     excludes    weekends
-    
-    section Planning
-    Project Kickoff    :done, milestone, 2024-01-01, 0d
-    Requirements       :active, req1, 2024-01-01, 10d
-    Architecture      :after req1, 5d
-    
-    section Development
-    Core Features     :crit, 2024-01-15, 30d
-    API Development   :2024-01-20, 25d
-    UI Implementation :2024-02-01, 20d
-    
-    section Testing
-    Unit Tests       :2024-02-15, 10d
-    Integration Tests :2024-02-25, 10d
-    User Testing     :2024-03-05, 15d
-    
-    section Deployment
-    Documentation    :2024-03-15, 10d
-    Beta Release     :crit, milestone, 2024-03-25, 0d
-    Production Deploy :crit, milestone, 2024-04-01, 0d
+    %% (`excludes` accepts specific dates in YYYY-MM-DD format, days of the week ("sunday") or "weekends", but not the word "weekdays".)
+
+    section A section
+    Completed task            :done,    des1, 2014-01-06,2014-01-08
+    Active task               :active,  des2, 2014-01-09, 3d
+    Future task               :         des3, after des2, 5d
+    Future task2              :         des4, after des3, 5d
+
+    section Critical tasks
+    Completed task in the critical line :crit, done, 2014-01-06,24h
+    Implement parser and jison          :crit, done, after des1, 2d
+    Create tests for parser             :crit, active, 3d
+    Future task in critical line        :crit, 5d
+    Create tests for renderer           :2d
+    Add to mermaid                      :until isadded
+    Functionality added                 :milestone, isadded, 2014-01-25, 0d
+
+    section Documentation
+    Describe gantt syntax               :active, a1, after des1, 3d
+    Add gantt diagram to demo page      :after a1  , 20h
+    Add another diagram to demo page    :doc1, after a1  , 48h
+
+    section Last section
+    Describe gantt syntax               :after doc1, 3d
+    Add gantt diagram to demo page      :20h
+    Add another diagram to demo page    :48h
   ```
 
 mindmapExamples: |
@@ -1090,3 +1020,22 @@ prompts:
     --
     Use the example as guidance:
     {example}
+
+  mine:
+    description: |
+      This is your custom "mine" diagram. Describe your mine diagram's elements here.
+    prompt_template: |
+      Please generate a diagram in Mermaid syntax that shows your custom mine diagram.
+      IMPORTANT: Wrap your entire output in triple backticks with the word "mermaid".
+      For example:
+      ```mermaid
+      graph LR
+         A[Start] --> B[Next]
+      ```
+      Now generate only the Mermaid diagram (with no additional text).
+    example: |
+      ```mermaid
+      graph LR
+         A[Start] --> B[Next]
+         B --> C[End]
+      ```

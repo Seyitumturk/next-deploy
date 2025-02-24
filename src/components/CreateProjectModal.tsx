@@ -8,9 +8,10 @@ import Image from 'next/image';
 interface CreateProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
+  isDarkMode: boolean;
 }
 
-export default function CreateProjectModal({ isOpen, onClose }: CreateProjectModalProps) {
+export default function CreateProjectModal({ isOpen, onClose, isDarkMode }: CreateProjectModalProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -29,7 +30,7 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
     { value: 'mindmap', label: 'Mind Map', icon: '/diagrams/mindmap.svg' },
     { value: 'timeline', label: 'Timeline', icon: '/diagrams/timeline.svg' },
     { value: 'gantt', label: 'Gantt Chart', icon: '/diagrams/gantt.svg' },
-    { value: 'architecture', label: 'Architecture Diagram', icon: '/diagrams/architecture.svg' },
+    { value: 'sankey', label: 'Sankey Diagram', icon: '/diagrams/sankey.svg' },
     { value: 'git', label: 'Git Graph', icon: '/diagrams/git.svg' },
   ];
 
@@ -115,7 +116,12 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
                   onClick={onClose}
                   className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className={`h-5 w-5 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
                     <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 011.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                   </svg>
                 </button>
@@ -175,16 +181,18 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
                           <button
                             key={type.value}
                             type="button"
-                            onClick={() => setFormData({ ...formData, diagramType: type.value })}
-                            className={`p-4 rounded-xl border dark:border-gray-700 text-left transition-all ${
+                            onClick={() =>
+                              setFormData({ ...formData, diagramType: type.value })
+                            }
+                            className={`flex items-center space-x-4 p-4 rounded-xl border dark:border-gray-700 text-left transition-transform cursor-pointer transform hover:scale-105 ${
                               formData.diagramType === type.value
                                 ? 'ring-2 ring-primary border-transparent bg-primary/5'
                                 : 'hover:border-primary/30'
                             }`}
                           >
                             <div className="w-10 h-10 flex-shrink-0 rounded-lg bg-white/10 dark:bg-white/5 backdrop-blur-sm shadow-lg shadow-purple-500/10 border border-white/20 dark:border-white/10 p-2">
-                              <Image 
-                                src={type.icon} 
+                              <Image
+                                src={type.icon}
                                 alt={`${type.label} icon`}
                                 width={40}
                                 height={40}

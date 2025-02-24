@@ -37,7 +37,7 @@ function getPromptForDiagramType(diagramType: string, userPrompt: string) {
     throw new Error(`Unsupported diagram type: ${diagramType}`);
   }
 
-  // Use the diagram-specific prompt template
+  // Use the diagram-specific prompt template if available, otherwise use the default
   const promptTemplate = config.prompt_template || diagramConfig.prompts.user_template;
 
   return promptTemplate
@@ -68,24 +68,33 @@ export async function POST(req: Request) {
 
     await connectDB();
 
+    // Destructure the request body
     const { textPrompt, diagramType, projectId, clientSvg } = await req.json();
-    console.log("[Diagrams API] Received payload:", {
-      textPrompt,
+
+    // --- Added detailed logging for debugging ---
+    console.log("[diagrams API] Incoming request body:", {
+      textPrompt: textPrompt ? textPrompt.substring(0, 100) + "..." : "none",
       diagramType,
       projectId,
-      clientSvg: clientSvg ? clientSvg.substring(0, 100) + "..." : "No SVG"
+      clientSvg: clientSvg ? clientSvg.substring(0, 100) + "..." : "none",
     });
 
-    // Validate diagram type
-    const availableTypes = Object.keys(diagramConfig.definitions);
-    console.log("Available diagram types:", availableTypes);
-    console.log("Requested diagram type:", diagramType);
-    if (!diagramConfig.definitions[diagramType]) {
-      console.error(
-        `Unsupported diagram type: ${diagramType}. Available types: ${JSON.stringify(availableTypes)}`
-      );
+    // Normalize the incoming diagram type
+    const rawType = diagramType.toString().trim().toLowerCase();
+
+    // No alias mapping needed for state; use the raw diagram type directly.
+    const effectiveDiagramType = rawType;
+
+    console.log("[diagrams API] Raw diagram type:", rawType);
+    console.log("[diagrams API] Effective diagram type after alias mapping:", effectiveDiagramType);
+    console.log("[diagrams API] Available diagram definitions:", Object.keys(diagramConfig.definitions));
+    // --- End added logging ---
+
+    // Validate diagram type using the effective type
+    if (!diagramConfig.definitions[effectiveDiagramType]) {
+      console.error("[diagrams API] Unsupported diagram type:", effectiveDiagramType);
       return NextResponse.json(
-        { error: `Unsupported diagram type: ${diagramType}` },
+        { error: `Unsupported diagram type: ${effectiveDiagramType}` },
         { status: 400 }
       );
     }
@@ -115,11 +124,11 @@ export async function POST(req: Request) {
             messages: [
               {
                 role: "system",
-                content: getSystemPromptForDiagramType(diagramType)
+                content: getSystemPromptForDiagramType(effectiveDiagramType)
               },
               {
                 role: "user",
-                content: getPromptForDiagramType(diagramType, textPrompt)
+                content: getPromptForDiagramType(effectiveDiagramType, textPrompt)
               }
             ],
             stream: true,

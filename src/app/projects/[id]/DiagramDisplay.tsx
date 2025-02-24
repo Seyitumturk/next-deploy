@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useCallback, useEffect } from 'react';
 import DiagramControls from './DiagramControls';
 
 interface DiagramDisplayProps {
@@ -21,6 +21,8 @@ interface DiagramDisplayProps {
   handleMouseDown: (e: React.MouseEvent) => void;
   position: { x: number; y: number };
   isDarkMode: boolean;
+  currentDiagram?: string;
+  setCurrentDiagram: React.Dispatch<React.SetStateAction<string | undefined>>;
 }
 
 const DiagramDisplay: React.FC<DiagramDisplayProps> = ({
@@ -41,7 +43,34 @@ const DiagramDisplay: React.FC<DiagramDisplayProps> = ({
   handleMouseDown,
   position,
   isDarkMode,
+  currentDiagram,
+  setCurrentDiagram,
 }) => {
+  const handleRenderError = useCallback((error: Error) => {
+    console.error('Diagram rendering error:', error);
+    // Add basic error display
+    if (diagramRef.current) {
+      const errorMessage = document.createElement('div');
+      errorMessage.className = 'text-red-500 p-4 text-sm';
+      errorMessage.textContent = 'Error rendering diagram. Please check your syntax.';
+      diagramRef.current.appendChild(errorMessage);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (currentDiagram?.trim().toLowerCase().startsWith('gantt')) {
+      // Add specific handling for Gantt diagrams
+      try {
+        // Validate minimum required structure
+        if (!currentDiagram.includes('dateFormat')) {
+          setCurrentDiagram(`gantt\ndateFormat YYYY-MM-DD\n${currentDiagram.substring(5)}`);
+        }
+      } catch (error) {
+        handleRenderError(error as Error);
+      }
+    }
+  }, [currentDiagram]);
+
   return (
     <>
       <div className={`relative flex-1 flex flex-col transition-all duration-300 ease-in-out ${showPromptPanel ? "md:ml-96 md:mb-0 mb-96" : "md:ml-0"}`}>
