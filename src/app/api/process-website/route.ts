@@ -4,17 +4,26 @@ import { PlaywrightWebBaseLoader } from '@langchain/community/document_loaders/w
 export async function POST(request: Request) {
   try {
     const { url, diagramType } = await request.json();
+    
     if (!url || !diagramType) {
       return NextResponse.json({ error: 'Missing url or diagramType' }, { status: 400 });
     }
 
-    // Instantiate the loader for the given URL.
+    // Validate URL format
+    try {
+      new URL(url);
+    } catch (e) {
+      return NextResponse.json({ error: 'Invalid URL format' }, { status: 400 });
+    }
+
     const loader = new PlaywrightWebBaseLoader(url, {
       launchOptions: {
         headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox'] // Add these args for deployment
       },
       gotoOptions: {
         waitUntil: 'domcontentloaded',
+        timeout: 30000, // Add reasonable timeout
       },
       // Evaluate function returns the text content from the page,
       // and optimizes the text by removing extra whitespace and unwanted symbols.
@@ -44,6 +53,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ summary, message });
   } catch (error) {
     console.error("Error processing website:", error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Error processing website' }, { status: 500 });
+    return NextResponse.json({ 
+      error: error instanceof Error ? error.message : 'Error processing website',
+      details: process.env.NODE_ENV === 'development' ? error : undefined
+    }, { status: 500 });
   }
 } 

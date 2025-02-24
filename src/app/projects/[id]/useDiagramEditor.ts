@@ -597,15 +597,7 @@ Requested changes: ${promptText}`;
           return newHistory;
         });
         // --------------------------------------------------------------------------
-        await fetch(`/api/projects/${projectId}/history`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            prompt: promptText,
-            diagram: finalDiagram,
-            updateType: 'chat'
-          }),
-        });
+        await updateHistory(promptText, finalDiagram, 'chat');
         const renderSuccess = await renderDiagram(finalDiagram);
         if (!renderSuccess) {
           throw new Error('Failed to render the final diagram');
@@ -652,14 +644,7 @@ Requested changes: ${promptText}`;
       }
 
       // If render successful, save to history
-      await fetch(`/api/projects/${projectId}/history`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          diagram: newCode,
-          updateType: 'code'
-        }),
-      });
+      await updateHistory(prompt, newCode, 'code');
     } catch (err) {
       console.error('Error updating diagram:', err);
       setError(err instanceof Error ? err.message : 'Failed to update diagram');
@@ -805,18 +790,37 @@ Requested changes: ${promptText}`;
     
     // Optionally save this version to history
     try {
-      await fetch(`/api/projects/${projectId}/history`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          diagram: version,
-          updateType: 'reversion',
-        }),
-      });
+      await updateHistory(prompt, version, 'reversion');
     } catch (error) {
       console.error('Error saving diagram version:', error);
     }
-  }, [projectId, renderDiagram]);
+  }, [prompt, renderDiagram]);
+
+  const updateHistory = async (prompt: string, diagram: string, updateType: string) => {
+    try {
+      const response = await fetch('/api/project-history', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          projectId: projectId, // Pass as part of body instead of URL
+          prompt,
+          diagram,
+          updateType,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update history');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error updating history:', error);
+      throw error;
+    }
+  };
 
   return {
     prompt,

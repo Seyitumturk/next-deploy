@@ -120,7 +120,7 @@ export async function POST(req: Request) {
       async start(controller) {
         try {
           const completion = await openai.chat.completions.create({
-            model: "gpt-4o",
+            model: "gpt-4",
             messages: [
               {
                 role: "system",

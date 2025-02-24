@@ -4,26 +4,18 @@ import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import Project from '@/models/Project';
 
-// Update the params type to match Next.js expectations
-type Context = {
-  params: Promise<{ id: string }> | { id: string };
-};
-
-export async function POST(
-  request: NextRequest,
-  context: Context
-) {
+export async function POST(request: NextRequest) {
   try {
     const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { prompt, diagram, updateType } = await request.json();
+    const { projectId, prompt, diagram, updateType } = await request.json();
     
-    // Handle both Promise and direct object cases
-    const params = await Promise.resolve(context.params);
-    const { id } = params;
+    if (!projectId) {
+      return NextResponse.json({ error: 'Project ID is required' }, { status: 400 });
+    }
 
     await connectDB();
     
@@ -33,7 +25,7 @@ export async function POST(
     }
 
     const project = await Project.findOne({
-      _id: id,
+      _id: projectId,
       userId: user._id,
     });
 
@@ -54,9 +46,6 @@ export async function POST(
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error in project history API:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 } 

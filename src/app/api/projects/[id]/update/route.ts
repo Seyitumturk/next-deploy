@@ -6,7 +6,7 @@ import User from '@/models/User';
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } | Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -23,8 +23,10 @@ export async function PATCH(
 
     const { title } = await req.json();
 
+    const { id } = await context.params;
+
     const project = await Project.findOneAndUpdate(
-      { _id: params.id, userId: user._id },
+      { _id: id, userId: user._id },
       { $set: { title } },
       { new: true }
     );
