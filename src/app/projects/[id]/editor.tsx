@@ -155,6 +155,7 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
           setIsEditorReady={editor.setIsEditorReady}
           setShowPromptPanel={editor.setShowPromptPanel}
           isDarkMode={isDarkMode}
+          onDiagramVersionSelect={editor.handleDiagramVersionSelect}
         />
         <DiagramDisplay
           showPromptPanel={editor.showPromptPanel}

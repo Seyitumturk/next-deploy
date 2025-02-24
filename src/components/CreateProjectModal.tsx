@@ -176,7 +176,7 @@ export default function CreateProjectModal({ isOpen, onClose, isDarkMode }: Crea
                       What type of diagram would you like to create?
                     </label>
                     <div className="max-h-64 overflow-y-auto md:max-h-full md:overflow-visible">
-                      <div className="mx-auto grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-md md:mx-0 md:max-w-full">
+                      <div className="mx-auto grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-xs md:mx-0 md:max-w-full">
                         {diagramTypes.map((type) => (
                           <button
                             key={type.value}
@@ -184,14 +184,14 @@ export default function CreateProjectModal({ isOpen, onClose, isDarkMode }: Crea
                             onClick={() =>
                               setFormData({ ...formData, diagramType: type.value })
                             }
-                            className={`flex items-center space-x-4 p-3 md:p-4 rounded-xl border dark:border-gray-700 text-left transition-all duration-200 cursor-pointer transform hover:scale-105 hover:shadow-lg ${
+                            className={`flex items-center space-x-4 p-3 md:p-4 rounded-xl border dark:border-gray-700 text-left transition-all duration-200 cursor-pointer transform hover:shadow-lg md:hover:scale-105 ${
                               formData.diagramType === type.value
                                 ? 'ring-2 ring-primary border-transparent bg-primary/5'
                                 : 'hover:border-primary/30'
                             }`}
                           >
                             <Image src={type.icon} alt={type.label} width={40} height={40} />
-                            <div className="text-sm font-medium whitespace-normal">
+                            <div className={`text-sm font-medium whitespace-normal ${isDarkMode ? 'text-white' : 'text-black'}`}>
                               {type.label}
                             </div>
                           </button>

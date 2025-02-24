@@ -332,8 +332,10 @@ export default function ProjectsPage() {
         ) : projects.length === 0 ? (
           <div className="text-center py-12">
             <div className="text-6xl mb-4">🎨</div>
-            <h3 className="text-xl font-semibold mb-2">No diagrams yet</h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
+            <h3 className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+              No diagrams yet
+            </h3>
+            <p className={`${isDarkMode ? 'text-white' : 'text-black'} mb-6`}>
               Create your first diagram to get started
             </p>
             <button

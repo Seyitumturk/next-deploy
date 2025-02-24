@@ -32,6 +32,7 @@ export interface PromptPanelProps {
   setShowPromptPanel: React.Dispatch<React.SetStateAction<boolean>>;
   isVisible: boolean;
   isDarkMode: boolean;
+  onDiagramVersionSelect: (version: string) => Promise<void>;
 }
 
 const monacoOptions = {
@@ -79,15 +80,10 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
   setShowPromptPanel,
   isVisible,
   isDarkMode,
+  onDiagramVersionSelect,
 }) => {
   // Define conditional textarea classes without scrollbar classes
   const promptTextAreaClass = `w-full rounded-xl border border-gray-200 dark:border-gray-700 px-4 pb-4 pt-3 pr-14 text-sm focus:ring-2 focus:ring-secondary/50 focus:border-transparent resize-none min-h-[72px] max-h-[200px] transition-all duration-200 ease-in-out ${!isDarkMode ? "placeholder-black" : "placeholder:text-gray-400 dark:placeholder:text-gray-500"} focus:placeholder:text-transparent overflow-y-auto break-words overflow-x-hidden no-scrollbar`;
-
-  // Add a handler to revert to a previous diagram version.
-  const handleDiagramVersionSelect = (version: string) => {
-    setCurrentDiagram(version);
-    onRenderDiagram(version);
-  };
 
   return (
     <>
@@ -198,7 +194,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
                   <ChatMessage 
                     key={index} 
                     message={message} 
-                    onDiagramVersionSelect={handleDiagramVersionSelect}
+                    onDiagramVersionSelect={onDiagramVersionSelect}
                     onRetry={() => {
                       handleGenerateDiagram(null);
                     }}
@@ -421,7 +417,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
                   <ChatMessage 
                     key={index} 
                     message={message} 
-                    onDiagramVersionSelect={handleDiagramVersionSelect}
+                    onDiagramVersionSelect={onDiagramVersionSelect}
                     onRetry={() => {
                       handleGenerateDiagram(null);
                     }}
