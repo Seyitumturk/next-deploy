@@ -202,7 +202,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
                 ))}
               </div>
             </div>
-            {/* Chat Input Area */}
+            {/* Chat Input Ardea */}
             <div className="p-4 border-t border-gray-200 dark:border-gray-800">
               <FileUploadOptions
                 showFileUpload={showFileUpload}
