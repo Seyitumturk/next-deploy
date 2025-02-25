@@ -110,7 +110,7 @@ const DiagramDisplay: React.FC<DiagramDisplayProps> = ({
       <div className={`relative flex-1 flex flex-col transition-all duration-300 ease-in-out ${showPromptPanel ? "md:ml-96 md:mb-0 mb-96" : "md:ml-0"}`}>
         {/* Top Controls Bar - Adjusted height to match chat UI header (h-12) */}
         <div
-          className={`h-12 backdrop-blur-md border-b flex items-center justify-between px-4 ${
+          className={`md:flex hidden h-12 backdrop-blur-md border-b items-center justify-between px-4 ${
             isDarkMode 
               ? "bg-gray-900/80 border-gray-800/50 text-white" 
               : "bg-[#e8dccc]/80 border-[#d8cbb8]/50 text-[#6a5c4c]"
@@ -132,7 +132,8 @@ const DiagramDisplay: React.FC<DiagramDisplayProps> = ({
                 </svg>
               </button>
             )}
-            <div className="flex items-center space-x-1">
+            {/* Remove duplicate controls from header on mobile */}
+            <div className="hidden md:flex items-center space-x-1">
               <button 
                 onClick={() => setScale(s => Math.min(s + 0.1, 5))} 
                 className={`p-1.5 rounded-md transition-all duration-200 ${
@@ -188,7 +189,7 @@ const DiagramDisplay: React.FC<DiagramDisplayProps> = ({
               </div>
             </div>
           </div>
-          <div className="flex items-center">
+          <div className="hidden md:flex items-center">
             <button
               onClick={() => setShowExportMenu(!showExportMenu)}
               className={`px-3 py-1.5 rounded-lg transition-all duration-200 flex items-center space-x-2 ${
@@ -205,6 +206,23 @@ const DiagramDisplay: React.FC<DiagramDisplayProps> = ({
               <span>Export</span>
             </button>
           </div>
+        </div>
+
+        {/* Mobile controls - positioned right below the header */}
+        <div className="md:hidden -mt-px">
+          <DiagramControls 
+            showPromptPanel={showPromptPanel}
+            setShowPromptPanel={setShowPromptPanel}
+            scale={scale}
+            setScale={setScale}
+            setPosition={setPosition}
+            downloadSVG={downloadSVG}
+            downloadPNG={downloadPNG}
+            showExportMenu={showExportMenu}
+            setShowExportMenu={setShowExportMenu}
+            isDarkMode={isDarkMode}
+            isMobile={true}
+          />
         </div>
 
         {/* Improved Download Options Menu */}
@@ -396,21 +414,6 @@ const DiagramDisplay: React.FC<DiagramDisplayProps> = ({
             />
           )}
         </div>
-      </div>
-
-      <div className="md:hidden fixed left-0 right-0 z-50" style={{ bottom: showPromptPanel ? "50vh" : "0" }}>
-        <DiagramControls 
-          showPromptPanel={showPromptPanel}
-          setShowPromptPanel={setShowPromptPanel}
-          scale={scale}
-          setScale={setScale}
-          setPosition={setPosition}
-          downloadSVG={downloadSVG}
-          downloadPNG={downloadPNG}
-          showExportMenu={showExportMenu}
-          setShowExportMenu={setShowExportMenu}
-          isDarkMode={isDarkMode}
-        />
       </div>
     </>
   );

@@ -80,6 +80,8 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
   });
   const [showFileUpload, setShowFileUpload] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showImageUpload, setShowImageUpload] = useState(false);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
 
   // --- auto-scroll chat on update ---
   useEffect(() => {
@@ -860,6 +862,14 @@ Requested changes: ${promptText}`;
       formData.append('file', file);
       formData.append('diagramType', diagramType);
       
+      setChatHistory(prev => [
+        ...prev,
+        {
+          role: 'system',
+          content: `Processing document ${file.name}...`,
+          timestamp: new Date(),
+        },
+      ]);
       const response = await fetch('/api/process-document', {
         method: 'POST',
         body: formData,
@@ -874,14 +884,19 @@ Requested changes: ${promptText}`;
         ...prev,
         {
           role: 'document',
-          content: message,
+          content: `Document Analysis: ${file.name}`,
           timestamp: new Date(),
         },
       ]);
-      handleGenerateDiagram(null, summary);
+      
+      // Set the prompt to a message prompting the user to add instructions
+      setPrompt("Your document has been analyzed. Please add any additional instructions or modifications.");
+      
+      // Close the file upload dropdown after successful processing
+      setShowFileUpload(false);
     } catch (error) {
       console.error('Error processing document:', error);
-      setError('Failed to process document. Please try again.');
+      setError(error instanceof Error ? error.message : 'Failed to process document');
     } finally {
       setIsProcessingFile(false);
     }
@@ -921,8 +936,15 @@ Requested changes: ${promptText}`;
           timestamp: new Date(),
         },
       ]);
-      // Auto generate/update the diagram using the website summary as context.
-      await handleGenerateDiagram(null, summary);
+      
+      // Set the prompt to a message prompting the user to add instructions
+      setPrompt("Your website has been analyzed. Please add any additional instructions or modifications.");
+      
+      // Close the file upload dropdown after successful processing
+      setShowFileUpload(false);
+      
+      // Removed auto-generation of diagram
+      
     } catch (error) {
       console.error('Error processing website:', error);
       setError(error instanceof Error ? error.message : 'Failed to process website');
@@ -940,6 +962,8 @@ Requested changes: ${promptText}`;
       const formData = new FormData();
       formData.append('file', file);
       formData.append('diagramType', diagramType);
+      formData.append('extractOnly', 'true'); // Add flag to indicate we only want to extract info
+      
       setChatHistory(prev => [
         ...prev,
         {
@@ -948,16 +972,21 @@ Requested changes: ${promptText}`;
           timestamp: new Date(),
         },
       ]);
+      
       const response = await fetch('/api/process-document', {
         method: 'POST',
         body: formData,
       });
+      
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to process document');
       }
+      
       const { summary, message } = await response.json();
       setDocumentSummary(summary);
+      
+      // Add the document summary to chat history
       setChatHistory(prev => [
         ...prev,
         {
@@ -966,7 +995,22 @@ Requested changes: ${promptText}`;
           timestamp: new Date(),
         },
       ]);
-      handleGenerateDiagram(null, summary);
+      
+      // Set the prompt to the extracted summary so user can edit it
+      setPrompt(summary);
+      
+      // Close the file upload dropdown after successful processing
+      setShowFileUpload(false);
+      
+      // Add system message about successful processing
+      setChatHistory(prev => [
+        ...prev,
+        {
+          role: 'system',
+          content: "Document analyzed. You can now edit the extracted information and press Enter to generate a diagram.",
+          timestamp: new Date(),
+        },
+      ]);
     } catch (error) {
       console.error('Error processing document:', error);
       setError(error instanceof Error ? error.message : 'Failed to process document');
@@ -1014,6 +1058,88 @@ Requested changes: ${promptText}`;
     }
   };
 
+  // --- image processing ---
+  const processImage = async (file: File) => {
+    setIsProcessingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('diagramType', diagramType);
+      formData.append('extractOnly', 'true'); // Add flag to indicate we only want to extract info
+      
+      setChatHistory(prev => [
+        ...prev,
+        {
+          role: 'system',
+          content: `Processing image ${file.name}...`,
+          timestamp: new Date(),
+        },
+      ]);
+      
+      const response = await fetch('/api/process-image', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to process image');
+      }
+      
+      // Update this line to handle both description and summary fields
+      const data = await response.json();
+      const extractedText = data.description || data.summary || '';
+      
+      // Add the image description to chat history
+      setChatHistory(prev => [
+        ...prev,
+        {
+          role: 'document',
+          content: `Image Analysis: ${file.name}`,
+          timestamp: new Date(),
+        },
+      ]);
+      
+      // Set the prompt to a message prompting the user to add instructions
+      setPrompt("Your image has been analyzed. Please add any additional instructions or modifications.");
+      setDocumentSummary(extractedText);
+      
+      // Close the file upload dropdown after successful processing
+      setShowFileUpload(false);
+      
+      // Removed auto-generation of diagram
+      
+    } catch (error) {
+      console.error('Error processing image:', error);
+      setError(error instanceof Error ? error.message : 'Failed to process image');
+      
+      setChatHistory(prev => [
+        ...prev,
+        {
+          role: 'system',
+          content: `Error: ${error instanceof Error ? error.message : 'Failed to process image'}`,
+          timestamp: new Date(),
+        },
+      ]);
+    } finally {
+      setIsProcessingImage(false);
+    }
+  };
+
+  // --- image upload handler ---
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Check if the file is an image
+    if (!file.type.startsWith('image/')) {
+      setError('File is not an image');
+      return;
+    }
+    
+    await processImage(file);
+  };
+
   return {
     prompt,
     setPrompt,
@@ -1046,6 +1172,9 @@ Requested changes: ${promptText}`;
     setShowFileUpload,
     showExportMenu,
     setShowExportMenu,
+    showImageUpload,
+    setShowImageUpload,
+    isProcessingImage,
     svgRef,
     diagramRef,
     renderDiagram,
@@ -1064,6 +1193,8 @@ Requested changes: ${promptText}`;
     processDocument,
     processWebsite,
     handleFileUpload,
+    handleImageUpload,
+    processImage,
     handleDiagramVersionSelect,
   };
 }
@@ -1119,7 +1250,6 @@ function sanitizeGanttDiagram(diagramText: string): string {
   if (!lines.some(l => l.startsWith('dateFormat'))) {
     sanitizedLines.splice(1, 0, '    dateFormat YYYY-MM-DD');
   }
-
   // Add proper spacing between sections
   const finalLines = sanitizedLines.join('\n');
 

@@ -11,6 +11,8 @@
   --secondary-dark: #7C3AED;
   --accent-1: #3B82F6;
   --accent-2: #EC4899;
+  --border-light: #b8a990;
+  --border-dark: #374151;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -57,11 +59,19 @@ body {
   .glass-effect {
     @apply bg-gradient-to-br from-white/5 to-white/10 dark:from-gray-800/5 dark:to-gray-800/10 backdrop-blur;
   }
-  .modern-scrollbar {
-    scrollbar-width: thin; /* For Firefox */
-    scrollbar-color: rgba(139, 92, 246, 0.3) transparent; /* For Firefox */
+  .light-mode-border {
+    @apply border border-[#b8a990];
   }
-  /* For Webkit browsers (Chrome, Safari, etc) */
+  .dark-mode-border {
+    @apply border border-gray-700;
+  }
+  .responsive-border {
+    @apply border dark:border-gray-700 border-[#b8a990];
+  }
+  .modern-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(139, 92, 246, 0.3) transparent;
+  }
   .modern-scrollbar::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -77,7 +87,6 @@ body {
   .modern-scrollbar::-webkit-scrollbar-thumb:hover {
     background-color: rgba(139, 92, 246, 0.5);
   }
-  /* Dark mode styles */
   .dark .modern-scrollbar {
     scrollbar-color: rgba(139, 92, 246, 0.2) transparent;
   }
@@ -89,7 +98,6 @@ body {
   }
 }
 
-/* Custom scrollbar styles */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -99,9 +107,8 @@ body {
   background: transparent;
 }
 
-/* Light mode scrollbar styling */
 ::-webkit-scrollbar-thumb {
-  background-color: #d1d5db; /* light gray for light mode */
+  background-color: #d1d5db;
   border-radius: 4px;
 }
 
@@ -109,15 +116,13 @@ body {
   background-color: #9ca3af;
 }
 
-/* Firefox scrollbar styling for light mode */
 * {
   scrollbar-width: thin;
   scrollbar-color: #d1d5db transparent;
 }
 
-/* Dark mode scrollbar styling */
 .dark ::-webkit-scrollbar-thumb {
-  background-color: #374151; /* dark gray for dark mode */
+  background-color: #374151;
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
@@ -126,4 +131,13 @@ body {
 
 .dark * {
   scrollbar-color: #374151 transparent;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }

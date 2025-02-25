@@ -119,6 +119,11 @@ export default function ProjectsPage() {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+  const [showScrollIndicator, setShowScrollIndicator] = useState(false);
+  const filterScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const storedPref = localStorage.getItem('isDarkMode');
@@ -145,6 +150,22 @@ export default function ProjectsPage() {
 
   // Get unique diagram types for filtering
   const diagramTypes = [...new Set(projects.map(project => project.diagramType))];
+
+  // Check if scrolling is needed
+  useEffect(() => {
+    const checkScrollable = () => {
+      if (filterScrollRef.current) {
+        setShowScrollIndicator(filterScrollRef.current.scrollWidth > filterScrollRef.current.clientWidth);
+      }
+    };
+    
+    checkScrollable();
+    window.addEventListener('resize', checkScrollable);
+    
+    return () => {
+      window.removeEventListener('resize', checkScrollable);
+    };
+  }, [diagramTypes]);
 
   useEffect(() => {
     async function loadInitialProjects() {
@@ -230,6 +251,55 @@ export default function ProjectsPage() {
     }
   };
 
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!filterScrollRef.current) return;
+    setIsDragging(true);
+    setStartX(e.pageX - filterScrollRef.current.offsetLeft);
+    setScrollLeft(filterScrollRef.current.scrollLeft);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!filterScrollRef.current) return;
+    setIsDragging(true);
+    setStartX(e.touches[0].pageX - filterScrollRef.current.offsetLeft);
+    setScrollLeft(filterScrollRef.current.scrollLeft);
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !filterScrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - filterScrollRef.current.offsetLeft;
+    const walk = (x - startX) * 1.5; // Scroll speed multiplier
+    filterScrollRef.current.scrollLeft = scrollLeft - walk;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging || !filterScrollRef.current) return;
+    const x = e.touches[0].pageX - filterScrollRef.current.offsetLeft;
+    const walk = (x - startX) * 1.5; // Scroll speed multiplier
+    filterScrollRef.current.scrollLeft = scrollLeft - walk;
+  };
+
+  // Scroll right when arrow is clicked
+  const scrollRight = () => {
+    if (filterScrollRef.current) {
+      const scrollAmount = 150; // Adjust scroll amount as needed
+      filterScrollRef.current.scrollLeft += scrollAmount;
+    }
+  };
+
   return (
     <div className={`min-h-screen relative flex flex-col ${isDarkMode ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900" : "bg-gradient-to-br from-[#f0eee6] via-white to-[#f0eee6]"}`}>
       {/* Modern Navbar */}
@@ -303,24 +373,31 @@ export default function ProjectsPage() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className={`text-4xl md:text-5xl font-bold mb-4 ${isDarkMode ? "text-white" : "text-gray-900"}`}
+            className={`text-4xl md:text-5xl font-bold mb-6 ${isDarkMode ? "text-white" : "text-gray-900"}`}
           >
             Your Diagrams
           </motion.h1>
-          <motion.p 
-            initial={{ opacity: 0, y: -10 }}
+          
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className={`text-lg max-w-2xl mx-auto ${isDarkMode ? "text-gray-300" : "text-gray-600"}`}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className={`relative max-w-2xl mx-auto px-6 py-4 rounded-lg ${
+              isDarkMode 
+                ? "bg-gray-800/60 border border-gray-700/50" 
+                : "bg-[#e8dccc]/60 border border-[#d8cbb8]/50"
+            } shadow-md`}
           >
-            Create, manage, and collaborate on your diagrams all in one place
-          </motion.p>
+            <p className={`text-xl ${isDarkMode ? "text-white" : "text-gray-900"}`}>
+              Create, manage, and <span className="text-primary font-semibold">edit</span> your diagrams all in one place
+            </p>
+          </motion.div>
         </div>
         
         {/* Search and Filter Bar */}
         <div className="mb-10">
-          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-            <div className="relative w-full md:w-96">
+          <div className="flex flex-col md:flex-row gap-4 items-start justify-between">
+            <div className="relative w-full md:w-96 flex-shrink-0">
               <input
                 type="text"
                 placeholder="Search diagrams..."
@@ -339,39 +416,84 @@ export default function ProjectsPage() {
               </div>
             </div>
             
+            {/* New Diagram button for mobile */}
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="w-full md:hidden px-4 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-xl transition-colors flex items-center justify-center space-x-2 shadow-lg shadow-primary/20"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+              </svg>
+              <span>New Diagram</span>
+            </button>
+            
             <div className="flex items-center space-x-4 w-full md:w-auto">
-              <div className="flex items-center space-x-2 overflow-x-auto pb-2 w-full md:w-auto">
-                <button
-                  onClick={() => setActiveFilter(null)}
-                  className={`px-3 py-1.5 text-sm rounded-full whitespace-nowrap transition-all ${
-                    activeFilter === null
-                      ? (isDarkMode ? 'bg-primary text-white' : 'bg-primary text-white')
-                      : (isDarkMode ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200')
-                  }`}
+              <div className="relative w-full md:w-auto">
+                <div 
+                  ref={filterScrollRef}
+                  className={`flex items-center space-x-2 overflow-x-auto pb-2 w-full md:max-w-[400px] cursor-grab ${isDragging ? 'cursor-grabbing' : 'cursor-grab'} no-scrollbar`}
+                  onMouseDown={handleMouseDown}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={handleMouseLeave}
+                  onMouseMove={handleMouseMove}
+                  onTouchStart={handleTouchStart}
+                  onTouchEnd={handleTouchEnd}
+                  onTouchMove={handleTouchMove}
                 >
-                  All
-                </button>
-                {diagramTypes.map(type => (
                   <button
-                    key={type}
-                    onClick={() => setActiveFilter(type)}
-                    className={`px-3 py-1.5 text-sm rounded-full whitespace-nowrap flex items-center space-x-1 transition-all ${
-                      activeFilter === type
+                    onClick={() => setActiveFilter(null)}
+                    className={`px-3 py-1.5 text-sm rounded-full whitespace-nowrap transition-all flex-shrink-0 ${
+                      activeFilter === null
                         ? (isDarkMode ? 'bg-primary text-white' : 'bg-primary text-white')
                         : (isDarkMode ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200')
                     }`}
                   >
-                    <span className="w-3 h-3">
-                      {getDiagramIcon(type)}
-                    </span>
-                    <span>{type.replace('_', ' ')}</span>
+                    All
                   </button>
-                ))}
+                  {diagramTypes.map(type => (
+                    <button
+                      key={type}
+                      onClick={() => setActiveFilter(type)}
+                      className={`px-3 py-1.5 text-sm rounded-full whitespace-nowrap flex items-center space-x-1 transition-all flex-shrink-0 ${
+                        activeFilter === type
+                          ? (isDarkMode ? 'bg-primary text-white' : 'bg-primary text-white')
+                          : (isDarkMode ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200')
+                      }`}
+                    >
+                      <span className="w-3 h-3">
+                        {getDiagramIcon(type)}
+                      </span>
+                      <span>{type.replace('_', ' ')}</span>
+                    </button>
+                  ))}
+                </div>
+                
+                {showScrollIndicator && (
+                  <div 
+                    className="absolute right-0 top-1/2 transform -translate-y-1/2 cursor-pointer z-10"
+                    onClick={scrollRight}
+                  >
+                    <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
+                      isDarkMode ? 'bg-gray-800/90 hover:bg-gray-700/90' : 'bg-gray-100/90 hover:bg-gray-200/90'
+                    } shadow-sm transition-colors`}>
+                      <svg 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        className={`h-4 w-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`} 
+                        fill="none" 
+                        viewBox="0 0 24 24" 
+                        stroke="currentColor"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </div>
+                )}
               </div>
               
+              {/* New Diagram button for desktop */}
               <button
                 onClick={() => setIsModalOpen(true)}
-                className="px-4 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-xl transition-colors flex items-center space-x-2 shadow-lg shadow-primary/20 whitespace-nowrap"
+                className="hidden md:flex px-4 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-xl transition-colors items-center space-x-2 shadow-lg shadow-primary/20 whitespace-nowrap flex-shrink-0"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />

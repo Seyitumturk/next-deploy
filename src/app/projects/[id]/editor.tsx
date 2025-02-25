@@ -155,19 +155,23 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
           error={editor.error}
           handleGenerateDiagram={editor.handleGenerateDiagram}
           handleFileUpload={editor.handleFileUpload}
+          handleImageUpload={editor.handleImageUpload}
           processWebsite={editor.processWebsite}
           isProcessingFile={editor.isProcessingFile}
+          isProcessingImage={editor.isProcessingImage}
           documentSummary={editor.documentSummary}
           showFileUpload={editor.showFileUpload}
           setShowFileUpload={editor.setShowFileUpload}
           handleCodeChange={editor.handleCodeChange}
           currentDiagram={editor.currentDiagram}
           setCurrentDiagram={editor.setCurrentDiagram}
-          renderDiagram={editor.renderDiagram}
+          onRenderDiagram={editor.renderDiagram}
           setIsEditorReady={editor.setIsEditorReady}
           setShowPromptPanel={editor.setShowPromptPanel}
           isDarkMode={isDarkMode}
           onDiagramVersionSelect={editor.handleDiagramVersionSelect}
+          downloadSVG={editor.downloadSVG}
+          downloadPNG={editor.downloadPNG}
         />
         <DiagramDisplay
           svgOutput={editor.svgOutput}
