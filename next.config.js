@@ -17,6 +17,7 @@ const nextConfig = {
   env: {
     MONGODB_URI: process.env.MONGODB_URI,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
   },
   // Bypass TypeScript errors during production build (not recommended for production)
   typescript: {

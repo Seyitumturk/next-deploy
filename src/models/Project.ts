@@ -21,6 +21,19 @@ export interface IProject extends Document {
   currentDiagram: string;
 }
 
+export enum DiagramType {
+  FLOWCHART = 'flowchart',
+  SEQUENCE = 'sequence',
+  CLASS = 'class',
+  STATE = 'state',
+  ER = 'er',
+  GANTT = 'gantt',
+  PIE = 'pie',
+  MINDMAP = 'mindmap',
+  TIMELINE = 'timeline',
+  ARCHITECTURE = 'architecture',
+}
+
 const projectSchema = new Schema<IProject>({
   title: {
     type: String,
@@ -59,7 +72,8 @@ const projectSchema = new Schema<IProject>({
       'timeline',
       'sankey',
       'git',
-      'architecture'
+      'architecture',
+      'architecture-beta'
     ],
   },
   history: [{

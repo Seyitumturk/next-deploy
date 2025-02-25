@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { OpenAI } from 'openai';
+import { Anthropic } from '@anthropic-ai/sdk';
 import connectDB from '@/lib/mongodb';
 import Project from '@/models/Project';
 import User from '@/models/User';
@@ -10,10 +10,10 @@ import fs from 'fs';
 import path from 'path';
 import mongoose from 'mongoose';
 import mermaid from 'mermaid';
+import { Configuration, OpenAIApi } from 'openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  organization: process.env.OPENAI_ORGANIZATION_ID,
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
 const ARTIFICIAL_DELAY = 400;
@@ -29,6 +29,30 @@ mermaid.initialize({
   securityLevel: 'loose',
   fontFamily: 'var(--font-geist-sans)',
 });
+
+// Add 'architecture' to the diagramTypes array or object if it exists
+const diagramTypes = [
+  'flowchart',
+  'class',
+  'erd',
+  'sequence',
+  'mindmap',
+  'timeline',
+  'gantt',
+  'sankey',
+  'git',
+  'state',
+  'architecture'  // Add architecture here
+];
+
+// Look for any mapping or alias handling for diagram types
+// Add 'architecture' to any such mapping if it exists
+
+// Add architecture to any diagramTypeAliases object if it exists
+const diagramTypeAliases: Record<string, string> = {
+  // ... existing aliases
+  'architecture': 'architecture'
+};
 
 function getPromptForDiagramType(diagramType: string, userPrompt: string) {
   const config = diagramConfig.definitions[diagramType];
@@ -115,17 +139,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
+    // Add more detailed logging for architecture diagrams
+    if (effectiveDiagramType === 'architecture') {
+      console.log("[diagrams API] Processing architecture diagram");
+      console.log("[diagrams API] System prompt:", getSystemPromptForDiagramType(effectiveDiagramType));
+      console.log("[diagrams API] User prompt:", getPromptForDiagramType(effectiveDiagramType, textPrompt));
+    }
+
     // Create a new ReadableStream
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          const completion = await openai.chat.completions.create({
-            model: "gpt-4",
+          const completion = await anthropic.messages.create({
+            model: "claude-3-5-sonnet-20240620",
+            system: getSystemPromptForDiagramType(effectiveDiagramType),
             messages: [
-              {
-                role: "system",
-                content: getSystemPromptForDiagramType(effectiveDiagramType)
-              },
               {
                 role: "user",
                 content: getPromptForDiagramType(effectiveDiagramType, textPrompt)
@@ -134,10 +162,7 @@ export async function POST(req: Request) {
             stream: true,
             max_tokens: 4000,
             temperature: 0.7,
-            presence_penalty: 0.1,
-            frequency_penalty: 0.1,
             top_p: 0.95,
-            response_format: { type: "text" }
           });
 
           let diagram = '';
@@ -146,8 +171,8 @@ export async function POST(req: Request) {
           let lineBuffer: string[] = [];
 
           for await (const chunk of completion) {
-            if (chunk.choices[0]?.delta?.content) {
-              const content = chunk.choices[0].delta.content;
+            if (chunk.type === 'content_block_delta' && chunk.delta?.text) {
+              const content = chunk.delta.text;
               currentChunk += content;
 
               // Check for the start of Mermaid syntax

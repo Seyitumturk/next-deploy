@@ -1,0 +1,1 @@
+// Add 'architecture' to any diagram type handling here if this file exists 

@@ -644,15 +644,15 @@ Requested changes: ${promptText}`;
     setCurrentDiagram(newCode);
     
     try {
-      // First save to history - do this BEFORE attempting to render
-      await updateHistory(prompt, newCode, 'code');
-      
-      // Then try rendering the diagram
+      // First render the diagram
       const renderSuccess = await renderDiagram(newCode);
       if (!renderSuccess) {
-        console.error('Warning: Diagram rendered with errors, but history has been updated with the correct syntax');
-        setError('Diagram may have rendering issues, but your changes have been saved');
+        setError('Failed to render diagram');
+        return;
       }
+
+      // If render successful, save to history
+      await updateHistory(prompt, newCode, 'code');
     } catch (err) {
       console.error('Error updating diagram:', err);
       setError(err instanceof Error ? err.message : 'Failed to update diagram');

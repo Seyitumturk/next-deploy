@@ -57,6 +57,9 @@ export async function POST(req: Request) {
 
     const { title, diagramType } = await req.json();
 
+    // Look for any validation logic related to diagramType
+    // If there's any validation or schema definition here, add 'architecture-beta' to it
+
     const project = new Project({
       title,
       diagramType: diagramType.toLowerCase(),

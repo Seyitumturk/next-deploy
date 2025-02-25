@@ -1,0 +1,1 @@
+// Add 'architecture' to any template loading logic here if this file exists 

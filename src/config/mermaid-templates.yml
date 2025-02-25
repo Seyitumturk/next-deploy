@@ -1,0 +1,41 @@
+architecture:
+  name: Architecture
+  description: Create architecture diagrams to visualize cloud and system infrastructure
+  template: |
+    architecture-beta
+      group api(cloud)[API]
+
+      service db(database)[Database] in api
+      service disk1(disk)[Storage] in api
+      service disk2(disk)[Storage] in api
+      service server(server)[Server] in api
+
+      db:L -- R:server
+      disk1:T -- B:server
+      disk2:T -- B:db
+  syntax: |
+    # Architecture Diagram Syntax
+    
+    # Start with architecture-beta
+    architecture-beta
+    
+    # Groups
+    group {group id}({icon name})[{title}]
+    group {group id}({icon name})[{title}] in {parent id}
+    
+    # Services
+    service {service id}({icon name})[{title}]
+    service {service id}({icon name})[{title}] in {parent id}
+    
+    # Edges (must use L|R|T|B for directions)
+    {serviceId}:L -- R:{serviceId}
+    {serviceId}:T -- B:{serviceId}
+    {serviceId}:R --> L:{serviceId}
+    {serviceId}:B <-- T:{serviceId}
+    
+    # Junctions
+    junction {junction id}
+    junction {junction id} in {parent id}
+    
+    # Available icons: cloud, database, disk, internet, server
+    # Can also use iconify.design icons with format "name:icon-name" 

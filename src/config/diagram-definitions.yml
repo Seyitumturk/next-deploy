@@ -1,71 +1,14 @@
 # Base definitions for each diagram type with detailed instructions
 definitions:
   flowchart:
-    description: |
-      Create a professional flowchart following these guidelines:
-      - Use modern direction syntax: TD (top-down), BT (bottom-top), LR (left-right), or RL (right-left)
-      - Include descriptive node labels with proper escaping for special characters
-      - Use modern node shapes:
-        * [Rectangle] for process steps
-        * {Diamond} for decisions
-        * ([Rounded]) for start/end points
-        * [(Database)] for data storage
-        * [/Parallelogram/] for input/output
-        * {{Hexagon}} for preparation steps
-        * [>Note] for notes/comments
-        * ((Circle)) for connections
-      - Add meaningful link labels between nodes using |text|
-      - Group related processes using subgraphs with modern syntax:
-        subgraph title
-          direction LR/TB
-          content
-        end
-      - Use click events for interactive nodes: click nodeId "URL" "Tooltip"
-      - Apply consistent styling using classDefs
-      - Use modern link styles: -->, -.-> (dotted), ==> (thick)
-      - Add comments using %% for better maintainability
+    description: "Flowcharts are diagrams that represent workflows or processes. They show the steps as boxes of various kinds, and their order by connecting the boxes with arrows."
     example: |
-      flowchart LR
-        %% Client Layer
-        Client((Client))
-        
-        %% API Gateway
-        subgraph gateway [API Gateway]
-          direction TB
-          LoadBalancer[/Load Balancer/]
-          Auth[Authentication]
-          Router{Router}
-        end
-        
-        %% Microservices
-        subgraph services [Services]
-          direction TB
-          UserService[(User Service)]
-          PaymentService[(Payment Service)]
-          ProductService[(Product Service)]
-        end
-        
-        %% Database Layer
-        subgraph databases [Databases]
-          UserDB[(User DB)]
-          PaymentDB[(Payment DB)]
-          ProductDB[(Product DB)]
-        end
-        
-        %% Connections
-        Client --> LoadBalancer
-        LoadBalancer --> Auth
-        Auth --> Router
-        Router -->|/users| UserService
-        Router -->|/payments| PaymentService
-        Router -->|/products| ProductService
-        UserService --> UserDB
-        PaymentService --> PaymentDB
-        ProductService --> ProductDB
-        
-        %% Styling
-        classDef service fill:#f9f,stroke:#333,stroke-width:2px
-        class UserService,PaymentService,ProductService service
+      flowchart TD
+        A[Start] --> B{Is it?}
+        B -->|Yes| C[OK]
+        C --> D[Rethink]
+        D --> B
+        B ---->|No| E[End]
     prompt_template: |
       As an expert Mermaid.js diagram creator, create a professional flowchart that follows modern best practices. Your task is to:
 
@@ -93,65 +36,21 @@ definitions:
       Now, create a detailed flowchart based on the requirements above.
 
   class:
-    description: |
-      Create a detailed class diagram that shows:
-      - All relevant classes with proper naming
-      - Class attributes with modern type annotations
-      - Methods with parameters, return types, and generics support
-      - Modern relationship syntax:
-        * Inheritance: --|>
-        * Implementation: ..|>
-        * Composition: *--
-        * Aggregation: o--
-        * Association: -->
-        * Dependency: ..>
-      - Access modifiers:
-        * +public
-        * -private
-        * #protected
-        * ~package/internal
-      - Use modern features:
-        * <<interface>> and <<abstract>> stereotypes
-        * Generic types <T>
-        * Static members and methods with $
-        * Namespace support
-        * Method overloading
-      - Include clear comments using %% syntax
+    description: "Class diagrams are the backbone of object-oriented modeling. They show the classes in a system, their attributes, operations, and the relationships among objects."
     example: |
       classDiagram
-        %% Interfaces
-        class ITask {
-          <<interface>>
-          +getStatus() TaskStatus
-          +assignTo(user: User) void
-          +updateProgress(progress: number) void
+        Animal <|-- Duck
+        Animal <|-- Fish
+        Animal <|-- Zebra
+        Animal : +int age
+        Animal : +String gender
+        Animal: +isMammal()
+        Animal: +mate()
+        class Duck{
+          +String beakColor
+          +swim()
+          +quack()
         }
-        
-        %% Base Classes
-        class Task {
-          -id: UUID
-          -title: string
-          -description: string
-          -status: TaskStatus
-          -assignee: User
-          -progress: number
-          +constructor(title: string)
-          +getStatus() TaskStatus
-          +assignTo(user: User) void
-          +updateProgress(progress: number) void
-        }
-        
-        %% Specialized Tasks
-        class ProjectTask {
-          -project: Project
-          -deadline: Date
-          +getProjectDetails() ProjectInfo
-        }
-        
-        %% Relationships
-        Task ..|> ITask
-        ProjectTask --|> Task
-        User "1" o-- "many" Task
     prompt_template: |
       As an expert Mermaid.js diagram creator, create a professional class diagram that follows modern best practices. Your task is to:
 
@@ -179,48 +78,12 @@ definitions:
       Now, create a detailed class diagram based on the requirements above.
 
   erd:
-    description: |
-      Create a comprehensive ERD that includes:
-      - All essential entities with clear names (PascalCase recommended)
-      - Complete set of attributes with modern data types
-      - Primary and foreign keys clearly marked (PK, FK)
-      - Modern relationship types:
-        * one-to-one: ||--|| with relationship text
-        * one-to-many: ||--|{ with relationship text
-        * many-to-many: }|--|{ with relationship text
-        * zero-or-one: |o--|| with relationship text
-        * zero-or-many: }o--|{ with relationship text
-      - Relationship labels describing the connection
-      - Attribute constraints and validations
-      - Use comments for complex relationships
-      - Include indexes and unique constraints
-      - Group related entities using modern clustering
+    description: "Entity Relationship Diagrams (ERDs) are used to sketch out the design of a database. They show entities (tables) in the database and relationships between tables."
     example: |
       erDiagram
-        %% User Management
-        USER ||--o{ ORDER : places
-        USER {
-          uuid id PK
-          string email UK
-          string password_hash
-          string first_name
-          string last_name
-          datetime created_at
-          datetime last_login
-        }
-        
-        %% Product Management
-        PRODUCT ||--o{ ORDER_ITEM : contains
-        PRODUCT {
-          uuid id PK
-          string name
-          text description
-          decimal price
-          int stock_quantity
-          string sku UK
-          datetime created_at
-          boolean is_active
-        }
+        CUSTOMER ||--o{ ORDER : places
+        ORDER ||--|{ LINE-ITEM : contains
+        CUSTOMER }|..|{ DELIVERY-ADDRESS : uses
     prompt_template: |
       As an expert Mermaid.js diagram creator, create a professional ERD that follows modern best practices. Your task is to:
 
@@ -246,52 +109,12 @@ definitions:
       Now, create a detailed ERD based on the requirements above.
 
   sequence:
-    description: |
-      Create a detailed sequence diagram showing:
-      - All participating actors/objects with descriptive names
-      - Modern message syntax:
-        * Synchronous: ->> with solid arrow
-        * Asynchronous: -->> with dashed arrow
-        * Response: -->> with dashed arrow and text
-        * Self message: ->> self
-      - Activation boxes using + and - for precise timing
-      - Modern control structures:
-        * alt for alternatives
-        * opt for optional paths
-        * par for parallel execution
-        * loop for repetition
-        * break for breaking conditions
-      - Notes using Note left of, Note right of, Note over
-      - Participant groups using boxes
-      - Modern features:
-        * Background highlighting
-        * Participant creation/destruction
-        * Message numbering
-        * Critical sections
-      - Use comments for complex flows
+    description: "Sequence diagrams show how operations are carried out. They capture the interaction between objects in the context of a collaboration."
     example: |
       sequenceDiagram
-        %% Participants
-        participant User
-        participant API
-        participant DB
-        
-        %% Authentication Flow
-        User->>+API: Login Request
-        Note right of User: With credentials
-        
-        %% Validation
-        alt Invalid Credentials
-            API-->>-User: Authentication Failed
-        else Valid Credentials
-            API->>+DB: Verify User
-            DB-->>-API: User Found
-            
-            %% Token Generation
-            activate API
-            Note over API: Generate JWT
-            API-->>-User: Return Token
-        end
+        Alice->>John: Hello John, how are you?
+        John-->>Alice: Great!
+        Alice-)John: See you later!
     prompt_template: |
       As an expert Mermaid.js diagram creator, create a professional sequence diagram that follows modern best practices. Your task is to:
 
@@ -317,67 +140,25 @@ definitions:
       Now, create a detailed sequence diagram based on the requirements above.
 
   mindmap:
-    description: |
-      Create an organized mindmap following these guidelines:
-      - Start with a clear central concept (root)
-      - Use modern node shapes:
-        * Default shape: no special syntax
-        * Square: [text]
-        * Rounded square: (text)
-        * Circle: ((text))
-        * Bang: ))text((
-        * Cloud: )text(
-        * Hexagon: {{text}}
-      - Structure and Hierarchy:
-        * Use indentation to define hierarchy levels
-        * Each level should be clearly indented from its parent
-        * Maintain consistent indentation for siblings
-      - Advanced Features:
-        * Icons using ::icon() syntax
-        * CSS Classes using triple colon
-        * Markdown formatting in strings
-        * Unicode emoji support
-      - Best Practices:
-        * Keep node text concise and clear
-        * Use consistent shape types for similar concepts
-        * Group related ideas under common parents
-        * Utilize icons to enhance visual understanding
+    description: "Mind maps are diagrams used to visually organize information. They show relationships among pieces of the whole."
     example: |
       mindmap
-        root((Project Plan))
-          Requirements
-            :::important
-            Functional
-              ::icon(fa fa-cogs)
-              Core Features
-              User Interface
-              API Integration
-            Non-Functional
-              ::icon(fa fa-shield)
-              Security
-              Performance
-              Scalability
-      Resources
-        "`**Team Members**`"
-          Frontend Devs
-          Backend Devs
-          UX Designer
-        Tools
-          :::tools
-          Version Control
-          CI/CD Pipeline
-          Testing Suite
-      Timeline
-        ::icon(fa fa-calendar)
-        Phase 1
-          Planning
-          Setup
-        Phase 2
-          Development
-          Testing
-        Phase 3
-          "`*Deployment*
-          and Launch`"
+        root((mindmap))
+          Origins
+            Long history
+            ::icon(fa fa-book)
+            Popularisation
+              British popular psychology author Tony Buzan
+          Research
+            On effectiveness<br/>and features
+            On Automatic creation
+              Uses
+                Creative techniques
+                Strategic planning
+                Argument mapping
+          Tools
+            Pen and paper
+            Mermaid
     prompt_template: |
       As an expert Mermaid.js diagram creator, create a professional mindmap that follows modern best practices. Your task is to:
 
@@ -403,35 +184,15 @@ definitions:
       Now, create a detailed mindmap based on the requirements above.
 
   timeline:
-    description: |
-      Create a timeline diagram that:
-      - Uses sections for grouping events
-      - Supports different time scales
-      - Includes:
-        * Title for each event
-        * Description
-        * Date/time
-      - Allows:
-        * Multiple events per line
-        * Color coding
-        * Icons and emojis
-      - Uses modern syntax:
-        * section [Section name]
-        * [Event title] : [description]
-      - Supports markdown in descriptions
-      - Maintains chronological order
-      - Uses clear date formatting
+    description: "Timeline diagrams show a chronological sequence of events or milestones."
     example: |
       timeline
-        title Product Development Timeline
-        
-        section Planning Phase
-          Initial Concept : 2024-01-15 : Brainstorming and research
-          Requirements Gathering : 2024-01-20 : Feature specification
-        
-        section Development
-          Sprint 1 : 2024-02-01 : Core functionality
-          Sprint 2 : 2024-02-15 : User interface
+        title History of Social Media Platform
+        2002 : LinkedIn
+        2004 : Facebook
+             : Google
+        2005 : Youtube
+        2006 : Twitter
     prompt_template: |
       As an expert Mermaid.js diagram creator, create a professional timeline that follows modern best practices. Your task is to:
 
@@ -456,45 +217,17 @@ definitions:
       Now, create a detailed timeline based on the requirements above.
 
   gantt:
-    description: |
-      Create a Gantt chart that shows:
-      - Project timeline with clear sections
-      - Tasks with:
-        * Duration
-        * Dependencies
-        * Milestones
-      - Modern features:
-        * Date format specification
-        * Weekend highlighting
-        * Today marker
-        * Progress indicators
+    description: "Gantt charts illustrate project schedules, showing the start and finish dates of terminal and summary elements of a project."
     example: |
       gantt
-      title Project Lifecycle Overview
-      dateFormat YYYY-MM-DD
-      excludes weekends
-
-      section Initiation
-      Project Approval    :done, a1, 2024-02-01, 0d
-      Stakeholder Meeting :done, a2, 2024-02-02, 2d
-
-      section Planning
-      Requirements Gathering :active, req1, 2024-02-05, 10d
-      Feasibility Study     :fs1, after req1, 5d
-      Project Plan Approval :milestone, pa1, after fs1, 0d
-
-      section Execution
-      Design Phase      :crit, des1, after pa1, 15d
-      Development Phase :crit, dev1, after des1, 30d
-      Testing          :test1, after des1, 20d
-
-      section Monitoring
-      Performance Review :pr1, 2024-04-01, 10d
-      Quality Assurance  :qa1, after des1, 15d
-
-      section Closure
-      Final Review     :milestone, rev1, after qa1, 0d
-      Project Handover :hand1, after rev1, 5d
+        title A Gantt Diagram
+        dateFormat  YYYY-MM-DD
+        section Section
+        A task           :a1, 2014-01-01, 30d
+        Another task     :after a1  , 20d
+        section Another
+        Task in sec      :2014-01-12  , 12d
+        another task      : 24d
     prompt_template: |
       As an expert Mermaid.js diagram creator, create a professional Gantt chart that follows modern best practices. Your task is to:
 
@@ -521,22 +254,14 @@ definitions:
       Now, create a detailed Gantt chart based on the requirements above.
 
   sankey:
-    description: |
-      Create an insightful sankey diagram to visualize flows from one set of values to another. Use an experimental CSV-like syntax where each line describes a connection between a source node and a target node along with an associated numerical value. Note that this diagram type (v10.3.0+) is experimental and its syntax might evolve.
+    description: "Sankey diagrams visualize the flow of resources, energy, or materials. The width of the arrows is proportional to the flow quantity."
     example: |
-      mermaid
-      ---
-      config:
-        sankey:
-          showValues: false
-      ---
       sankey-beta
-      %% Define flows using CSV format: source,target,value
-      Agricultural 'waste',Bio-conversion,124.729
-      Bio-conversion,Liquid,0.597
-      Bio-conversion,Losses,26.862
-      Bio-conversion,Solid,280.322
-      Bio-conversion,Gas,81.144
+        Agricultural 'waste',Bio-conversion,124.729
+        Bio-conversion,Liquid,0.597
+        Bio-conversion,Losses,26.862
+        Bio-conversion,Solid,280.322
+        Bio-conversion,Gas,81.144
     prompt_template: |
       As an expert Mermaid.js diagram creator, create a professional sankey diagram that follows modern best practices. Your task is to:
 
@@ -556,36 +281,19 @@ definitions:
       
       Now, create a detailed sankey diagram based on the requirements above.
   git:
-    description: |
-      Create a Git graph that shows:
-      - Branch structure using gitGraph
-      - Commits with:
-        * Messages
-        * Tags
-        * Branch points
-      - Modern features:
-        * Cherry-picks
-        * Merges
-        * Checkouts
-      - Supports:
-        * Branch colors
-        * Custom commit IDs
-        * Different orientations
-      - Uses modern syntax:
-        * commit id: "message"
-        * branch [name]
-        * merge [branch]
+    description: "Git graphs visualize Git commit history and branching structures."
     example: |
       gitGraph
-        commit id: "initial"
+        commit
+        commit
         branch develop
         checkout develop
-        commit id: "feature-start"
-        branch feature/login
-        checkout feature/login
-        commit id: "auth-basic"
-        checkout develop
-        merge feature/login
+        commit
+        commit
+        checkout main
+        merge develop
+        commit
+        commit
     prompt_template: |
       As an expert Mermaid.js diagram creator, create a professional Git graph that follows modern best practices. Your task is to:
 
@@ -609,45 +317,15 @@ definitions:
 
       Now, create a detailed Git graph based on the requirements above.  
   state:
-    description: |
-      Create a detailed state diagram showing:
-      - All possible states with descriptive names
-      - Modern transition syntax:
-        * Normal: -->
-        * Conditional: --> [condition]
-        * With actions: --> : action
-      - State descriptions:
-        * Entry and exit actions
-        * Internal actions
-        * Composite states (use state stateName { ... })
-        * Parallel states
-      - Modern features:
-        * Choice points using <<choice>>
-        * History states using [H] and [H*]
-        * Fork and join using <<fork>> / <<join>>
-        * Notes and comments (use "note right of" or "note left of")
-      - Supports start ([*]) and end ([*]) states to indicate initial and final state
-      - Allows layout customization with direction statements (e.g. direction LR)
+    description: "State diagrams describe the behavior of a system, showing states and transitions between states."
     example: |
       stateDiagram-v2
-        [*] --> Created: Order Placed
-        
-        state "Order Processing" as Processing {
-          [*] --> PaymentPending: Initialize Payment
-          
-          state "Payment Processing" as PaymentProcess {
-            PaymentPending --> PaymentValidation: Payment Submitted
-            PaymentValidation --> PaymentConfirmed: Valid Payment
-            PaymentValidation --> PaymentFailed: Invalid Payment
-            PaymentFailed --> PaymentPending: Retry Payment
-          }
-          
-          %% Example of adding a note for clarification
-          PaymentConfirmed --> Shipped: Order Shipped
-          note right of Shipped: This state triggers shipment.
-        }
-        
-        Shipped --> [*]: Delivery Complete
+        [*] --> Still
+        Still --> [*]
+        Still --> Moving
+        Moving --> Still
+        Moving --> Crash
+        Crash --> [*]
     prompt_template: |
       As an expert Mermaid.js diagram creator, create a professional state diagram that follows modern best practices. Your task is to:
 
@@ -672,6 +350,51 @@ definitions:
       - End with ```
       
       Now, create a detailed state diagram based on the requirements above.
+
+  architecture:
+    description: "Architecture diagrams visualize cloud and system infrastructure, showing relationships between services and resources."
+    example: |
+      architecture-beta
+        group api(cloud)[API]
+
+        service db(database)[Database] in api
+        service disk1(disk)[Storage] in api
+        service disk2(disk)[Storage] in api
+        service server(server)[Server] in api
+
+        db:L -- R:server
+        disk1:T -- B:server
+        disk2:T -- B:db
+    prompt_template: |
+      Create a mermaid architecture diagram based on the following description:
+      
+      {prompt}
+      
+      Use the architecture-beta syntax. Here's a simple example:
+      
+      ```
+      architecture-beta
+        group api(cloud)[API]
+        
+        service db(database)[Database] in api
+        service disk1(disk)[Storage] in api
+        service disk2(disk)[Storage] in api
+        service server(server)[Server] in api
+        
+        db:L -- R:server
+        disk1:T -- B:server
+        disk2:T -- B:db
+      ```
+      
+      Important syntax rules:
+      - Start with "architecture-beta"
+      - For groups: group {id}({icon})[{label}]
+      - For services: service {id}({icon})[{label}]
+      - For edges: {serviceId}:L -- R:{serviceId}
+      - Available icons: cloud, database, disk, internet, server
+      
+      Provide ONLY the mermaid code without any explanations.
+
 # Example sections with modern, practical use cases
 flowchartExamples: |
   Example: Modern Microservice Architecture
@@ -1008,18 +731,32 @@ mindmapExamples: |
   ```
 
 prompts:
-  system_template: >
-    You are a helpful assistant that creates a {diagram_type} diagram. Your job is to use the description below and the example provided to generate a professional diagram:
+  system_template: |
+    You are an expert in creating mermaid.js diagrams. Your task is to create a {diagram_type} diagram based on the user's description.
+    
     {description}
-    --
-    Example:
-    {example}
-  user_template: >
-    Please create a {diagram_type} diagram based on the following prompt:
+    
+    For architecture diagrams, use the architecture-beta syntax and follow these rules:
+    - Start with "architecture-beta"
+    - For groups: group {id}({icon})[{label}]
+    - For services: service {id}({icon})[{label}]
+    - For edges: {serviceId}:L -- R:{serviceId}
+    - Available icons: cloud, database, disk, internet, server
+    
+    Respond ONLY with the mermaid code for the diagram, without any explanations or markdown formatting. Start directly with the diagram syntax.
+
+  user_template: |
+    Create a mermaid {diagram_type} diagram based on the following description:
+    
     {prompt}
-    --
-    Use the example as guidance:
+    
+    Here's an example:
+    
+    ```mermaid
     {example}
+    ```
+    
+    Please provide only the mermaid code without any explanations.
 
   mine:
     description: |

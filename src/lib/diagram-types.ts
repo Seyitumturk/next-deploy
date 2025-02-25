@@ -1,0 +1,1 @@
+// Add 'architecture' to any diagram type definitions here if this file exists 
