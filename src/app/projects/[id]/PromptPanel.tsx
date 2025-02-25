@@ -399,7 +399,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
 
       {/* Mobile Prompt Panel */}
       <div
-        className={`md:hidden fixed bottom-0 left-0 right-0 flex flex-col transform transition-transform duration-300 ease-in-out ${
+        className={`md:hidden fixed bottom-0 left-0 right-0 flex flex-col transform transition-transform duration-500 ease-in-out ${
           isDarkMode 
             ? "bg-gray-900 border-t border-gray-800" 
             : "bg-[#e8dccc] border-t border-[#b8a990]"
@@ -458,10 +458,15 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
               }`}
               aria-label={isVisible ? "Collapse panel" : "Expand panel"}
             >
-              {/* Replace X with a more intuitive arrow icon */}
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isVisible ? "M19 9l-7 7-7-7" : "M5 15l7-7 7 7"} />
-              </svg>
+              {isVisible ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                </svg>
+              )}
             </button>
           </div>
         </div>
@@ -809,6 +814,21 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
           </div>
         )}
       </div>
+      
+      {/* Floating chat button when panel is collapsed (mobile only) */}
+      {!isVisible && (
+        <button
+          onClick={() => setShowPromptPanel(true)}
+          className={`md:hidden fixed bottom-4 right-4 p-3 rounded-full shadow-lg transition-all transform hover:scale-105 z-30 ${
+            isDarkMode 
+              ? "bg-primary text-white" 
+              : "bg-primary text-white"
+          }`}
+          aria-label="Open chat"
+        >
+          <ChatBubbleLeftEllipsisIcon className="h-6 w-6" />
+        </button>
+      )}
     </>
   );
 };

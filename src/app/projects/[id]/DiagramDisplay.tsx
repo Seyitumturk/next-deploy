@@ -26,6 +26,7 @@ interface DiagramDisplayProps {
   renderError: string | null;
   isLoading: boolean;
   setIsDragging: React.Dispatch<React.SetStateAction<boolean>>;
+  isDownloading: string | null;
 }
 
 const DiagramDisplay: React.FC<DiagramDisplayProps> = ({
@@ -51,8 +52,10 @@ const DiagramDisplay: React.FC<DiagramDisplayProps> = ({
   renderError,
   isLoading,
   setIsDragging,
+  isDownloading,
 }) => {
   const svgContainerRef = useRef<HTMLDivElement>(null);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   
   // Handle mouse events for panning
@@ -67,6 +70,29 @@ const DiagramDisplay: React.FC<DiagramDisplayProps> = ({
   const handleMouseUp = () => {
     setIsDragging(false);
   };
+
+  // Close export menu when clicking outside
+  useEffect(() => {
+    if (!showExportMenu) return;
+    
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        exportMenuRef.current && 
+        !exportMenuRef.current.contains(event.target as Node) &&
+        !(event.target as Element).closest('[data-export-button="true"]')
+      ) {
+        setShowExportMenu(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [showExportMenu, setShowExportMenu]);
 
   // Clean up event listeners
   useEffect(() => {
@@ -192,11 +218,12 @@ const DiagramDisplay: React.FC<DiagramDisplayProps> = ({
           <div className="hidden md:flex items-center">
             <button
               onClick={() => setShowExportMenu(!showExportMenu)}
-              className={`px-3 py-1.5 rounded-lg transition-all duration-200 flex items-center space-x-2 ${
+              className={`px-3 py-2 rounded-lg transition-colors flex items-center space-x-2 ${
                 isDarkMode 
                   ? "bg-gray-800 hover:bg-gray-700 text-white" 
                   : "bg-[#d8cbb8] hover:bg-[#c8bba8] text-[#6a5c4c]"
               }`}
+              data-export-button="true"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -225,102 +252,141 @@ const DiagramDisplay: React.FC<DiagramDisplayProps> = ({
           />
         </div>
 
-        {/* Improved Download Options Menu */}
+        {/* Modern Export Menu */}
         {showExportMenu && (
-          <div className="absolute right-4 top-12 z-50 mt-2 w-60 md:w-72 origin-top-right">
-            <div className={`rounded-lg shadow-lg ring-1 ${
+          <div 
+            ref={exportMenuRef}
+            className="absolute right-4 top-12 z-50 mt-2 w-64 md:w-72 origin-top-right"
+          >
+            <div className={`rounded-xl shadow-xl ring-1 backdrop-blur-md transition-all duration-300 animate-fadeIn ${
               isDarkMode 
-                ? "bg-gray-800 ring-gray-700" 
-                : "bg-white ring-[#d8cbb8]"
+                ? "bg-gray-900/90 ring-gray-700/50" 
+                : "bg-white/95 ring-[#d8cbb8]/50"
             }`}>
               <div className={`px-4 py-3 border-b ${
-                isDarkMode ? "border-gray-700" : "border-[#d8cbb8]"
+                isDarkMode ? "border-gray-700/50" : "border-[#d8cbb8]/30"
               }`}>
                 <h3 className={`text-sm font-medium ${
                   isDarkMode ? "text-white" : "text-[#6a5c4c]"
                 }`}>
-                  Download Options
+                  Export Diagram
                 </h3>
               </div>
-              <div className="p-2">
+              <div className="p-3 space-y-2">
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     downloadSVG();
                     setShowExportMenu(false);
                   }}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+                  disabled={!!isDownloading}
+                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                     isDarkMode 
-                      ? "hover:bg-gray-700 text-white" 
-                      : "hover:bg-[#f5f0e8] text-[#6a5c4c]"
+                      ? isDownloading ? "bg-gray-800/50 text-gray-400" : "hover:bg-gray-800 text-white hover:translate-x-1" 
+                      : isDownloading ? "bg-[#f5f0e8]/50 text-[#8a7a66]" : "hover:bg-[#f5f0e8] text-[#6a5c4c] hover:translate-x-1"
                   }`}
                   aria-label="Download SVG Vector"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-indigo-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M4 22h14a2 2 0 0 0 2-2V7.5L14.5 2H6a2 2 0 0 0-2 2v4"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                    <path d="M3 15h6"></path>
-                    <path d="M6 12v6"></path>
-                  </svg>
+                  {isDownloading === 'svg' ? (
+                    <svg className="animate-spin h-5 w-5 text-indigo-500 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  ) : (
+                    <div className="h-10 w-10 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center flex-shrink-0">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M4 22h14a2 2 0 0 0 2-2V7.5L14.5 2H6a2 2 0 0 0-2 2v4"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <path d="M3 15h6"></path>
+                        <path d="M6 12v6"></path>
+                      </svg>
+                    </div>
+                  )}
                   <div>
                     <div className="font-medium">SVG Vector</div>
                     <div className={`text-xs ${
                       isDarkMode ? "text-gray-400" : "text-[#8a7a66]"
                     }`}>
-                      Best for editing or web use
+                      Scalable vector for editing
                     </div>
                   </div>
                 </button>
                 
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     downloadPNG(false);
                     setShowExportMenu(false);
                   }}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+                  disabled={!!isDownloading}
+                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                     isDarkMode 
-                      ? "hover:bg-gray-700 text-white" 
-                      : "hover:bg-[#f5f0e8] text-[#6a5c4c]"
+                      ? isDownloading ? "bg-gray-800/50 text-gray-400" : "hover:bg-gray-800 text-white hover:translate-x-1" 
+                      : isDownloading ? "bg-[#f5f0e8]/50 text-[#8a7a66]" : "hover:bg-[#f5f0e8] text-[#6a5c4c] hover:translate-x-1"
                   }`}
                   aria-label="Download PNG with Background"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M4 22h14a2 2 0 0 0 2-2V7.5L14.5 2H6a2 2 0 0 0-2 2v4"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                    <rect x="4" y="12" width="6" height="6"></rect>
-                  </svg>
+                  {isDownloading === 'png' ? (
+                    <svg className="animate-spin h-5 w-5 text-blue-500 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  ) : (
+                    <div className="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M4 22h14a2 2 0 0 0 2-2V7.5L14.5 2H6a2 2 0 0 0-2 2v4"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <rect x="4" y="12" width="6" height="6"></rect>
+                      </svg>
+                    </div>
+                  )}
                   <div>
                     <div className="font-medium">PNG with Background</div>
                     <div className={`text-xs ${
                       isDarkMode ? "text-gray-400" : "text-[#8a7a66]"
                     }`}>
-                      High-quality image with background
+                      High-resolution image
                     </div>
                   </div>
                 </button>
                 
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     downloadPNG(true);
                     setShowExportMenu(false);
                   }}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+                  disabled={!!isDownloading}
+                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                     isDarkMode 
-                      ? "hover:bg-gray-700 text-white" 
-                      : "hover:bg-[#f5f0e8] text-[#6a5c4c]"
+                      ? isDownloading ? "bg-gray-800/50 text-gray-400" : "hover:bg-gray-800 text-white hover:translate-x-1" 
+                      : isDownloading ? "bg-[#f5f0e8]/50 text-[#8a7a66]" : "hover:bg-[#f5f0e8] text-[#6a5c4c] hover:translate-x-1"
                   }`}
                   aria-label="Download Transparent PNG"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-emerald-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M4 22h14a2 2 0 0 0 2-2V7.5L14.5 2H6a2 2 0 0 0-2 2v4"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                    <path d="M4 12h.01M8 12h.01M12 12h.01M16 12h.01M20 12h.01"></path>
-                  </svg>
+                  {isDownloading === 'png-transparent' ? (
+                    <svg className="animate-spin h-5 w-5 text-emerald-500 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  ) : (
+                    <div className="h-10 w-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M4 22h14a2 2 0 0 0 2-2V7.5L14.5 2H6a2 2 0 0 0-2 2v4"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <path d="M4 12h.01M8 12h.01M12 12h.01M16 12h.01M20 12h.01"></path>
+                      </svg>
+                    </div>
+                  )}
                   <div>
                     <div className="font-medium">Transparent PNG</div>
                     <div className={`text-xs ${
                       isDarkMode ? "text-gray-400" : "text-[#8a7a66]"
                     }`}>
-                      High-quality transparent image
+                      For use on any background
                     </div>
                   </div>
                 </button>
@@ -341,6 +407,7 @@ const DiagramDisplay: React.FC<DiagramDisplayProps> = ({
             showExportMenu={showExportMenu}
             setShowExportMenu={setShowExportMenu}
             isDarkMode={isDarkMode}
+            isDownloading={isDownloading}
           />
         </div>
 
@@ -410,8 +477,13 @@ const DiagramDisplay: React.FC<DiagramDisplayProps> = ({
                 transform: `scale(${scale}) translate(${position.x}px, ${position.y}px)`,
                 transition: isDragging ? 'none' : 'transform 0.1s ease-out',
               }}
-              dangerouslySetInnerHTML={{ __html: svgOutput || '' }}
-            />
+            >
+              <div 
+                ref={svgRef} 
+                className="svg-container mermaid"
+                dangerouslySetInnerHTML={{ __html: svgOutput || '' }}
+              />
+            </div>
           )}
         </div>
       </div>
