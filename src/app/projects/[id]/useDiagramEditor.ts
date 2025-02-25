@@ -120,7 +120,7 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
             fontSize: 12,
             numberSectionStyles: 4,
             axisFormat: '%Y-%m-%d',
-            displayMode: 'full',
+            displayMode: '',
             useMaxWidth: false
           }
         });
@@ -347,7 +347,14 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
   // --- buffered update during streaming ---
   const updateDiagramWithBuffer = (newContent: string) => {
     setCurrentDiagram(newContent);
-    renderDiagram(newContent).catch(console.error);
+    
+    // Don't clear existing SVG output during streaming to maintain visibility
+    // of the diagram as it's being generated
+    renderDiagram(newContent).catch(error => {
+      console.warn('Non-critical error during streaming render:', error);
+      // Continue showing the previous successful render if there's an error
+      // This prevents flickering during streaming
+    });
   };
 
   // --- mouse wheel zoom ---
@@ -432,88 +439,255 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
   // --- download functions ---
   const downloadSVG = () => {
     if (!svgRef.current) return;
-    const svgElement = svgRef.current.querySelector('svg');
-    if (!svgElement) return;
-    const clonedSvg = svgElement.cloneNode(true) as SVGElement;
-    const styleElement = document.createElement('style');
-    styleElement.textContent = `
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
-      * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-    `;
-    clonedSvg.insertBefore(styleElement, clonedSvg.firstChild);
-    const bbox = svgElement.getBBox();
-    clonedSvg.setAttribute('width', bbox.width.toString());
-    clonedSvg.setAttribute('height', bbox.height.toString());
-    clonedSvg.setAttribute('viewBox', `${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}`);
-    clonedSvg.querySelectorAll('text').forEach(textElement => {
-      textElement.style.fontFamily = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-    });
-    const svgData = new XMLSerializer().serializeToString(clonedSvg);
-    const svgBlob = new Blob([
-      '<?xml version="1.0" standalone="no"?>\r\n',
-      '<?xml-stylesheet type="text/css" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" ?>\r\n',
-      svgData
-    ], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(svgBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = getFormattedFileName('svg');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    
+    try {
+      // Find the SVG element
+      const svgElement = svgRef.current.querySelector('svg');
+      if (!svgElement) {
+        console.error('SVG element not found');
+        return;
+      }
+      
+      // Create a deep clone to avoid modifying the displayed SVG
+      const clonedSvg = svgElement.cloneNode(true) as SVGElement;
+      
+      // Add embedded fonts
+      const styleElement = document.createElement('style');
+      styleElement.textContent = `
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+        * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+      `;
+      clonedSvg.insertBefore(styleElement, clonedSvg.firstChild);
+      
+      // Get the actual bounding box of the diagram content
+      const bbox = svgElement.getBBox();
+      
+      // Add some padding around the content
+      const padding = 20;
+      const viewBoxX = bbox.x - padding;
+      const viewBoxY = bbox.y - padding;
+      const viewBoxWidth = bbox.width + (padding * 2);
+      const viewBoxHeight = bbox.height + (padding * 2);
+      
+      // Set dimensions based on content, not viewport
+      clonedSvg.setAttribute('width', viewBoxWidth.toString());
+      clonedSvg.setAttribute('height', viewBoxHeight.toString());
+      clonedSvg.setAttribute('viewBox', `${viewBoxX} ${viewBoxY} ${viewBoxWidth} ${viewBoxHeight}`);
+      
+      // Ensure all text elements use the correct font
+      clonedSvg.querySelectorAll('text').forEach(textElement => {
+        textElement.style.fontFamily = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+      });
+      
+      // Serialize the SVG to a string
+      const svgData = new XMLSerializer().serializeToString(clonedSvg);
+      
+      // Create a Blob with the SVG data
+      const svgBlob = new Blob([
+        '<?xml version="1.0" standalone="no"?>\r\n',
+        '<?xml-stylesheet type="text/css" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" ?>\r\n',
+        svgData
+      ], { type: 'image/svg+xml;charset=utf-8' });
+      
+      // Create a download link
+      const url = URL.createObjectURL(svgBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = getFormattedFileName('svg');
+      
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      console.log('SVG download successful');
+    } catch (error) {
+      console.error('Error downloading SVG:', error);
+    }
   };
 
   const downloadPNG = async (transparent: boolean = false) => {
     if (!svgRef.current) return;
-    const svgElement = svgRef.current.querySelector('svg');
-    if (!svgElement) return;
-    const clonedSvg = svgElement.cloneNode(true) as SVGElement;
-    clonedSvg.querySelectorAll('text').forEach(textElement => {
-      textElement.style.fontFamily = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-    });
-    const styleElement = document.createElement('style');
-    styleElement.textContent = `
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
-      * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-    `;
-    clonedSvg.insertBefore(styleElement, clonedSvg.firstChild);
-    const bbox = svgElement.getBBox();
-    const pngScale = 2;
-    const width = Math.ceil(bbox.width * pngScale);
-    const height = Math.ceil(bbox.height * pngScale);
-    clonedSvg.setAttribute('width', width.toString());
-    clonedSvg.setAttribute('height', height.toString());
-    clonedSvg.setAttribute('viewBox', `${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}`);
-    const svgData = new XMLSerializer().serializeToString(clonedSvg);
-    await document.fonts.load('12px "Inter"');
-    const svgUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
-    const img = new Image();
-    img.src = svgUrl;
-    await new Promise((resolve) => {
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-        if (!transparent) {
-          ctx.fillStyle = '#FFFFFF';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    try {
+      // Find the SVG element
+      const svgElement = svgRef.current.querySelector('svg');
+      if (!svgElement) {
+        console.error('SVG element not found');
+        return;
+      }
+      
+      // Create a deep clone to avoid modifying the displayed SVG
+      const clonedSvg = svgElement.cloneNode(true) as SVGElement;
+      
+      // Add embedded fonts
+      const styleElement = document.createElement('style');
+      styleElement.textContent = `
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+        * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+      `;
+      clonedSvg.insertBefore(styleElement, clonedSvg.firstChild);
+      
+      // Get the actual bounding box of the diagram content
+      const bbox = svgElement.getBBox();
+      
+      // Add padding around the content
+      const padding = 40; // More padding for PNG
+      const viewBoxX = bbox.x - padding;
+      const viewBoxY = bbox.y - padding;
+      const viewBoxWidth = bbox.width + (padding * 2);
+      const viewBoxHeight = bbox.height + (padding * 2);
+      
+      // Use a higher scale factor for better quality
+      const pngScale = 3; // Increased from 2 to 3 for higher resolution
+      const width = Math.ceil(viewBoxWidth * pngScale);
+      const height = Math.ceil(viewBoxHeight * pngScale);
+      
+      // Set dimensions and viewBox
+      clonedSvg.setAttribute('width', width.toString());
+      clonedSvg.setAttribute('height', height.toString());
+      clonedSvg.setAttribute('viewBox', `${viewBoxX} ${viewBoxY} ${viewBoxWidth} ${viewBoxHeight}`);
+      
+      // Ensure all text elements use the correct font
+      clonedSvg.querySelectorAll('text').forEach(textElement => {
+        textElement.style.fontFamily = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+      });
+      
+      // Serialize the SVG to a string
+      const svgData = new XMLSerializer().serializeToString(clonedSvg);
+      
+      // Wait for fonts to load
+      await document.fonts.ready;
+      await document.fonts.load('12px "Inter"');
+      
+      // Create a data URL from the SVG
+      const svgUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+      
+      // Create an image from the SVG
+      const img = new Image();
+      img.src = svgUrl;
+      
+      // Wait for the image to load
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = (e) => {
+          console.error('Error loading image:', e);
+          reject(new Error('Failed to load SVG as image'));
+        };
+        // Set a timeout in case the image never loads
+        setTimeout(() => reject(new Error('Image load timeout')), 5000);
+      });
+      
+      // Create a canvas with the correct dimensions
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      
+      // Get the 2D context
+      const ctx = canvas.getContext('2d', { alpha: transparent });
+      if (!ctx) {
+        console.error('Failed to get canvas context');
+        return;
+      }
+      
+      // Fill the background if not transparent
+      if (!transparent) {
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+      
+      // Enable high-quality rendering
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      
+      // Draw the image onto the canvas
+      ctx.drawImage(img, 0, 0, width, height);
+      
+      // For diagrams that might need special handling
+      if (diagramType.toLowerCase() === 'gantt' || diagramType.toLowerCase() === 'mindmap') {
+        // Apply additional sharpening or specific rendering adjustments if needed
+        applyDiagramSpecificOptimizations(ctx, diagramType, width, height);
+      }
+      
+      // Convert the canvas to a PNG data URL
+      // Use higher quality setting for better output
+      const pngUrl = canvas.toDataURL('image/png', 1.0);
+      
+      // Create a download link
+      const link = document.createElement('a');
+      link.download = getFormattedFileName('png', transparent);
+      link.href = pngUrl;
+      
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      console.log('PNG download successful');
+    } catch (error) {
+      console.error('Error downloading PNG:', error);
+    }
+  };
+
+  // Helper function for diagram-specific optimizations
+  const applyDiagramSpecificOptimizations = (
+    ctx: CanvasRenderingContext2D,
+    diagramType: string,
+    width: number,
+    height: number
+  ) => {
+    // Apply specific optimizations based on diagram type
+    switch (diagramType.toLowerCase()) {
+      case 'gantt':
+        // Gantt charts often have thin lines that need to be preserved
+        // This is a simple sharpening filter
+        try {
+          const imageData = ctx.getImageData(0, 0, width, height);
+          const data = imageData.data;
+          const sharpenFactor = 0.5;
+          
+          // Simple sharpening algorithm
+          for (let y = 1; y < height - 1; y++) {
+            for (let x = 1; x < width - 1; x++) {
+              const idx = (y * width + x) * 4;
+              
+              // For each color channel (R, G, B)
+              for (let c = 0; c < 3; c++) {
+                const current = data[idx + c];
+                const neighbors = [
+                  data[idx - width * 4 + c], // top
+                  data[idx + width * 4 + c], // bottom
+                  data[idx - 4 + c],         // left
+                  data[idx + 4 + c]          // right
+                ];
+                
+                const avg = neighbors.reduce((sum, val) => sum + val, 0) / 4;
+                data[idx + c] = Math.min(255, Math.max(0, current + (current - avg) * sharpenFactor));
+              }
+            }
+          }
+          
+          ctx.putImageData(imageData, 0, 0);
+        } catch (e) {
+          console.warn('Gantt chart optimization failed:', e);
         }
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-        ctx.drawImage(img, 0, 0, width, height);
-        const pngUrl = canvas.toDataURL('image/png');
-        const link = document.createElement('a');
-        link.download = getFormattedFileName('png', transparent);
-        link.href = pngUrl;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        resolve(true);
-      };
-    });
+        break;
+        
+      case 'mindmap':
+        // Mindmaps might need different optimizations
+        // For now, we'll just ensure the edges are crisp
+        try {
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.lineJoin = 'round';
+          ctx.lineCap = 'round';
+        } catch (e) {
+          console.warn('Mindmap optimization failed:', e);
+        }
+        break;
+        
+      // Add more cases for other diagram types as needed
+    }
   };
 
   // --- generate diagram via API ---
@@ -528,7 +702,10 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
     setPrompt('');
     setIsGenerating(true);
     setError('');
-    setSvgOutput('');  // Clean up previous SVG output before retrying
+    
+    // Don't clear SVG output at the beginning to maintain continuity
+    // setSvgOutput('');  // Removed to prevent clearing the diagram during streaming
+    
     try {
       // Add the chat message before generating diagram
       setChatHistory(prev => [...prev, {
@@ -569,6 +746,10 @@ Requested changes: ${promptText}`;
       const decoder = new TextDecoder();
       let finalDiagram: string | null = null;
       if (!reader) throw new Error('Failed to get response reader');
+      
+      // Flag to track if we've received any diagram content
+      let hasReceivedContent = false;
+      
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -579,6 +760,7 @@ Requested changes: ${promptText}`;
           .map(msg => JSON.parse(msg.replace('data: ', '')));
         for (const message of messages) {
           if (message.mermaidSyntax) {
+            hasReceivedContent = true;
             updateDiagramWithBuffer(message.mermaidSyntax);
             if (message.isComplete) {
               finalDiagram = message.mermaidSyntax;
@@ -586,6 +768,7 @@ Requested changes: ${promptText}`;
           }
         }
       }
+      
       if (finalDiagram) {
         // ---- NEW CODE: Update the last chat message with the finalized diagram version ----
         setChatHistory(prev => {
@@ -610,7 +793,8 @@ Requested changes: ${promptText}`;
           );
           // We do NOT throw an error here so that the saved version remains accessible.
         }
-      } else {
+      } else if (!hasReceivedContent) {
+        // Only throw an error if we didn't receive any content at all
         throw new Error('No valid diagram was generated');
       }
     } catch (err) {

@@ -29,9 +29,9 @@ const FileUploadOptions: React.FC<FileUploadOptionsProps> = ({
           onClick={() => setShowFileUpload(!showFileUpload)}
           className={`w-full flex items-center justify-between rounded-lg border ${
             isDarkMode
-              ? "border-gray-700 hover:bg-gray-700 bg-gray-800"
-              : "border-gray-200 hover:bg-gray-800 bg-gray-900/80"
-          } text-white transition-colors text-sm font-medium px-3 py-2`}
+              ? "border-gray-700 hover:bg-gray-700 bg-gray-800 text-white"
+              : "border-[#d8cbb8] hover:bg-[#d8cbb8] bg-[#e8dccc] text-[#6a5c4c]"
+          } transition-colors text-sm font-medium px-3 py-2`}
         >
           <div className="flex items-center space-x-2">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -53,7 +53,11 @@ const FileUploadOptions: React.FC<FileUploadOptionsProps> = ({
             <button
               onClick={() => document.getElementById('pdf-upload')?.click()}
               disabled={isProcessingFile}
-              className="flex flex-col items-center justify-center p-3 rounded-lg transition-colors bg-gray-800 text-white border border-gray-700 hover:bg-gray-700"
+              className={`flex flex-col items-center justify-center p-3 rounded-lg transition-colors ${
+                isDarkMode
+                  ? "bg-gray-800 text-white border border-gray-700 hover:bg-gray-700"
+                  : "bg-[#e8dccc] text-[#6a5c4c] border border-[#d8cbb8] hover:bg-[#d8cbb8]"
+              }`}
             >
               {isProcessingFile ? (
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-red-500" />
@@ -70,7 +74,11 @@ const FileUploadOptions: React.FC<FileUploadOptionsProps> = ({
             <button
               onClick={() => document.getElementById('docx-upload')?.click()}
               disabled={isProcessingFile}
-              className="flex flex-col items-center justify-center p-3 rounded-lg transition-colors bg-gray-800 text-white border border-gray-700 hover:bg-gray-700"
+              className={`flex flex-col items-center justify-center p-3 rounded-lg transition-colors ${
+                isDarkMode
+                  ? "bg-gray-800 text-white border border-gray-700 hover:bg-gray-700"
+                  : "bg-[#e8dccc] text-[#6a5c4c] border border-[#d8cbb8] hover:bg-[#d8cbb8]"
+              }`}
             >
               {isProcessingFile ? (
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500" />
@@ -87,7 +95,11 @@ const FileUploadOptions: React.FC<FileUploadOptionsProps> = ({
             <button
               onClick={() => document.getElementById('pptx-upload')?.click()}
               disabled={isProcessingFile}
-              className="flex flex-col items-center justify-center p-3 rounded-lg transition-colors bg-gray-800 text-white border border-gray-700 hover:bg-gray-700"
+              className={`flex flex-col items-center justify-center p-3 rounded-lg transition-colors ${
+                isDarkMode
+                  ? "bg-gray-800 text-white border border-gray-700 hover:bg-gray-700"
+                  : "bg-[#e8dccc] text-[#6a5c4c] border border-[#d8cbb8] hover:bg-[#d8cbb8]"
+              }`}
             >
               {isProcessingFile ? (
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-orange-500" />
@@ -104,7 +116,11 @@ const FileUploadOptions: React.FC<FileUploadOptionsProps> = ({
             <button
               onClick={() => setShowWebsiteInput(prev => !prev)}
               disabled={isProcessingFile}
-              className="flex flex-col items-center justify-center p-3 rounded-lg transition-colors bg-gray-800 text-white border border-gray-700 hover:bg-gray-700"
+              className={`flex flex-col items-center justify-center p-3 rounded-lg transition-colors ${
+                isDarkMode
+                  ? "bg-gray-800 text-white border border-gray-700 hover:bg-gray-700"
+                  : "bg-[#e8dccc] text-[#6a5c4c] border border-[#d8cbb8] hover:bg-[#d8cbb8]"
+              }`}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mb-1 text-green-500" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2a10 10 0 00-7.07 17.07l-1.41 1.41A1 1 0 005 22h14a1 1 0 00.78-1.62l-1.41-1.41A10 10 0 0012 2zm0 2a8 8 0 01.894 15.978L12 20a8 8 0 01-6.32-13.32l1.45 1.45A6 6 0 1012 4z" />
@@ -145,14 +161,14 @@ const FileUploadOptions: React.FC<FileUploadOptionsProps> = ({
             value={websiteUrl}
             onChange={(e) => setWebsiteUrl(e.target.value)}
             className={`w-full px-4 py-2 rounded-l-xl border ${isDarkMode 
-              ? "border-gray-700 bg-gray-800 text-white" 
-              : "border-gray-200 bg-[#e8dccc] text-black"
-            } text-sm focus:outline-none focus:ring-2 focus:ring-primary/50`}
+              ? "border-gray-700 bg-gray-800 text-white focus:ring-primary/50" 
+              : "border-[#d8cbb8] bg-[#e8dccc]/70 text-[#6a5c4c] focus:ring-primary/50"
+            } text-sm focus:outline-none focus:ring-2`}
           />
           <button
             type="button"
             onClick={() => processWebsite(websiteUrl)}
-            className="flex items-center justify-center p-2 rounded-r-xl bg-purple-600 hover:bg-purple-700 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="flex items-center justify-center p-2 rounded-r-xl bg-primary hover:bg-primary-dark text-white focus:outline-none focus:ring-2 focus:ring-primary/50"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 010 5.656l-4 4a4 4 0 01-5.656-5.656l1.414-1.414M10.172 13.828a4 4 0 010-5.656l4-4a4 4 0 015.656 5.656l-1.414 1.414" />

@@ -1,18 +1,22 @@
 'use client';
 
 import React, { useState } from 'react';
+import { UserIcon, SparklesIcon } from '@heroicons/react/24/outline';
 
 export interface ChatMessageData {
   role: 'user' | 'assistant' | 'system' | 'document';
   content: string;
   timestamp: Date;
   diagramVersion?: string;
+  diagramVersions?: string[];
+  error?: string;
 }
 
 export interface ChatMessageProps {
   message: ChatMessageData;
-  onDiagramVersionSelect?: (version: string) => void;
-  onRetry?: () => void;
+  onDiagramVersionSelect: (version: string) => Promise<void>;
+  onRetry: () => void;
+  isDarkMode?: boolean;
 }
 
 const formatTime = (date: Date) => {
@@ -23,7 +27,12 @@ const formatTime = (date: Date) => {
   });
 };
 
-const ChatMessage: React.FC<ChatMessageProps> = ({ message, onDiagramVersionSelect, onRetry }) => {
+const ChatMessage: React.FC<ChatMessageProps> = ({ 
+  message, 
+  onDiagramVersionSelect,
+  onRetry,
+  isDarkMode = false
+}) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const isSystem = message.role === 'system';
   const isDocument = message.role === 'document';
@@ -128,80 +137,97 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, onDiagramVersionSele
 
   // Return original message format for non-document messages
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}>
-      {!isUser && (
-        <div className="w-8 h-8 rounded-lg bg-white dark:bg-white flex items-center justify-center hover:bg-secondary/10 transition-colors mr-3">
-          <svg className="w-5 h-5 text-black dark:text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
-          </svg>
-        </div>
-      )}
-      <div className={`
-        max-w-[80%] rounded-lg p-4 
-        ${isSystem ? 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300' :
-          isUser ? 'bg-secondary/10 text-secondary dark:text-secondary-light' :
-          'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700'}`}
-      >
-        {message.content.length > 150 && (
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-xs text-gray-500">
-              {isUser ? 'Your prompt' : 'Assistant response'}
+    <div className="flex items-start space-x-3">
+      <div className={`flex-1 rounded-2xl p-4 shadow-sm ${
+        message.role === 'user' 
+          ? isDarkMode 
+            ? "bg-gray-800/50" 
+            : "bg-[#d8cbb8]/50"
+          : isDarkMode 
+            ? "bg-gray-800/80" 
+            : "bg-[#d8cbb8]/80"
+      }`}>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center space-x-2">
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+              message.role === 'user' 
+                ? isDarkMode 
+                  ? "bg-gray-700" 
+                  : "bg-[#c8bba8]"
+                : "bg-primary"
+            }`}>
+              {message.role === 'user' ? (
+                <UserIcon className="h-4 w-4 text-white" />
+              ) : (
+                <SparklesIcon className="h-4 w-4 text-white" />
+              )}
             </div>
-            <button
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
-            >
-              <svg 
-                xmlns="http://www.w3.org/2000/svg" 
-                className={`h-4 w-4 transform transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                viewBox="0 0 20 20" 
-                fill="currentColor"
-              >
-                <path fillRule="evenodd" 
-                  d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" 
-                  clipRule="evenodd" 
-                />
-              </svg>
-            </button>
+            <span className={`text-xs font-medium ${
+              isDarkMode ? "text-gray-300" : "text-[#6a5c4c]"
+            }`}>
+              {message.role === 'user' ? 'You' : 'AI Assistant'}
+            </span>
           </div>
-        )}
-        <div className="text-sm">
-          {message.content.length > 150 ? (
-            isExpanded ? (
-              <div className="whitespace-pre-wrap break-words">{message.content}</div>
-            ) : (
-              <div className="whitespace-pre-wrap break-words">
-                {message.content.slice(0, 150)}...
+          <span className={`text-xs ${
+            isDarkMode ? "text-gray-500" : "text-[#8a7a66]"
+          }`}>
+            {formatTime(new Date(message.timestamp))}
+          </span>
+        </div>
+        
+        <div className={`prose prose-sm max-w-none ${
+          isDarkMode ? "prose-invert" : "prose-stone"
+        }`}>
+          {message.content}
+        </div>
+        
+        {message.diagramVersions && message.diagramVersions.length > 0 && (
+          <div className="mt-4">
+            <h4 className={`text-sm font-medium mb-2 ${
+              isDarkMode ? "text-gray-300" : "text-[#6a5c4c]"
+            }`}>
+              Generated Diagrams:
+            </h4>
+            <div className="flex flex-wrap gap-2">
+              {message.diagramVersions.map((version, idx) => (
                 <button
-                  onClick={() => setIsExpanded(true)}
-                  className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 ml-1 text-sm font-medium"
+                  key={idx}
+                  onClick={() => onDiagramVersionSelect(version)}
+                  className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                    isDarkMode 
+                      ? "bg-gray-700 hover:bg-gray-600 text-white" 
+                      : "bg-[#c8bba8] hover:bg-[#b8ab98] text-[#6a5c4c]"
+                  }`}
                 >
-                  Show more
+                  Version {idx + 1}
                 </button>
-              </div>
-            )
-          ) : (
-            <div className="whitespace-pre-wrap break-words">{message.content}</div>
-          )}
-        </div>
-        {message.diagramVersion && (
-          <div className="mt-2 space-y-2">
-            <div className="text-xs text-gray-500">Changes applied to diagram:</div>
-            <button 
-              onClick={handleDiagramVersionClick}
-              className="w-full px-3 py-2 bg-secondary/5 hover:bg-secondary/10 rounded-lg transition-colors text-xs text-secondary hover:text-secondary-dark flex items-center justify-center space-x-2"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-              </svg>
-              <span>View this version</span>
-            </button>
+              ))}
+            </div>
           </div>
         )}
-        <div className="mt-1 text-xs text-gray-400">
-          {formatTime(new Date(message.timestamp))}
-        </div>
+        
+        {message.role === 'assistant' && message.error && (
+          <div className="mt-4">
+            <div className={`p-3 rounded-lg text-sm ${
+              isDarkMode 
+                ? "bg-red-900/30 text-red-300" 
+                : "bg-red-100 text-red-700"
+            }`}>
+              <p className="font-medium">Error generating diagram</p>
+              <p className="mt-1">{message.error}</p>
+              <button
+                onClick={onRetry}
+                className={`mt-2 px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                  isDarkMode 
+                    ? "bg-red-800 hover:bg-red-700 text-white" 
+                    : "bg-red-200 hover:bg-red-300 text-red-800"
+                }`}
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ import PromptPanel from './PromptPanel';
 import DiagramDisplay from './DiagramDisplay';
 // Import our custom hook
 import useDiagramEditor, { EditorProps } from './useDiagramEditor';
+import { motion } from 'framer-motion';
 
 const DiagramEditor: React.FC<EditorProps> = (props) => {
   const editor = useDiagramEditor(props);
@@ -35,10 +36,14 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
   }, [isDarkMode]);
 
   return (
-    <div className={`min-h-screen flex flex-col ${isDarkMode ? "bg-gradient-to-br from-gray-900 to-gray-800" : "bg-[#e8dccc]"}`}>
+    <div className={`min-h-screen flex flex-col ${isDarkMode ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900" : "bg-gradient-to-br from-[#f0eee6] via-white to-[#f0eee6]"}`}>
       {/* Header */}
-      <header className="h-12 bg-gray-900/80 backdrop-blur-md border-b border-gray-800">
-        <div className="h-full px-4 flex items-center justify-between">
+      <header className={`h-16 backdrop-blur-md border-b ${
+        isDarkMode 
+          ? "bg-gray-900/80 border-gray-800/50" 
+          : "bg-[#e8dccc]/80 border-[#e8dccc]/50"
+      } sticky top-0 z-50`}>
+        <div className="h-full px-6 flex items-center justify-between">
           {/* Desktop view: show project title and diagram type */}
           <div className="hidden md:flex items-center space-x-4">
             <Link
@@ -46,12 +51,14 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
               className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
             >
               <Image src="/logo-green.svg" alt="Chartable Logo" width={24} height={24} className="h-6 w-6" />
-              <span className="font-semibold text-white truncate max-w-[150px] md:max-w-none">
+              <span className={`font-semibold truncate max-w-[150px] md:max-w-none ${
+                isDarkMode ? "text-white" : "text-gray-900"
+              }`}>
                 {props.projectTitle}
               </span>
             </Link>
-            <div className="h-4 w-px bg-gray-700" />
-            <span className="text-sm text-gray-400">
+            <div className={`h-4 w-px ${isDarkMode ? "bg-gray-700" : "bg-[#d8cbb8]"}`} />
+            <span className={`text-sm ${isDarkMode ? "text-gray-400" : "text-[#8a7a66]"}`}>
               {props.diagramType.charAt(0).toUpperCase() +
                 props.diagramType.slice(1).replace('_', ' ')} Diagram
             </span>
@@ -61,7 +68,7 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
             <Link href="/projects" className="flex items-center hover:opacity-80 transition-opacity">
               <Image src="/logo-green.svg" alt="Chartable Logo" width={24} height={24} className="h-6 w-6" />
             </Link>
-            <span className="text-sm text-gray-500 dark:text-gray-400">
+            <span className={`text-sm ${isDarkMode ? "text-gray-400" : "text-[#8a7a66]"}`}>
               {props.diagramType.charAt(0).toUpperCase() +
                 props.diagramType.slice(1).replace('_', ' ')}
             </span>
@@ -70,7 +77,7 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
             {/* Dark/Light Mode Toggle Button */}
             <button
               onClick={() => setIsDarkMode(!isDarkMode)}
-              className="p-2 rounded-full bg-gray-800 hover:bg-gray-700 transition-colors"
+              className={`p-2 rounded-full ${isDarkMode ? "bg-gray-800 hover:bg-gray-700" : "bg-gray-100 hover:bg-gray-200"} transition-colors`}
               title="Toggle Dark Mode"
             >
               {isDarkMode ? (
@@ -91,7 +98,7 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
               ) : (
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 text-gray-300"
+                  className="h-5 w-5 text-gray-700"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -106,10 +113,14 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
               )}
             </button>
             <div className="flex items-center">
-              <div className="flex items-center space-x-1 h-8 px-2 py-1 rounded-lg bg-gray-100 dark:bg-gray-800 flex-shrink-0">
+              <div className={`flex items-center space-x-1 h-8 px-3 py-1 rounded-lg ${
+                isDarkMode 
+                  ? "bg-gray-800/50 text-gray-300" 
+                  : "bg-[#d8cbb8]/70 text-[#6a5c4c]"
+              } flex-shrink-0`}>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4 text-gray-500 dark:text-gray-400"
+                  className={`h-4 w-4 ${isDarkMode ? "text-primary" : "text-primary"}`}
                   viewBox="0 0 20 20"
                   fill="currentColor"
                 >
@@ -119,7 +130,7 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
                     clipRule="evenodd"
                   />
                 </svg>
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                <span className={`text-sm font-medium ${isDarkMode ? "text-gray-300" : "text-[#6a5c4c]"}`}>
                   Credits:
                   <span className="font-mono ml-1">{props.user.credits}</span>
                 </span>
@@ -128,6 +139,7 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
           </div>
         </div>
       </header>
+      <div className="w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-80" />
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-auto">
@@ -158,23 +170,28 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
           onDiagramVersionSelect={editor.handleDiagramVersionSelect}
         />
         <DiagramDisplay
+          svgOutput={editor.svgOutput}
+          scale={editor.scale}
+          position={editor.position}
+          setPosition={editor.setPosition}
+          isDragging={editor.isDragging}
+          setIsDragging={editor.setIsDragging}
           showPromptPanel={editor.showPromptPanel}
-          downloadSVG={editor.downloadSVG}
-          downloadPNG={editor.downloadPNG}
+          setShowPromptPanel={editor.setShowPromptPanel}
           showExportMenu={editor.showExportMenu}
           setShowExportMenu={editor.setShowExportMenu}
-          setShowPromptPanel={editor.setShowPromptPanel}
-          scale={editor.scale}
-          setScale={editor.setScale}
-          setPosition={editor.setPosition}
-          isGenerating={editor.isGenerating}
-          isDragging={editor.isDragging}
-          svgOutput={editor.svgOutput}
+          downloadSVG={editor.downloadSVG}
+          downloadPNG={editor.downloadPNG}
+          isDarkMode={isDarkMode}
+          currentDiagram={editor.currentDiagram}
+          setCurrentDiagram={editor.setCurrentDiagram}
+          renderError={editor.error || null}
+          isLoading={editor.isGenerating}
           diagramRef={editor.diagramRef}
           svgRef={editor.svgRef}
           handleMouseDown={editor.handleMouseDown}
-          position={editor.position}
-          isDarkMode={isDarkMode}
+          isGenerating={editor.isGenerating}
+          setScale={editor.setScale}
         />
       </div>
     </div>

@@ -28,16 +28,20 @@ const DiagramControls: React.FC<DiagramControlsProps> = ({
   isDarkMode,
 }) => {
   return (
-    <div
-      className={`h-14 glass-panel border-b backdrop-blur-xl px-4 flex items-center justify-between ${
-        isDarkMode ? "bg-gray-900 text-gray-100" : "bg-[#e8dccc] text-black"
-      }`}
-    >
-      <div className="flex items-center space-x-2">
+    <div className={`fixed bottom-4 right-4 flex flex-col space-y-2 p-2 rounded-xl shadow-lg backdrop-blur-md ${
+      isDarkMode 
+        ? "bg-gray-900/80 border border-gray-700" 
+        : "bg-[#e8dccc]/80 border border-[#d8cbb8]"
+    }`}>
+      <div className="flex space-x-2">
         {!showPromptPanel && (
           <button
             onClick={() => setShowPromptPanel(true)}
-            className="p-2 hover:bg-white/10 rounded-full transition-colors"
+            className={`p-2 rounded-lg transition-colors ${
+              isDarkMode 
+                ? "bg-gray-800 hover:bg-gray-700 text-white" 
+                : "bg-[#d8cbb8] hover:bg-[#c8bba8] text-[#6a5c4c]"
+            }`}
             title="Show AI Assistant"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -49,7 +53,11 @@ const DiagramControls: React.FC<DiagramControlsProps> = ({
         <div className="flex items-center space-x-1 bg-white/10 dark:bg-gray-800/50 rounded-lg p-1">
           <button 
             onClick={() => setScale(s => Math.min(s + 0.1, 5))} 
-            className="p-1.5 hover:bg-primary/10 hover:text-primary dark:hover:text-primary-light rounded-md transition-all duration-200" 
+            className={`p-1.5 rounded-md transition-all duration-200 ${
+              isDarkMode 
+                ? "bg-gray-800 hover:bg-gray-700 text-white" 
+                : "bg-[#d8cbb8] hover:bg-[#c8bba8] text-[#6a5c4c]"
+            }`}
             title="Zoom In"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -61,7 +69,11 @@ const DiagramControls: React.FC<DiagramControlsProps> = ({
           </button>
           <button 
             onClick={() => setScale(s => Math.max(s - 0.1, 0.1))} 
-            className="p-1.5 hover:bg-primary/10 hover:text-primary dark:hover:text-primary-light rounded-md transition-all duration-200" 
+            className={`p-1.5 rounded-md transition-all duration-200 ${
+              isDarkMode 
+                ? "bg-gray-800 hover:bg-gray-700 text-white" 
+                : "bg-[#d8cbb8] hover:bg-[#c8bba8] text-[#6a5c4c]"
+            }`}
             title="Zoom Out"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -75,7 +87,11 @@ const DiagramControls: React.FC<DiagramControlsProps> = ({
               setScale(1);
               setPosition({ x: 0, y: 0 });
             }} 
-            className="p-1.5 hover:bg-primary/10 hover:text-primary dark:hover:text-primary-light rounded-md transition-all duration-200" 
+            className={`p-1.5 rounded-md transition-all duration-200 ${
+              isDarkMode 
+                ? "bg-gray-800 hover:bg-gray-700 text-white" 
+                : "bg-[#d8cbb8] hover:bg-[#c8bba8] text-[#6a5c4c]"
+            }`}
             title="Reset View"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -88,13 +104,16 @@ const DiagramControls: React.FC<DiagramControlsProps> = ({
           </div>
         </div>
       </div>
-      <div className="flex items-center">
+      <div className="h-px w-full bg-gradient-to-r from-transparent via-gray-400 dark:via-gray-600 to-transparent opacity-30"></div>
+      <div className="flex space-x-2">
         <div className="relative">
           <button
             onClick={() => setShowExportMenu(!showExportMenu)}
-            className="px-4 py-2 bg-white/10 dark:bg-gray-800/50 hover:bg-primary/10 dark:hover:bg-primary/10 
-              text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary-light
-              rounded-lg transition-all duration-200 flex items-center space-x-2 font-medium"
+            className={`px-4 py-2 rounded-lg transition-all duration-200 ${
+              isDarkMode 
+                ? "bg-gray-800 hover:bg-gray-700 text-white" 
+                : "bg-[#d8cbb8] hover:bg-[#c8bba8] text-[#6a5c4c]"
+            }`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -111,7 +130,11 @@ const DiagramControls: React.FC<DiagramControlsProps> = ({
                 downloadSVG();
                 setShowExportMenu(false);
               }}
-              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors group relative"
+              className={`p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors group relative ${
+                isDarkMode 
+                  ? "bg-gray-800 hover:bg-gray-700 text-white" 
+                  : "bg-[#d8cbb8] hover:bg-[#c8bba8] text-[#6a5c4c]"
+              }`}
               title="Download SVG"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -129,7 +152,11 @@ const DiagramControls: React.FC<DiagramControlsProps> = ({
                 downloadPNG(false);
                 setShowExportMenu(false);
               }}
-              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors group relative"
+              className={`p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors group relative ${
+                isDarkMode 
+                  ? "bg-gray-800 hover:bg-gray-700 text-white" 
+                  : "bg-[#d8cbb8] hover:bg-[#c8bba8] text-[#6a5c4c]"
+              }`}
               title="Download PNG with Background"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -146,7 +173,11 @@ const DiagramControls: React.FC<DiagramControlsProps> = ({
                 downloadPNG(true);
                 setShowExportMenu(false);
               }}
-              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors group relative"
+              className={`p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors group relative ${
+                isDarkMode 
+                  ? "bg-gray-800 hover:bg-gray-700 text-white" 
+                  : "bg-[#d8cbb8] hover:bg-[#c8bba8] text-[#6a5c4c]"
+              }`}
               title="Download Transparent PNG"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

@@ -8,6 +8,7 @@ import CreateProjectModal from '@/components/CreateProjectModal';
 import { getProjects } from './actions';
 import DeleteProjectModal from '@/components/DeleteProjectModal';
 import Image from 'next/image';
+import { motion } from 'framer-motion';
 
 interface Project {
   _id: string;
@@ -117,6 +118,7 @@ export default function ProjectsPage() {
 
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeFilter, setActiveFilter] = useState<string | null>(null);
 
   useEffect(() => {
     const storedPref = localStorage.getItem('isDarkMode');
@@ -135,9 +137,14 @@ export default function ProjectsPage() {
   }, [isDarkMode]);
 
   // Calculate projects that match the search query (case-insensitive)
-  const filteredProjects = projects.filter(project =>
-    project.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredProjects = projects.filter(project => {
+    const matchesSearch = project.title.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesFilter = !activeFilter || project.diagramType === activeFilter;
+    return matchesSearch && matchesFilter;
+  });
+
+  // Get unique diagram types for filtering
+  const diagramTypes = [...new Set(projects.map(project => project.diagramType))];
 
   useEffect(() => {
     async function loadInitialProjects() {
@@ -224,22 +231,26 @@ export default function ProjectsPage() {
   };
 
   return (
-    <div className={`min-h-screen relative ${isDarkMode ? "bg-gradient-to-br from-gray-900 to-gray-800" : "bg-[#f0eee6]"}`}>
+    <div className={`min-h-screen relative flex flex-col ${isDarkMode ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900" : "bg-gradient-to-br from-[#f0eee6] via-white to-[#f0eee6]"}`}>
+      {/* Modern Navbar */}
       <nav
-        style={{ backgroundColor: isDarkMode ? "#111827" : "#e8dccc", color: isDarkMode ? "#ffffff" : "#1f2937" }}
-        className="sticky top-0 z-50 h-16 border-b border-gray-800/10"
+        className={`sticky top-0 z-50 h-16 backdrop-blur-md ${
+          isDarkMode 
+            ? "bg-gray-900/80 border-b border-gray-800/50" 
+            : "bg-[#e8dccc]/80 border-b border-[#e8dccc]/50"
+        }`}
       >
         <div className="container h-full mx-auto px-6 flex justify-between items-center">
           <div className="flex items-center space-x-4">
             <Link href="/" className="flex items-center space-x-3 hover:opacity-80 transition-all">
               <Image src="/logo-green.svg" alt="Chartable Logo" width={32} height={32} className="h-8 w-8" />
-              <span className="text-xl font-bold font-geist hidden md:block">Chartable</span>
+              <span className={`text-xl font-bold font-geist hidden md:block ${isDarkMode ? "text-white" : "text-gray-900"}`}>Chartable</span>
             </Link>
           </div>
           <div className="flex items-center space-x-6">
             <button
               onClick={() => setIsDarkMode(!isDarkMode)}
-              className="p-2 rounded-full bg-gray-800 hover:bg-gray-700 transition-colors"
+              className={`p-2 rounded-full ${isDarkMode ? "bg-gray-800 hover:bg-gray-700" : "bg-gray-100 hover:bg-gray-200"} transition-colors`}
               title="Toggle Dark Mode"
             >
               {isDarkMode ? (
@@ -247,16 +258,18 @@ export default function ProjectsPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.364 4.364l-1.414-1.414M7.05 7.05L5.636 5.636m12.728 0l-1.414 1.414M7.05 16.95l-1.414 1.414M12 8a4 4 0 100 8 4 4 0 000-8z" />
                 </svg>
               ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
                 </svg>
               )}
             </button>
             {user && (
-              <div className="hidden md:flex items-center space-x-2 px-4 py-2 rounded-lg backdrop-blur-sm">
+              <div className={`hidden md:flex items-center space-x-2 px-4 py-2 rounded-lg ${
+                isDarkMode ? "bg-gray-800/50" : "bg-gray-100/80"
+              }`}>
                 <svg 
                   xmlns="http://www.w3.org/2000/svg" 
-                  className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`} 
+                  className={`h-4 w-4 ${isDarkMode ? 'text-primary' : 'text-primary'}`} 
                   viewBox="0 0 20 20" 
                   fill="currentColor"
                 >
@@ -281,39 +294,92 @@ export default function ProjectsPage() {
           </div>
         </div>
       </nav>
-      <div className="w-full h-1 bg-gradient-to-r from-transparent via-[#a855f7] to-transparent shadow-md" />
+      <div className="w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-80" />
 
-      <div className="container mx-auto px-6 py-8">
-        <div className="mb-8">
-          <div className="relative max-w-md mx-auto">
-            <input
-              type="text"
-              placeholder="Search diagrams..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-4 py-3 pl-10 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-            <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1110.5 3a7.5 7.5 0 016.15 12.65z" />
-              </svg>
-            </div>
-          </div>
+      <div className="container mx-auto px-4 md:px-6 py-8 flex-grow">
+        {/* Hero Section */}
+        <div className="mb-12 text-center">
+          <motion.h1 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className={`text-4xl md:text-5xl font-bold mb-4 ${isDarkMode ? "text-white" : "text-gray-900"}`}
+          >
+            Your Diagrams
+          </motion.h1>
+          <motion.p 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className={`text-lg max-w-2xl mx-auto ${isDarkMode ? "text-gray-300" : "text-gray-600"}`}
+          >
+            Create, manage, and collaborate on your diagrams all in one place
+          </motion.p>
         </div>
         
-        <div className="flex justify-between items-center mb-8">
-          <h1 className={`text-3xl font-bold ${isDarkMode ? "text-white" : "text-black"}`}>
-            Diagrams
-          </h1>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors flex items-center space-x-2 shadow-lg shadow-primary/20"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-            </svg>
-            <span>New Diagram</span>
-          </button>
+        {/* Search and Filter Bar */}
+        <div className="mb-10">
+          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+            <div className="relative w-full md:w-96">
+              <input
+                type="text"
+                placeholder="Search diagrams..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={`w-full px-4 py-3 pl-10 rounded-xl ${
+                  isDarkMode 
+                    ? "bg-gray-800/70 text-white focus:bg-gray-800 border border-gray-700 focus:border-primary/50" 
+                    : "bg-white text-gray-900 border border-gray-200 focus:border-primary/50"
+                } focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all`}
+              />
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1110.5 3a7.5 7.5 0 016.15 12.65z" />
+                </svg>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-4 w-full md:w-auto">
+              <div className="flex items-center space-x-2 overflow-x-auto pb-2 w-full md:w-auto">
+                <button
+                  onClick={() => setActiveFilter(null)}
+                  className={`px-3 py-1.5 text-sm rounded-full whitespace-nowrap transition-all ${
+                    activeFilter === null
+                      ? (isDarkMode ? 'bg-primary text-white' : 'bg-primary text-white')
+                      : (isDarkMode ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200')
+                  }`}
+                >
+                  All
+                </button>
+                {diagramTypes.map(type => (
+                  <button
+                    key={type}
+                    onClick={() => setActiveFilter(type)}
+                    className={`px-3 py-1.5 text-sm rounded-full whitespace-nowrap flex items-center space-x-1 transition-all ${
+                      activeFilter === type
+                        ? (isDarkMode ? 'bg-primary text-white' : 'bg-primary text-white')
+                        : (isDarkMode ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200')
+                    }`}
+                  >
+                    <span className="w-3 h-3">
+                      {getDiagramIcon(type)}
+                    </span>
+                    <span>{type.replace('_', ' ')}</span>
+                  </button>
+                ))}
+              </div>
+              
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="px-4 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-xl transition-colors flex items-center space-x-2 shadow-lg shadow-primary/20 whitespace-nowrap"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                </svg>
+                <span>New Diagram</span>
+              </button>
+            </div>
+          </div>
         </div>
 
         {isLoading ? (
@@ -321,8 +387,9 @@ export default function ProjectsPage() {
             {[...Array(6)].map((_, i) => (
               <div
                 key={i}
-                className={`rounded-xl p-6 shadow-sm animate-pulse ${isDarkMode ? 'bg-gray-800' : 'bg-[#e8dccc]'}`}
+                className={`rounded-xl p-6 shadow-md animate-pulse ${isDarkMode ? 'bg-gray-800/50' : 'bg-[#e8dccc]/50'}`}
               >
+                <div className="h-48 bg-gray-200 dark:bg-gray-700 rounded-lg mb-4" />
                 <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-4" />
                 <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-2" />
                 <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4" />
@@ -330,42 +397,71 @@ export default function ProjectsPage() {
             ))}
           </div>
         ) : projects.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">🎨</div>
-            <h3 className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className={`text-center py-16 px-4 rounded-2xl ${isDarkMode ? 'bg-gray-800/50' : 'bg-[#e8dccc]/50'} shadow-xl`}
+          >
+            <div className="text-6xl mb-6">🎨</div>
+            <h3 className={`text-2xl font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-black'}`}>
               No diagrams yet
             </h3>
-            <p className={`${isDarkMode ? 'text-white' : 'text-black'} mb-6`}>
-              Create your first diagram to get started
+            <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'} mb-8 max-w-md mx-auto`}>
+              Create your first diagram to get started with visualizing your ideas
             </p>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="px-6 py-3 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors inline-flex items-center space-x-2"
+              className="px-6 py-3 bg-primary hover:bg-primary-dark text-white rounded-xl transition-colors inline-flex items-center space-x-2 shadow-lg shadow-primary/20"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
               </svg>
               <span>Create Diagram</span>
             </button>
-          </div>
+          </motion.div>
         ) : searchQuery && filteredProjects.length === 0 ? (
-          <div className="text-center py-12">
-            <h3 className="text-xl font-semibold mb-2 dark:text-white text-black">No diagrams match &quot;{searchQuery}&quot;</h3>
+          <div className={`text-center py-12 px-4 rounded-2xl ${isDarkMode ? 'bg-gray-800/50' : 'bg-[#e8dccc]/50'} shadow-xl`}>
+            <h3 className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+              No diagrams match &quot;{searchQuery}&quot;
+            </h3>
+            <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'} mb-4`}>
+              Try a different search term or clear the filter
+            </p>
+            <button
+              onClick={() => setSearchQuery('')}
+              className="px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors"
+            >
+              Clear Search
+            </button>
           </div>
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredProjects.map((project) => (
-                <div
+              {filteredProjects.map((project, index) => (
+                <motion.div
                   key={project._id}
-                  className={`group relative ${isDarkMode ? 'bg-gray-800' : 'bg-[#e8dccc]'} rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300`}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: index * 0.05 }}
+                  className={`group relative ${
+                    isDarkMode 
+                      ? 'bg-gray-800/70 hover:bg-gray-800' 
+                      : 'bg-[#e8dccc]/70 hover:bg-[#e8dccc]'
+                  } rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 border ${
+                    isDarkMode ? 'border-gray-700' : 'border-[#d8cbb8]'
+                  }`}
                 >
                   {/* Preview section - clickable */}
                   <Link
                     href={`/projects/${project._id}`}
                     className="block"
                   >
-                    <div className="h-48 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900/50 dark:to-gray-800/50 border-b dark:border-gray-700/50 p-4 flex items-center justify-center relative overflow-hidden group-hover:from-gray-100 group-hover:to-gray-200 dark:group-hover:from-gray-800/50 dark:group-hover:to-gray-700/50 transition-all duration-300">
+                    <div className={`h-48 ${
+                      isDarkMode 
+                        ? 'bg-gradient-to-br from-gray-900/50 to-gray-800/50 border-b border-gray-700/50' 
+                        : 'bg-gradient-to-br from-[#f0eee6] to-[#e8dccc]/50 border-b border-[#d8cbb8]/50'
+                    } p-4 flex items-center justify-center relative overflow-hidden group-hover:from-gray-100 group-hover:to-gray-200 dark:group-hover:from-gray-800/50 dark:group-hover:to-gray-700/50 transition-all duration-300`}>
                       {project.history?.[0]?.diagram_img ? (
                         <div 
                           dangerouslySetInnerHTML={{ 
@@ -374,13 +470,23 @@ export default function ProjectsPage() {
                           className="w-full h-full flex items-center justify-center transform group-hover:scale-105 transition-transform duration-300"
                         />
                       ) : (
-                        <div className="relative flex items-center justify-center w-16 h-16">
-                          <div className="absolute inset-0 bg-gradient-to-br from-secondary/20 to-accent-2/20 blur-xl rounded-full transform scale-150" />
-                          <div className="w-10 h-10 transform group-hover:scale-110 transition-transform duration-300 relative z-10">
+                        <div className="relative flex items-center justify-center w-20 h-20">
+                          <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-secondary/20 blur-xl rounded-full transform scale-150" />
+                          <div className="w-14 h-14 transform group-hover:scale-110 transition-transform duration-300 relative z-10">
                             {getDiagramIcon(project.diagramType)}
                           </div>
                         </div>
                       )}
+                      
+                      {/* Type badge */}
+                      <div className={`absolute top-3 left-3 px-2.5 py-1 rounded-full text-xs font-medium flex items-center space-x-1 ${
+                        isDarkMode ? 'bg-gray-700/70 text-gray-300' : 'bg-[#d8cbb8]/70 text-[#6a5c4c]'
+                      }`}>
+                        <span className="w-3 h-3 flex items-center justify-center">
+                          {getDiagramIcon(project.diagramType)}
+                        </span>
+                        <span className="capitalize">{project.diagramType.replace('_', ' ')}</span>
+                      </div>
                     </div>
                   </Link>
 
@@ -396,54 +502,89 @@ export default function ProjectsPage() {
                           />
                         </div>
                         <Link href={`/projects/${project._id}`}>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center space-x-3">
-                            <span className="w-5 h-5 flex items-center justify-center">
-                              <span className="w-4 h-4">
-                                {getDiagramIcon(project.diagramType)}
-                              </span>
-                            </span>
-                            <span className="capitalize">{project.diagramType.replace('_', ' ')} Diagram</span>
+                          <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} flex items-center space-x-2 mt-1`}>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span>Updated {formatDate(project.updatedAt)}</span>
                           </p>
                         </Link>
                       </div>
-                      <span className="text-sm text-gray-500 dark:text-gray-400">
-                        {formatDate(project.updatedAt)}
-                      </span>
                     </div>
                     {project.description && (
                       <Link href={`/projects/${project._id}`}>
-                        <p className="text-gray-600 dark:text-gray-400 text-sm line-clamp-2">
+                        <p className={`${isDarkMode ? 'text-gray-400' : 'text-gray-600'} text-sm line-clamp-2`}>
                           {project.description}
                         </p>
                       </Link>
                     )}
+                    
+                    {/* Action buttons */}
+                    <div className="mt-6 flex items-center justify-between">
+                      <Link 
+                        href={`/projects/${project._id}`}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
+                          isDarkMode 
+                            ? 'bg-gray-700 text-white hover:bg-gray-600' 
+                            : 'bg-[#d8cbb8] text-[#6a5c4c] hover:bg-[#c8bba8]'
+                        } transition-colors flex items-center space-x-1`}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        <span>View</span>
+                      </Link>
+                      
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setProjectToDelete(project);
+                        }}
+                        className={`p-2 rounded-lg ${
+                          isDarkMode 
+                            ? 'text-red-400 hover:bg-red-900/20' 
+                            : 'text-red-500 hover:bg-red-50'
+                        } transition-colors`}
+                        title="Delete project"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                    </div>
                   </div>
-
-                  {/* Delete Button */}
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setProjectToDelete(project);
-                    }}
-                    className="absolute top-2 right-2 p-2 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 dark:hover:bg-red-900/20"
-                    title="Delete project"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600 dark:text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                </div>
+                </motion.div>
               ))}
             </div>
 
-            { !searchQuery && hasMore && (
-              <div className="flex justify-center py-4">
+            {!searchQuery && !activeFilter && hasMore && (
+              <div className="flex justify-center py-8 mt-4">
                 <button
                   onClick={loadMoreProjects}
                   disabled={isLoadingMore}
-                  className="px-6 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors"
+                  className={`px-6 py-3 rounded-xl ${
+                    isDarkMode 
+                      ? 'bg-gray-800 hover:bg-gray-700 text-white border border-gray-700' 
+                      : 'bg-[#e8dccc] hover:bg-[#d8cbb8] text-[#6a5c4c] border border-[#d8cbb8]'
+                  } transition-colors shadow-sm flex items-center space-x-2`}
                 >
-                  {isLoadingMore ? "Loading..." : "Load More"}
+                  {isLoadingMore ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span>Loading...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                      <span>Load More</span>
+                    </>
+                  )}
                 </button>
               </div>
             )}
@@ -466,6 +607,31 @@ export default function ProjectsPage() {
           />
         )}
       </div>
+      
+      {/* Footer */}
+      <footer className={`py-8 border-t ${isDarkMode ? 'border-gray-800' : 'border-[#e8dccc]'} mt-auto`}>
+        <div className="container mx-auto px-6">
+          <div className="flex flex-col md:flex-row justify-between items-center">
+            <div className="flex items-center space-x-2 mb-4 md:mb-0">
+              <Image src="/logo-green.svg" alt="Chartable Logo" width={24} height={24} />
+              <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-[#8a7a66]'}`}>
+                © {new Date().getFullYear()} Chartable. All rights reserved.
+              </span>
+            </div>
+            <div className="flex items-center space-x-6">
+              <a href="#" className={`text-sm ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-[#8a7a66] hover:text-[#6a5c4c]'} transition-colors`}>
+                Privacy
+              </a>
+              <a href="#" className={`text-sm ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-[#8a7a66] hover:text-[#6a5c4c]'} transition-colors`}>
+                Terms
+              </a>
+              <a href="#" className={`text-sm ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-[#8a7a66] hover:text-[#6a5c4c]'} transition-colors`}>
+                Help
+              </a>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 } 
