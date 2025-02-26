@@ -3,6 +3,9 @@ import mermaid from 'mermaid';
 import type { ChatMessageData } from './ChatMessage';
 import React from 'react';
 
+// Define valid mermaid theme types
+type MermaidTheme = 'default' | 'forest' | 'dark' | 'neutral' | 'base';
+
 export interface EditorProps {
   projectId: string;
   projectTitle: string;
@@ -85,115 +88,248 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
   const [isLoading, setIsLoading] = useState(false);
   const [renderError, setRenderError] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState<string | null>(null);
+  const [currentTheme, setCurrentTheme] = useState<MermaidTheme>('default');
+  const [isVersionSelectionInProgress, setIsVersionSelectionInProgress] = useState(false);
 
   // --- auto-scroll chat on update ---
   useEffect(() => {
-    if (chatContainerRef.current) {
+    // Only run on client side
+    if (typeof window === 'undefined') return;
+    
+    // Simple but effective auto-scroll function with repeated attempts
+    const forceScrollToBottom = () => {
+      if (!chatContainerRef.current) return;
+      
       const container = chatContainerRef.current;
-      const scrollOptions: ScrollIntoViewOptions = {
-        behavior: 'smooth',
-        block: 'end'
-      };
-      const scrollTarget = document.createElement('div');
-      container.appendChild(scrollTarget);
-      scrollTarget.scrollIntoView(scrollOptions);
-      container.removeChild(scrollTarget);
-    }
+      
+      // Always use smooth scrolling for better UX
+      container.style.scrollBehavior = 'smooth';
+      
+      // Guaranteed scroll to bottom
+      container.scrollTop = container.scrollHeight;
+    };
+    
+    // Execute immediately and then several times with increasing delays
+    // This ensures scroll happens even if content renders slowly
+    forceScrollToBottom();
+    const timeoutIds = [50, 150, 300, 500, 1000].map(
+      delay => setTimeout(forceScrollToBottom, delay)
+    );
+    
+    return () => timeoutIds.forEach(id => clearTimeout(id));
   }, [chatHistory, isGenerating]);
 
-  // Initialize mermaid
+  // Initialize mermaid (client-side only)
   useEffect(() => {
-    mermaid.initialize({
-      startOnLoad: false,
-      theme: 'default',
-      securityLevel: 'loose',
-      fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      themeVariables: {
-        primaryColor: '#4f46e5',
-        primaryTextColor: '#ffffff',
-        primaryBorderColor: '#6366f1',
-        lineColor: '#64748b',
-        secondaryColor: '#f1f5f9',
-        tertiaryColor: '#f8fafc',
-      },
-      flowchart: {
-        htmlLabels: true,
-        curve: 'basis',
-      },
-      er: {
-        useMaxWidth: false,
-      },
-      sequence: {
-        useMaxWidth: false,
-        showSequenceNumbers: false,
-      },
-      gantt: {
-        useMaxWidth: false,
-      },
-    });
-  }, []);
+    // Mermaid initialization is now handled by the useMermaidInit hook in DiagramDisplay
+    // This effect is kept for theme changes only
+    if (typeof window === 'undefined') return;
+    
+    // Trigger re-render when theme changes
+    if (currentDiagram) {
+      renderDiagram();
+    }
+  }, [currentTheme, currentDiagram]);
 
-  // Define renderDiagram as a standalone function
+  // Define renderDiagram as a standalone function with better client-side safety
   const renderDiagram = async (diagramCode?: string): Promise<boolean> => {
+    // Only run on client side
+    if (typeof window === 'undefined') {
+      console.log('renderDiagram: Not running on client side');
+      return false;
+    }
+    
     try {
+      console.log('renderDiagram: Starting render process');
       setIsLoading(true);
       setRenderError(null);
       
       const codeToRender = diagramCode || currentDiagram;
-      if (!codeToRender || !svgRef.current) {
+      console.log('renderDiagram: Code to render length:', codeToRender?.length || 0);
+      
+      if (!codeToRender) {
+        console.log('renderDiagram: No code to render');
         setIsLoading(false);
         return false;
       }
       
-      // Clear previous content
-      if (svgRef.current) {
-        svgRef.current.innerHTML = '';
+      // Use a stable ID that doesn't change between server and client
+      // This prevents hydration mismatches
+      const uniqueId = `diagram-${projectId}`;
+      console.log('renderDiagram: Using unique ID:', uniqueId);
+      
+      try {
+        // Ensure mermaid is configured to suppress error blocks and use current theme
+        console.log('renderDiagram: Initializing mermaid with theme:', currentTheme);
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: currentTheme,
+          // @ts-ignore - These properties exist in newer versions of Mermaid
+          suppressErrorsInDOM: true,
+          errorLabelColor: 'transparent',
+        });
+        
+        // Use mermaid render function
+        console.log('renderDiagram: Calling mermaid.render');
+        const { svg } = await mermaid.render(uniqueId, codeToRender);
+        console.log('renderDiagram: Mermaid render successful, SVG length:', svg?.length || 0);
+        
+        // Ensure the SVG has width and height attributes for better display and auto-fitting
+        const processedSvg = ensureSvgDimensions(svg);
+        
+        // Set SVG output through React state
+        setSvgOutput(processedSvg);
+        console.log('renderDiagram: SVG output set');
+        
+        setIsLoading(false);
+        return true;
+      } catch (error) {
+        console.warn('renderDiagram: Non-critical error during rendering:', error);
+        
+        // Set error state
+        setRenderError(error instanceof Error ? error.message : String(error));
+        
+        // Return a minimal SVG to prevent UI breakage
+        const fallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 100 50">
+          <rect width="100%" height="100%" fill="transparent" />
+        </svg>`;
+        
+        setSvgOutput(fallbackSvg);
+        
+        setIsLoading(false);
+        return false;
       }
-      
-      // Generate SVG
-      const { svg } = await mermaid.render('diagram', codeToRender);
-      
-      // Set SVG output
-      setSvgOutput(svg);
-      
-      // Ensure the SVG is properly rendered in the DOM
-      if (svgRef.current) {
-        // Small delay to ensure DOM is ready
-        setTimeout(() => {
-          if (svgRef.current && !svgRef.current.querySelector('svg')) {
-            console.log('Manually inserting SVG into reference');
-            svgRef.current.innerHTML = svg;
-          }
-        }, 50);
-      }
-      
-      setIsLoading(false);
-      return true;
     } catch (error) {
-      console.error('Error rendering diagram:', error);
+      console.error('Error in renderDiagram function:', error);
       setRenderError(error instanceof Error ? error.message : String(error));
+      
+      // Return a minimal SVG to prevent UI breakage
+      const fallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 100 50">
+        <rect width="100%" height="100%" fill="transparent" />
+      </svg>`;
+      
+      setSvgOutput(fallbackSvg);
+      
       setIsLoading(false);
       return false;
+    }
+  };
+
+  // Helper function to ensure SVG has proper dimensions
+  const ensureSvgDimensions = (svgString: string): string => {
+    try {
+      const parser = new DOMParser();
+      const svgDoc = parser.parseFromString(svgString, 'image/svg+xml');
+      const svgElement = svgDoc.querySelector('svg');
+      
+      if (!svgElement) return svgString;
+      
+      // Get viewBox dimensions if available
+      const viewBox = svgElement.getAttribute('viewBox');
+      let width, height;
+      
+      if (viewBox) {
+        const [, , vbWidth, vbHeight] = viewBox.split(' ').map(parseFloat);
+        if (!isNaN(vbWidth) && !isNaN(vbHeight)) {
+          width = vbWidth;
+          height = vbHeight;
+        }
+      }
+      
+      // If no viewBox or invalid values, use reasonable defaults based on diagram type
+      if (!width || !height) {
+        // Different diagram types might need different default sizes
+        if (diagramType.includes('gantt') || diagramType.includes('timeline')) {
+          width = 800;
+          height = 500;
+        } else if (diagramType.includes('flowchart') || diagramType.includes('graph')) {
+          width = 700;
+          height = 700;
+        } else if (diagramType.includes('sequence')) {
+          width = 600;
+          height = 800;
+        } else if (diagramType.includes('class')) {
+          width = 800;
+          height = 600;
+        } else if (diagramType.includes('er') || diagramType.includes('entity')) {
+          width = 700;
+          height = 600;
+        } else {
+          // Default size for other diagram types
+          width = 700;
+          height = 700;
+        }
+        
+        // Set viewBox if it doesn't exist
+        if (!viewBox) {
+          svgElement.setAttribute('viewBox', `0 0 ${width} ${height}`);
+        }
+      }
+      
+      // Set width and height attributes if they don't exist
+      if (!svgElement.hasAttribute('width')) {
+        svgElement.setAttribute('width', width.toString());
+      }
+      
+      if (!svgElement.hasAttribute('height')) {
+        svgElement.setAttribute('height', height.toString());
+      }
+      
+      return new XMLSerializer().serializeToString(svgDoc);
+    } catch (error) {
+      console.error('Error processing SVG dimensions:', error);
+      return svgString; // Return original if processing fails
     }
   };
 
   // Render diagram when currentDiagram changes
   useEffect(() => {
     if (!currentDiagram || !svgRef.current) return;
+    
+    // Only reset position when it's not a version selection operation
+    // This preserves zoom and position when reverting to versions
+    if (!isVersionSelectionInProgress) {
+      setPosition({ x: 0, y: 0 });
+    }
+    
     renderDiagram();
-  }, [currentDiagram]);
+  }, [currentDiagram, isVersionSelectionInProgress]);
 
   // --- buffered update during streaming ---
   const updateDiagramWithBuffer = (newContent: string) => {
+    console.log("Updating diagram with buffered content:", newContent.substring(0, 30) + "...");
     setCurrentDiagram(newContent);
     
-    // Don't clear existing SVG output during streaming to maintain visibility
-    // of the diagram as it's being generated
-    renderDiagram(newContent).catch((error: Error) => {
-      console.warn('Non-critical error during streaming render:', error);
-      // Continue showing the previous successful render if there's an error
-      // This prevents flickering during streaming
-    });
+    // Only run on client side
+    if (typeof window === 'undefined') {
+      return;
+    }
+    
+    // Use a stable ID based on project ID to prevent hydration mismatches
+    const streamingRenderID = `streaming-diagram-${projectId}`;
+    
+    // Render the diagram asynchronously
+    (async () => {
+      try {
+        // Configure mermaid with current theme
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: currentTheme,
+          // @ts-ignore
+          suppressErrorsInDOM: true,
+          errorLabelColor: 'transparent',
+        });
+        
+        // Generate the SVG with the stable ID
+        const { svg } = await mermaid.render(streamingRenderID, newContent);
+        
+        // Update the SVG output state
+        setSvgOutput(svg);
+      } catch (error) {
+        console.warn('Non-critical error during streaming render:', error);
+        // Don't update SVG if there's an error to avoid flickering
+      }
+    })();
   };
 
   // --- mouse wheel zoom ---
@@ -317,7 +453,7 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
         // Try to regenerate the SVG from the current diagram
         if (currentDiagram) {
           console.log('Attempting to regenerate SVG for download');
-          mermaid.render('download-svg', currentDiagram)
+          mermaid.render(`download-svg-${Date.now()}`, currentDiagram)
             .then(({ svg }) => {
               const parser = new DOMParser();
               const doc = parser.parseFromString(svg, 'image/svg+xml');
@@ -668,7 +804,7 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
         // Last resort: try to generate from current diagram
         if (currentDiagram) {
           try {
-            const { svg } = await mermaid.render('export-png', currentDiagram);
+            const { svg } = await mermaid.render(`export-png-${Date.now()}`, currentDiagram);
             const parser = new DOMParser();
             const doc = parser.parseFromString(svg, 'image/svg+xml');
             const freshSvg = doc.querySelector('svg');
@@ -708,12 +844,12 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
     // setSvgOutput('');  // Removed to prevent clearing the diagram during streaming
     
     try {
-      // Add the chat message before generating diagram
+      // Add the chat message before generating diagram with the current diagram version
       setChatHistory(prev => [...prev, {
         role: 'user',
         content: promptText,
         timestamp: new Date(),
-        diagramVersion: currentDiagram // initial version may be empty or outdated
+        diagramVersion: currentDiagram // include current version with the message
       }]);
       const currentVersion = currentDiagram;
       const currentSvg = svgRef.current?.querySelector('svg')?.outerHTML || '';
@@ -765,26 +901,48 @@ Requested changes: ${promptText}`;
             updateDiagramWithBuffer(message.mermaidSyntax);
             if (message.isComplete) {
               finalDiagram = message.mermaidSyntax;
+              
+              // Wait a moment to ensure the final render is complete before saving
+              setTimeout(async () => {
+                try {
+                  // Render one final time with a stable ID to ensure a clean result
+                  const finalRenderResult = await renderDiagram(message.mermaidSyntax);
+                  if (!finalRenderResult) {
+                    console.warn('Warning: Final diagram render had issues, but will continue with save');
+                  }
+                } catch (error) {
+                  console.error('Error during final render:', error);
+                }
+              }, 500);
             }
           }
         }
       }
       
       if (finalDiagram) {
-        // ---- NEW CODE: Update the last chat message with the finalized diagram version ----
+        // Get previous diagram versions for the version selector
+        const previousVersions = [
+          finalDiagram, // The new diagram
+          ...(currentVersion && currentVersion !== finalDiagram ? [currentVersion] : []), // Current diagram if different
+          ...history
+            .filter(item => item.diagram && item.diagram !== finalDiagram && item.diagram !== currentVersion)
+            .slice(0, 3) // Limit to 3 previous versions
+            .map(item => item.diagram)
+        ];
+        
+        // Update the last chat message with the finalized diagram version and version history
         setChatHistory(prev => {
           const newHistory = [...prev];
-          const lastIndex = newHistory.length - 1;
-          if (lastIndex >= 0) {
-            newHistory[lastIndex] = { ...newHistory[lastIndex], diagramVersion: finalDiagram };
-          }
+          // Add an assistant message with the diagram version
+          newHistory.push({
+            role: 'assistant',
+            content: 'Diagram updated.',
+            timestamp: new Date(),
+            diagramVersion: finalDiagram
+          });
           return newHistory;
         });
-        // --------------------------------------------------------------------------
 
-        // Save the diagram version to the project history
-        await updateHistory(promptText, finalDiagram, 'chat');
-        
         // Now try rendering the final syntax.
         // Instead of throwing on render failure, we just log a warning.
         const renderSuccess = await renderDiagram(finalDiagram);
@@ -793,6 +951,12 @@ Requested changes: ${promptText}`;
             'Warning: Diagram rendered with errors, but history has been updated with the correct syntax'
           );
         }
+        
+        // Wait a moment to ensure the SVG is fully rendered before saving history
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Save the diagram version to the project history
+        await updateHistory(promptText, finalDiagram, 'chat');
       } else if (!hasReceivedContent) {
         // Only throw an error if we didn't receive any content at all
         throw new Error('No valid diagram was generated');
@@ -835,8 +999,11 @@ Requested changes: ${promptText}`;
         return;
       }
       
+      // Wait a moment to ensure the SVG is fully rendered before saving history
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       // Then save to history
-      await updateHistory('', newCode, 'manual-edit');
+      await updateHistory('', newCode, 'code');
     } catch (error) {
       console.error('Error updating diagram:', error);
       setError(error instanceof Error ? error.message : String(error));
@@ -1019,6 +1186,14 @@ Requested changes: ${promptText}`;
 
   const updateHistory = async (prompt: string, diagram: string, updateType: string) => {
     try {
+      // Make sure we have the latest SVG output
+      if (!svgOutput && diagram) {
+        console.log('No SVG output available, attempting to render diagram first');
+        await renderDiagram(diagram);
+        // Small delay to ensure rendering completes
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+
       const response = await fetch('/api/project-history', {
         method: 'POST',
         headers: {
@@ -1029,11 +1204,14 @@ Requested changes: ${promptText}`;
           prompt,
           diagram,
           updateType,
+          diagram_img: svgOutput,
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to save history');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Server error response:', errorData);
+        throw new Error(`Failed to save history: ${response.status} ${response.statusText}`);
       }
 
       return await response.json();
@@ -1045,16 +1223,117 @@ Requested changes: ${promptText}`;
 
   // --- diagram version select ---
   const handleDiagramVersionSelect = useCallback(async (version: string) => {
-    setCurrentDiagram(version);
-    await renderDiagram(version);
-    
-    // Optionally save this version to history
     try {
-      await updateHistory(prompt, version, 'reversion');
+      console.log('handleDiagramVersionSelect called with version:', version);
+      
+      if (!version) {
+        console.error('No version provided to handleDiagramVersionSelect');
+        return;
+      }
+      
+      // Set flag to prevent position reset during version selection
+      setIsVersionSelectionInProgress(true);
+      
+      // Force clear the current SVG output to ensure a fresh render
+      setSvgOutput('');
+      
+      // Set the current diagram to the selected version
+      setCurrentDiagram(version);
+      console.log('Current diagram set to:', version);
+      
+      // Small delay to ensure state updates before rendering
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Render the diagram first and wait for it to complete
+      console.log('Attempting to render diagram...');
+      
+      // Force mermaid to re-initialize before rendering
+      if (typeof window !== 'undefined') {
+        try {
+          // Use a unique ID for this specific render to avoid caching issues
+          const uniqueRenderID = `diagram-${projectId}-${Date.now()}`;
+          
+          // Initialize with current theme
+          mermaid.initialize({
+            startOnLoad: false,
+            theme: currentTheme,
+            // @ts-ignore - These properties exist in newer versions of Mermaid
+            suppressErrorsInDOM: true,
+            errorLabelColor: 'transparent',
+          });
+          
+          console.log('Directly rendering with mermaid...');
+          const { svg } = await mermaid.render(uniqueRenderID, version);
+          
+          // Directly set the SVG output
+          setSvgOutput(svg);
+          console.log('SVG output directly set, length:', svg.length);
+          
+          // Wait a moment to ensure the SVG is fully rendered before saving history
+          await new Promise(resolve => setTimeout(resolve, 300));
+          
+          // Save this version to history with the updated SVG output
+          console.log('Saving to history...');
+          await updateHistory('Reverted to previous version', version, 'reversion');
+          console.log('History updated successfully');
+          
+          // Add a system message to the chat history
+          setChatHistory(prev => [
+            ...prev,
+            {
+              role: 'system',
+              content: 'Reverted to previous diagram version.',
+              timestamp: new Date()
+            }
+          ]);
+          
+          console.log('Successfully reverted to diagram version');
+          
+          // Reset flag after version selection is complete
+          setIsVersionSelectionInProgress(false);
+          return;
+        } catch (error) {
+          console.error('Error in direct mermaid render:', error);
+        }
+      }
+      
+      // Fallback to standard render if direct render fails
+      const renderSuccess = await renderDiagram(version);
+      
+      if (!renderSuccess) {
+        console.error('Failed to render diagram version');
+        // Reset flag even on failure
+        setIsVersionSelectionInProgress(false);
+        return;
+      }
+      console.log('Diagram rendered successfully');
+      
+      // Wait a moment to ensure the SVG is fully rendered before saving history
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Save this version to history with the updated SVG output
+      console.log('Saving to history...');
+      await updateHistory('Reverted to previous version', version, 'reversion');
+      console.log('History updated successfully');
+      
+      // Add a system message to the chat history
+      setChatHistory(prev => [
+        ...prev,
+        {
+          role: 'system',
+          content: 'Reverted to previous diagram version.',
+          timestamp: new Date()
+        }
+      ]);
+      
+      console.log('Successfully reverted to diagram version');
     } catch (error) {
-      console.error('Error saving diagram version:', error);
+      console.error('Error handling diagram version selection:', error);
+    } finally {
+      // Ensure flag is reset regardless of success or failure
+      setIsVersionSelectionInProgress(false);
     }
-  }, [prompt, updateHistory, renderDiagram]);
+  }, [currentTheme, projectId, renderDiagram, setChatHistory, setCurrentDiagram, setSvgOutput, updateHistory]);
 
   // --- image processing ---
   const processImage = async (file: File) => {
@@ -1138,65 +1417,64 @@ Requested changes: ${promptText}`;
     await processImage(file);
   };
 
+  // Add theme change function
+  const changeTheme = (newTheme: MermaidTheme) => {
+    setCurrentTheme(newTheme);
+    // Re-render the diagram with the new theme
+    renderDiagram();
+  };
+
   return {
     prompt,
     setPrompt,
+    lastPrompt,
     isGenerating,
-    setIsGenerating,
     error,
-    setError,
     showPromptPanel,
     setShowPromptPanel,
     svgOutput,
-    setSvgOutput,
     scale,
     setScale,
     position,
     setPosition,
     isDragging,
     setIsDragging,
+    dragStart,
+    setDragStart,
     currentDiagram,
     setCurrentDiagram,
+    svgRef,
+    diagramRef,
+    chatContainerRef,
     editorMode,
     setEditorMode,
     isEditorReady,
-    setIsEditorReady,
     isProcessingFile,
     documentSummary,
-    chatContainerRef,
     chatHistory,
     setChatHistory,
     showFileUpload,
     setShowFileUpload,
+    handleFileUpload,
+    handleGenerateDiagram,
+    handleCodeChange,
     showExportMenu,
     setShowExportMenu,
+    downloadSVG,
+    downloadPNG,
     showImageUpload,
     setShowImageUpload,
+    handleImageUpload,
     isProcessingImage,
-    svgRef,
-    diagramRef,
-    renderDiagram,
-    updateDiagramWithBuffer,
-    handleWheel,
-    handleMouseMove,
-    handleMouseDown,
-    handleMouseUp,
-    getFormattedDate,
-    getFormattedFileName,
     isLoading,
     renderError,
     isDownloading,
-    handleGenerateDiagram,
-    handleCodeChange,
-    readFileContent,
-    processDocument,
-    processWebsite,
-    handleFileUpload,
-    handleImageUpload,
-    processImage,
+    currentTheme,
+    changeTheme,
     handleDiagramVersionSelect,
-    downloadSVG,
-    downloadPNG,
+    renderDiagram,
+    processWebsite,
+    isVersionSelectionInProgress,
   };
 }
 

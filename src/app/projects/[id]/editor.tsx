@@ -174,28 +174,37 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
           downloadPNG={editor.downloadPNG}
         />
         <DiagramDisplay
-          svgOutput={editor.svgOutput}
-          scale={editor.scale}
-          position={editor.position}
-          setPosition={editor.setPosition}
-          isDragging={editor.isDragging}
-          setIsDragging={editor.setIsDragging}
           showPromptPanel={editor.showPromptPanel}
           setShowPromptPanel={editor.setShowPromptPanel}
-          showExportMenu={editor.showExportMenu}
-          setShowExportMenu={editor.setShowExportMenu}
+          scale={editor.scale}
+          setScale={editor.setScale}
+          position={editor.position}
+          setPosition={editor.setPosition}
+          isGenerating={editor.isGenerating}
+          isDragging={editor.isDragging}
+          setIsDragging={editor.setIsDragging}
+          svgOutput={editor.svgOutput}
+          diagramRef={editor.diagramRef}
+          svgRef={editor.svgRef}
+          handleMouseDown={(e) => {
+            if (editor.isDragging) return;
+            editor.setIsDragging(true);
+            editor.setDragStart({ x: e.pageX, y: e.pageY });
+          }}
           downloadSVG={editor.downloadSVG}
           downloadPNG={editor.downloadPNG}
+          showExportMenu={editor.showExportMenu}
+          setShowExportMenu={editor.setShowExportMenu}
           isDarkMode={isDarkMode}
           currentDiagram={editor.currentDiagram}
           setCurrentDiagram={editor.setCurrentDiagram}
-          renderError={editor.error || null}
-          isLoading={editor.isGenerating}
-          diagramRef={editor.diagramRef}
-          svgRef={editor.svgRef}
-          handleMouseDown={editor.handleMouseDown}
-          isGenerating={editor.isGenerating}
-          setScale={editor.setScale}
+          renderError={editor.renderError}
+          isLoading={editor.isLoading}
+          isDownloading={editor.isDownloading}
+          currentTheme={editor.currentTheme}
+          changeTheme={editor.changeTheme}
+          diagramType={props.diagramType}
+          isVersionSelectionInProgress={editor.isVersionSelectionInProgress}
         />
       </div>
     </div>

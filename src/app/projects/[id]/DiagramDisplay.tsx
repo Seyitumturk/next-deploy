@@ -2,6 +2,32 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import DiagramControls from './DiagramControls';
+import DiagramThemeSelector from './DiagramThemeSelector';
+import { useMermaidCleanup, useMermaidInit } from '@/lib/useMermaidCleanup';
+import dynamic from 'next/dynamic';
+
+// Define valid mermaid theme types
+type MermaidTheme = 'default' | 'forest' | 'dark' | 'neutral' | 'base';
+
+// Create a client-side only wrapper for the SVG content
+const ClientOnlySvgRenderer = dynamic(() => Promise.resolve(({ svgOutput }: { svgOutput: string }) => {
+  // Log when the SVG renderer is called with new content
+  console.log('ClientOnlySvgRenderer: Rendering SVG with length:', svgOutput.length);
+  
+  // Use a unique ID to ensure the SVG is properly updated
+  const uniqueId = `svg-content-${Date.now()}`;
+  
+  return (
+    <div id={uniqueId} dangerouslySetInnerHTML={{ __html: svgOutput }} />
+  );
+}), { ssr: false });
+
+// Fallback component for server-side rendering
+const DiagramPlaceholder = ({ isGenerating, isDarkMode }: { isGenerating: boolean, isDarkMode: boolean }) => (
+  <div className={`text-sm ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>
+    {isGenerating ? "Generating diagram..." : "No diagram to display"}
+  </div>
+);
 
 interface DiagramDisplayProps {
   showPromptPanel: boolean;
@@ -27,6 +53,10 @@ interface DiagramDisplayProps {
   isLoading: boolean;
   setIsDragging: React.Dispatch<React.SetStateAction<boolean>>;
   isDownloading: string | null;
+  currentTheme: MermaidTheme;
+  changeTheme: (theme: MermaidTheme) => void;
+  diagramType: string;
+  isVersionSelectionInProgress: boolean;
 }
 
 const DiagramDisplay: React.FC<DiagramDisplayProps> = ({
@@ -53,11 +83,134 @@ const DiagramDisplay: React.FC<DiagramDisplayProps> = ({
   isLoading,
   setIsDragging,
   isDownloading,
+  currentTheme,
+  changeTheme,
+  diagramType,
+  isVersionSelectionInProgress,
 }) => {
   const svgContainerRef = useRef<HTMLDivElement>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [hasAutoFitted, setHasAutoFitted] = useState(false);
   
+  // Use our custom hook to clean up Mermaid error elements
+  useMermaidCleanup(diagramRef);
+  useMermaidCleanup(svgRef);
+  useMermaidCleanup(svgContainerRef);
+  
+  // Initialize Mermaid safely on the client side
+  useMermaidInit(currentTheme);
+  
+  // Auto-fit diagram when SVG is first rendered or updated
+  useEffect(() => {
+    if (!svgOutput || !diagramRef.current || !svgRef.current || isGenerating) return;
+    
+    // Don't auto-fit if the user has manually adjusted scale/position and diagram hasn't changed
+    // Or if we're in the process of selecting a version (reverting)
+    if ((hasAutoFitted && (scale !== 1 || position.x !== 0 || position.y !== 0)) || isVersionSelectionInProgress) return;
+    
+    const fitDiagramToContainer = () => {
+      try {
+        // Give the SVG more time to be fully rendered in the DOM
+        setTimeout(() => {
+          const svgElement = svgRef.current?.querySelector('svg');
+          const containerRect = diagramRef.current?.getBoundingClientRect();
+          
+          if (!svgElement || !containerRect) {
+            console.log('Auto-fit: Missing SVG or container element');
+            return;
+          }
+          
+          // Get SVG dimensions with fallbacks for different diagram types
+          const svgRect = svgElement.getBoundingClientRect();
+          let svgWidth = parseFloat(svgElement.getAttribute('width') || '0');
+          let svgHeight = parseFloat(svgElement.getAttribute('height') || '0');
+          
+          // If no width/height attributes, try to use the bounding rect or viewBox
+          if (svgWidth <= 0 || svgHeight <= 0) {
+            // Try to get from viewBox
+            const viewBox = svgElement.getAttribute('viewBox');
+            if (viewBox) {
+              const [, , vbWidth, vbHeight] = viewBox.split(' ').map(parseFloat);
+              if (!isNaN(vbWidth) && !isNaN(vbHeight)) {
+                svgWidth = vbWidth;
+                svgHeight = vbHeight;
+              }
+            }
+            
+            // If still no valid dimensions, use bounding rect
+            if (svgWidth <= 0 || svgHeight <= 0) {
+              svgWidth = svgRect.width;
+              svgHeight = svgRect.height;
+            }
+            
+            // Fallback to reasonable defaults if still invalid
+            if (svgWidth <= 0 || svgHeight <= 0) {
+              console.log('Auto-fit: Using default dimensions');
+              svgWidth = 700;
+              svgHeight = 700;
+            }
+          }
+          
+          console.log(`Auto-fit: SVG dimensions - ${svgWidth}x${svgHeight}, Container: ${containerRect.width}x${containerRect.height}`);
+          
+          // Calculate padding based on diagram type
+          let paddingPercent = 0.1; // Default 10% padding
+          
+          // Adjust padding for different diagram types
+          if (diagramType.includes('gantt') || diagramType.includes('timeline')) {
+            paddingPercent = 0.05; // Less padding for wide diagrams
+          } else if (diagramType.includes('flowchart') || diagramType.includes('graph')) {
+            paddingPercent = 0.12; // More padding for flowcharts
+          } else if (diagramType.includes('sequence')) {
+            paddingPercent = 0.08;
+          }
+          
+          // Apply percentage-based padding
+          const padding = Math.min(
+            containerRect.width * paddingPercent,
+            containerRect.height * paddingPercent
+          ) * 2; // Double for both sides
+          
+          const containerWidth = containerRect.width - padding;
+          const containerHeight = containerRect.height - padding;
+          
+          // Calculate scale factors for width and height
+          const widthScale = containerWidth / svgWidth;
+          const heightScale = containerHeight / svgHeight;
+          
+          // Use the smaller scale factor to ensure the diagram fits completely
+          // But cap at 1.0 to avoid scaling up small diagrams too much
+          const optimalScale = Math.min(widthScale, heightScale, 1.0);
+          
+          console.log(`Auto-fit: Scales - width: ${widthScale.toFixed(2)}, height: ${heightScale.toFixed(2)}, optimal: ${optimalScale.toFixed(2)}`);
+          
+          // Only apply if the change is significant (avoid tiny adjustments)
+          if (Math.abs(scale - optimalScale) > 0.05) {
+            console.log(`Auto-fit: Applying scale ${optimalScale.toFixed(2)}`);
+            setScale(optimalScale);
+            setPosition({ x: 0, y: 0 }); // Center the diagram
+            setHasAutoFitted(true);
+          } else {
+            console.log(`Auto-fit: Ignoring small scale change from ${scale} to ${optimalScale}`);
+            setHasAutoFitted(true);
+          }
+        }, 500); // Increased timeout for more reliable rendering
+      } catch (error) {
+        console.error('Error auto-fitting diagram:', error);
+      }
+    };
+    
+    fitDiagramToContainer();
+  }, [svgOutput, diagramRef, svgRef, setScale, setPosition, isGenerating, hasAutoFitted, scale, position, diagramType, isVersionSelectionInProgress]);
+  
+  // Reset hasAutoFitted when diagram changes, but not during version selection
+  useEffect(() => {
+    if (!isVersionSelectionInProgress) {
+      setHasAutoFitted(false);
+    }
+  }, [currentDiagram, isVersionSelectionInProgress]);
+
   // Handle mouse events for panning
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDragging) return;
@@ -130,6 +283,13 @@ const DiagramDisplay: React.FC<DiagramDisplayProps> = ({
       }
     }
   }, [currentDiagram]);
+
+  // Add effect to ensure SVG is properly updated when svgOutput changes
+  useEffect(() => {
+    if (svgOutput && svgRef.current) {
+      console.log('DiagramDisplay: SVG output updated, length:', svgOutput.length);
+    }
+  }, [svgOutput]);
 
   return (
     <>
@@ -215,7 +375,15 @@ const DiagramDisplay: React.FC<DiagramDisplayProps> = ({
               </div>
             </div>
           </div>
-          <div className="hidden md:flex items-center">
+          <div className="hidden md:flex items-center space-x-2">
+            {/* Theme Selector for Desktop */}
+            <DiagramThemeSelector 
+              currentTheme={currentTheme}
+              changeTheme={changeTheme}
+              isDarkMode={isDarkMode}
+              diagramType={diagramType}
+            />
+            
             <button
               onClick={() => setShowExportMenu(!showExportMenu)}
               className={`px-3 py-2 rounded-lg transition-colors flex items-center space-x-2 ${
@@ -249,6 +417,10 @@ const DiagramDisplay: React.FC<DiagramDisplayProps> = ({
             setShowExportMenu={setShowExportMenu}
             isDarkMode={isDarkMode}
             isMobile={true}
+            isDownloading={isDownloading}
+            currentTheme={currentTheme}
+            changeTheme={changeTheme}
+            diagramType={diagramType}
           />
         </div>
 
@@ -408,83 +580,75 @@ const DiagramDisplay: React.FC<DiagramDisplayProps> = ({
             setShowExportMenu={setShowExportMenu}
             isDarkMode={isDarkMode}
             isDownloading={isDownloading}
+            currentTheme={currentTheme}
+            changeTheme={changeTheme}
+            diagramType={diagramType}
           />
         </div>
 
-        <div 
-          className={`flex-1 overflow-hidden relative ${
-            isDarkMode ? "bg-gray-900" : "bg-[#f5f0e8]"
-          }`}
+        {/* Diagram Display Area */}
+        <div
           ref={diagramRef}
+          className={`relative flex-1 overflow-hidden ${isDarkMode ? "bg-gray-900" : "bg-white"}`}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
-          style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
         >
-          {isGenerating && (
-            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50">
-              <div className={`rounded-lg shadow-lg p-3 flex items-center space-x-3 ${
-                isDarkMode 
-                  ? "bg-gray-800/90 text-gray-300" 
-                  : "bg-white/90 text-gray-600"
-              }`}>
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-secondary border-t-transparent"></div>
-                <span className="text-xs font-medium">Streaming diagram...</span>
+          {/* Loading Indicator */}
+          {isLoading && (
+            <div className={`absolute inset-0 flex items-center justify-center z-10 ${isDarkMode ? "bg-gray-900/50" : "bg-white/50"}`}>
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+            </div>
+          )}
+          
+          {/* Downloading Indicator */}
+          {isDownloading && (
+            <div className={`absolute inset-0 flex flex-col items-center justify-center z-10 ${isDarkMode ? "bg-gray-900/50" : "bg-white/50"}`}>
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4"></div>
+              <div className={`text-sm font-medium ${isDarkMode ? "text-white" : "text-gray-800"}`}>
+                Preparing {isDownloading === 'svg' ? 'SVG' : isDownloading === 'png-transparent' ? 'transparent PNG' : 'PNG'}...
               </div>
             </div>
           )}
-          {isLoading && !svgOutput ? (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className={`animate-spin rounded-full h-12 w-12 border-b-2 ${
-                isDarkMode ? "border-white" : "border-[#6a5c4c]"
-              }`}></div>
-            </div>
-          ) : renderError ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center p-8">
-              <div className={`p-6 rounded-xl max-w-2xl ${
-                isDarkMode 
-                  ? "bg-red-900/20 border border-red-800" 
-                  : "bg-red-100 border border-red-200"
-              }`}>
-                <h3 className={`text-lg font-semibold mb-2 ${
-                  isDarkMode ? "text-red-300" : "text-red-700"
-                }`}>
-                  Error Rendering Diagram
-                </h3>
-                <div className={`prose prose-sm ${
-                  isDarkMode ? "prose-invert" : "prose-stone"
-                }`}>
-                  <pre className={`whitespace-pre-wrap text-sm p-4 rounded-lg overflow-auto ${
-                    isDarkMode 
-                      ? "bg-gray-800 text-red-300" 
-                      : "bg-red-50 text-red-700"
-                  }`}>
+          
+          {/* Render Error Display */}
+          {renderError && (
+            <div className="absolute top-4 left-4 right-4 bg-red-500/10 border border-red-500/30 rounded-lg p-3 z-10">
+              <div className="flex items-start">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-red-800 dark:text-red-200">Rendering Error</h3>
+                  <div className="mt-1 text-xs text-red-700 dark:text-red-300">
                     {renderError}
-                  </pre>
+                  </div>
                 </div>
-                <p className={`mt-4 text-sm ${
-                  isDarkMode ? "text-gray-300" : "text-[#6a5c4c]"
-                }`}>
-                  Try modifying your diagram code or prompt to fix these issues.
-                </p>
               </div>
             </div>
-          ) : (
-            <div 
-              ref={svgContainerRef}
-              className="absolute inset-0 flex items-center justify-center"
-              style={{
-                transform: `scale(${scale}) translate(${position.x}px, ${position.y}px)`,
-                transition: isDragging ? 'none' : 'transform 0.1s ease-out',
-              }}
-            >
-              <div 
-                ref={svgRef} 
-                className="svg-container mermaid"
-                dangerouslySetInnerHTML={{ __html: svgOutput || '' }}
-              />
-            </div>
           )}
+          
+          {/* SVG Container with transform */}
+          <div
+            ref={svgContainerRef}
+            className="absolute inset-0 flex items-center justify-center"
+            style={{
+              transform: `scale(${scale}) translate(${position.x}px, ${position.y}px)`,
+              transformOrigin: 'center',
+              transition: isDragging ? 'none' : 'transform 0.1s ease-out',
+            }}
+          >
+            <div ref={svgRef} className="mermaid">
+              {svgOutput ? (
+                <ClientOnlySvgRenderer 
+                  key={`svg-${Date.now()}`}
+                  svgOutput={svgOutput} 
+                />
+              ) : (
+                <DiagramPlaceholder isGenerating={isGenerating} isDarkMode={isDarkMode} />
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </>

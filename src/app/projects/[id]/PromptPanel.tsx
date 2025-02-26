@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Editor from '@monaco-editor/react';
 import ChatMessage, { ChatMessageData } from './ChatMessage';
@@ -123,7 +123,30 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
   
   // Custom handler for generating diagram that also collapses the panel on mobile
   const handleGenerateAndCollapse = (e: React.FormEvent<HTMLFormElement> | null, initialPrompt?: string) => {
+    // First handle the generation
     handleGenerateDiagram(e, initialPrompt);
+    
+    // GUARANTEED scroll to bottom using multiple approaches to ensure it works
+    if (chatContainerRef.current) {
+      // Force scroll immediately and repeatedly
+      const forceScrollToBottom = () => {
+        const container = chatContainerRef.current;
+        if (!container) return;
+        
+        // Force smooth scrolling
+        container.style.scrollBehavior = 'smooth';
+        container.scrollTop = container.scrollHeight;
+      };
+      
+      // Execute multiple times to guarantee it happens after DOM updates
+      forceScrollToBottom();
+      setTimeout(forceScrollToBottom, 50);
+      setTimeout(forceScrollToBottom, 150);
+      setTimeout(forceScrollToBottom, 300);
+      setTimeout(forceScrollToBottom, 500);
+      setTimeout(forceScrollToBottom, 1000);
+    }
+    
     // On mobile, collapse the panel after submitting
     if (window.innerWidth < 768) {
       setTimeout(() => {
@@ -137,7 +160,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
     documentSummary ? 'min-h-[120px]' : 'min-h-[72px]'
   } max-h-[200px] transition-all duration-200 ease-in-out focus:placeholder:text-transparent overflow-y-auto break-words overflow-x-hidden no-scrollbar ${
     isDarkMode 
-      ? "border-gray-700 bg-gray-800/70 text-white placeholder:text-gray-500" 
+      ? "border-gray-700/60 bg-gray-800/70 backdrop-blur-sm text-white placeholder:text-gray-500" 
       : "border-[#b8a990] bg-[#e8dccc]/70 text-[#6a5c4c] placeholder:text-[#8a7a66]"
   } ${documentSummary && prompt ? 'ring-2 ring-primary/50 border-transparent' : ''}`;
 
@@ -159,13 +182,61 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
     }
   }, [documentSummary, setShowFileUpload]);
 
-  // Auto-scroll to bottom when chat history changes
-  React.useEffect(() => {
-    if (chatContainerRef.current && chatHistory.length > 0) {
-      const chatContainer = chatContainerRef.current;
+  // Advanced auto-scroll implementation to ensure chat always shows latest messages
+  useEffect(() => {
+    if (!chatContainerRef.current) return;
+    
+    const chatContainer = chatContainerRef.current;
+    
+    // Function to scroll to bottom with smooth animation
+    const scrollToBottom = () => {
+      // Calculate the difference between scroll position and scroll height
+      const isCloseToBottom = 
+        chatContainer.scrollHeight - chatContainer.clientHeight - chatContainer.scrollTop < 100;
+      
+      // Use smooth scrolling if already near bottom, otherwise jump to avoid jarring long scrolls
+      chatContainer.style.scrollBehavior = isCloseToBottom ? 'smooth' : 'auto';
       chatContainer.scrollTop = chatContainer.scrollHeight;
-    }
-  }, [chatHistory, chatContainerRef]);
+      
+      // Reset to smooth after jump scrolling
+      if (!isCloseToBottom) {
+        setTimeout(() => {
+          chatContainer.style.scrollBehavior = 'smooth';
+        }, 100);
+      }
+    };
+    
+    // Always scroll to bottom immediately when chat history changes or generation state changes
+    scrollToBottom();
+    
+    // Use a MutationObserver to detect DOM changes in the chat container
+    const observer = new MutationObserver(() => {
+      scrollToBottom();
+    });
+    
+    // Configure the observer to watch for any changes in the chat container
+    observer.observe(chatContainer, {
+      childList: true,  // Watch for added/removed elements
+      subtree: true,    // Watch the entire subtree
+      characterData: true, // Watch for text changes
+    });
+    
+    // Scroll when window is resized (can affect layout)
+    window.addEventListener('resize', scrollToBottom);
+    
+    // Add multiple timeouts for reliability with different content load times
+    // This helps ensure scrolling works even with dynamically loaded content or images
+    const timeoutIds = [50, 150, 300, 600].map(
+      delay => setTimeout(scrollToBottom, delay)
+    );
+    
+    // Clean up
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', scrollToBottom);
+      timeoutIds.forEach(id => clearTimeout(id));
+    };
+  }, [chatHistory, isGenerating, chatContainerRef]);
 
   // Wrap the file upload handlers to close the dropdown
   const wrappedHandleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -186,7 +257,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
       <div
         className={`hidden md:flex w-96 flex-col backdrop-blur-md border-r transform transition-transform duration-300 ease-in-out ${
           isDarkMode 
-            ? "bg-gray-900/90 border-gray-700" 
+            ? "bg-gray-900/85 border-gray-700/60" 
             : "bg-[#e8dccc]/90 border-[#b8a990] shadow-sm"
         }`}
         style={{
@@ -198,7 +269,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
       >
         {/* Chat Header */}
         <div className={`h-12 p-4 border-b flex items-center ${
-          isDarkMode ? "border-gray-800" : "border-[#b8a990]"
+          isDarkMode ? "border-gray-700/60" : "border-[#b8a990]"
         }`}>
           <div className="flex items-center justify-between w-full">
             <div className="flex items-center space-x-3">
@@ -277,87 +348,148 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
           <>
             <div
               ref={chatContainerRef}
-              className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth"
+              className="p-4 space-y-4 h-full overflow-y-auto scroll-smooth"
+              style={{ 
+                scrollBehavior: 'smooth',
+                maxHeight: 'calc(100% - 60px)', /* Adjust based on your input height */
+              }}
             >
               {/* Welcome Message */}
-              <div className="flex items-start space-x-3">
-                <div
-                  className={`flex-1 rounded-2xl p-4 shadow-sm ${
-                    isDarkMode ? "bg-gray-800/50" : "bg-[#d8cbb8]/50 border border-[#b8a990]"
-                  }`}
-                >
-                  <p
-                    className={isDarkMode ? "text-gray-300" : "text-[#4a3c2c] font-medium"}
+              {chatHistory.length === 0 && (
+                <div className="flex items-start space-x-3">
+                  <div
+                    className={`flex-1 rounded-2xl p-4 shadow-sm ${
+                      isDarkMode 
+                        ? "bg-gray-800/80 backdrop-blur-sm border border-gray-700/60" 
+                        : "bg-[#d8cbb8] border border-[#b8a990]"
+                    }`}
                   >
-                    Hello! I'm your AI assistant. Describe what you'd like to create or modify in your diagram, and I'll help you bring it to life.
-                  </p>
+                    <p
+                      className={isDarkMode ? "text-gray-300" : "text-[#4a3c2c] font-medium"}
+                    >
+                      Hello! I'm your AI assistant. Describe what you'd like to create or modify in your diagram, and I'll help you bring it to life.
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
+
               {/* Chat History */}
-              {chatHistory.map((message, index) => (
-                <ChatMessage 
-                  key={index} 
-                  message={message} 
-                  onDiagramVersionSelect={onDiagramVersionSelect}
-                  onRetry={() => {
-                    handleGenerateAndCollapse(null);
-                  }}
-                  isDarkMode={isDarkMode}
-                />
-              ))}
+              {chatHistory.map((message, index) => {
+                // Find the first user message with a diagram version
+                const firstUserMessageWithDiagram = chatHistory.find(
+                  msg => msg.role === 'user' && msg.diagramVersion
+                );
+                
+                // Check if this message is the first user message with a diagram
+                const isFirstUserMessage = 
+                  message.role === 'user' && 
+                  message.diagramVersion && 
+                  message === firstUserMessageWithDiagram;
+                
+                // Log warning if onDiagramVersionSelect is missing but message has diagram
+                if (message.diagramVersion && !onDiagramVersionSelect) {
+                  console.warn('Warning: Message has diagram version but onDiagramVersionSelect is missing', {
+                    messageIndex: index,
+                    hasVersion: Boolean(message.diagramVersion)
+                  });
+                }
+                
+                return (
+                  <ChatMessage 
+                    key={index} 
+                    message={message} 
+                    onDiagramVersionSelect={onDiagramVersionSelect}
+                    onRetry={() => {
+                      handleGenerateAndCollapse(null);
+                    }}
+                    isDarkMode={isDarkMode}
+                    isFirstUserMessage={isFirstUserMessage}
+                  />
+                );
+              })}
             </div>
             {/* Chat Input Area */}
-            <div className={`p-4 border-t ${isDarkMode ? "border-gray-800" : "border-[#b8a990]"}`}>
-              <FileUploadOptions
-                showFileUpload={showFileUpload}
-                setShowFileUpload={setShowFileUpload}
-                isProcessingFile={isProcessingFile}
-                isProcessingImage={isProcessingImage}
-                handleFileUpload={wrappedHandleFileUpload}
-                handleImageUpload={wrappedHandleImageUpload}
-                processWebsite={processWebsite}
-                isDarkMode={isDarkMode}
-              />
-              <form onSubmit={(e) => handleGenerateAndCollapse(e)} className="relative">
-                <textarea
-                  ref={textareaRef}
-                  value={prompt}
-                  onChange={(e) => {
-                    setPrompt(e.target.value);
-                    // Reset height to auto first to handle content removal
-                    e.target.style.height = 'auto';
-                    // Then set to scrollHeight to expand with content
-                    const newHeight = Math.min(e.target.scrollHeight, 200);
-                    e.target.style.height = `${newHeight}px`;
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      if (prompt.trim() && !isGenerating) {
+            <div className={`p-4 border-t ${
+              isDarkMode ? "border-gray-700/60" : "border-[#b8a990]"
+            }`}>
+              {error && (
+                <div className="mb-2 p-2 text-sm text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/20 rounded-md">
+                  {error}
+                </div>
+              )}
+              {/* File upload options for desktop */}
+              {showFileUpload && (
+                <div className="mb-2">
+                  <FileUploadOptions
+                    showFileUpload={showFileUpload}
+                    setShowFileUpload={setShowFileUpload}
+                    isProcessingFile={isProcessingFile}
+                    isProcessingImage={isProcessingImage}
+                    handleFileUpload={wrappedHandleFileUpload}
+                    handleImageUpload={wrappedHandleImageUpload}
+                    processWebsite={processWebsite}
+                    isDarkMode={isDarkMode}
+                  />
+                </div>
+              )}
+              <form onSubmit={handleGenerateAndCollapse}>
+                <div className="relative">
+                  <textarea
+                    ref={textareaRef}
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
                         handleGenerateAndCollapse(null);
                       }
-                    }
-                  }}
-                  className={promptTextAreaClass}
-                  placeholder={documentSummary 
-                    ? "Edit the extracted information or add additional instructions..." 
-                    : "Describe your diagram modifications... (Press Enter to send, Shift+Enter for new line)"}
-                  disabled={isGenerating}
-                  style={{ height: documentSummary ? '120px' : '72px' }}
-                />
-                <button
-                  type="submit"
-                  disabled={!prompt.trim() || isGenerating}
-                  className="absolute right-2 bottom-2 p-2 text-primary hover:text-primary-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {isGenerating ? (
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary" />
-                  ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                      <path d="M3.478 2.404a.75.75 0 00-.926.941l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.404z" />
-                    </svg>
-                  )}
-                </button>
+                    }}
+                    className={promptTextAreaClass}
+                    placeholder="Type your instructions here..."
+                    disabled={isGenerating}
+                    style={{
+                      height: documentSummary ? '120px' : '72px',
+                    }}
+                  />
+                  <div className="absolute right-2.5 bottom-2.5 flex space-x-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowFileUpload(!showFileUpload)}
+                      className={`p-2 rounded-full transition-colors ${
+                        isDarkMode 
+                          ? "text-gray-400 hover:text-gray-300 hover:bg-gray-700" 
+                          : "text-[#8a7a66] hover:text-[#6a5c4c] hover:bg-[#d8cbb8]"
+                      }`}
+                      title="Upload Document or Image"
+                      disabled={isGenerating}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                      </svg>
+                    </button>
+                    <button
+                      type="submit"
+                      className={`p-2 rounded-full transition-colors ${
+                        isGenerating || !prompt.trim() && !documentSummary
+                          ? (isDarkMode ? "text-gray-600 bg-gray-800 cursor-not-allowed" : "text-[#b8a990] bg-[#e8dccc] cursor-not-allowed") 
+                          : (isDarkMode ? "text-white bg-gray-700 hover:bg-gray-600" : "text-[#4a3c2c] bg-[#d8cbb8] hover:bg-[#c8bba8]")
+                      }`}
+                      disabled={isGenerating || (!prompt.trim() && !documentSummary)}
+                      title="Send Message"
+                    >
+                      {isGenerating ? (
+                        <svg className="h-5 w-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                </div>
               </form>
             </div>
           </>
@@ -381,7 +513,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
                 }}
               />
             </div>
-            <div className={`p-4 border-t ${isDarkMode ? "border-gray-800" : "border-[#b8a990]"}`}>
+            <div className={`p-4 border-t ${isDarkMode ? "border-gray-700/60" : "border-[#b8a990]"}`}>
               <button
                 onClick={() => onRenderDiagram(currentDiagram)}
                 className={`w-full py-2 rounded-lg transition-colors ${
@@ -401,7 +533,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
       <div
         className={`md:hidden fixed bottom-0 left-0 right-0 flex flex-col transform transition-transform duration-500 ease-in-out ${
           isDarkMode 
-            ? "bg-gray-900 border-t border-gray-800" 
+            ? "bg-gray-900/90 backdrop-blur-md border-t border-gray-700/60" 
             : "bg-[#e8dccc] border-t border-[#b8a990]"
         }`}
         style={{
@@ -412,7 +544,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
       >
         {/* Mobile header with toggle */}
         <div className={`h-12 p-4 border-b flex items-center justify-between ${
-          isDarkMode ? "border-gray-800" : "border-[#b8a990]"
+          isDarkMode ? "border-gray-700/60" : "border-[#b8a990]"
         }`}>
           <div className="flex items-center space-x-3">
             <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
@@ -477,13 +609,19 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
             <div 
               ref={chatContainerRef}
               className="p-4 space-y-4 h-full overflow-y-auto scroll-smooth"
+              style={{ 
+                scrollBehavior: 'smooth',
+                maxHeight: 'calc(100% - 60px)', /* Adjust based on your input height */
+              }}
             >
               {/* Welcome Message */}
               {chatHistory.length === 0 && (
                 <div className="flex items-start space-x-3">
                   <div
                     className={`flex-1 rounded-2xl p-4 shadow-sm ${
-                      isDarkMode ? "bg-gray-800/50" : "bg-[#d8cbb8]/50 border border-[#b8a990]"
+                      isDarkMode 
+                        ? "bg-gray-800/80 backdrop-blur-sm border border-gray-700/60" 
+                        : "bg-[#d8cbb8] border border-[#b8a990]"
                     }`}
                   >
                     <p
@@ -494,18 +632,31 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
                   </div>
                 </div>
               )}
+
               {/* Chat History */}
-              {chatHistory.map((message, index) => (
-                <ChatMessage 
-                  key={index} 
-                  message={message} 
-                  onDiagramVersionSelect={onDiagramVersionSelect}
-                  onRetry={() => {
-                    handleGenerateAndCollapse(null);
-                  }}
-                  isDarkMode={isDarkMode}
-                />
-              ))}
+              {chatHistory.map((message, index) => {
+                // Find the first user message with a diagram version
+                const firstUserMessageWithDiagram = chatHistory.find(
+                  msg => msg.role === 'user' && msg.diagramVersion
+                );
+                
+                // Check if this message is the first user message with a diagram
+                const isFirstUserMessage = 
+                  message.role === 'user' && 
+                  message.diagramVersion && 
+                  message === firstUserMessageWithDiagram;
+                
+                return (
+                  <ChatMessage
+                    key={index}
+                    message={message}
+                    onDiagramVersionSelect={onDiagramVersionSelect}
+                    onRetry={() => handleGenerateAndCollapse(null)}
+                    isDarkMode={isDarkMode}
+                    isFirstUserMessage={isFirstUserMessage}
+                  />
+                );
+              })}
             </div>
           ) : (
             <div className="flex-1 flex flex-col">
@@ -527,7 +678,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
                   }}
                 />
               </div>
-              <div className={`p-4 border-t ${isDarkMode ? "border-gray-800" : "border-[#b8a990]"}`}>
+              <div className={`p-4 border-t ${isDarkMode ? "border-gray-700/60" : "border-[#b8a990]"}`}>
                 <button
                   onClick={() => onRenderDiagram(currentDiagram)}
                   className={`w-full py-2 rounded-lg transition-colors ${
@@ -545,199 +696,65 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
 
         {/* Mobile input area */}
         {editorMode === 'chat' && (
-          <div className={`p-4 border-t ${isDarkMode ? "border-gray-800" : "border-[#b8a990]"}`}>
-            {/* Desktop file upload options */}
-            <div className="hidden md:block">
-              <FileUploadOptions
-                showFileUpload={showFileUpload}
-                setShowFileUpload={setShowFileUpload}
-                isProcessingFile={isProcessingFile}
-                isProcessingImage={isProcessingImage}
-                handleFileUpload={wrappedHandleFileUpload}
-                handleImageUpload={wrappedHandleImageUpload}
-                processWebsite={processWebsite}
-                isDarkMode={isDarkMode}
-              />
-            </div>
-            <form onSubmit={(e) => handleGenerateAndCollapse(e)} className="relative">
-              <textarea
-                value={prompt}
-                onChange={(e) => {
-                  setPrompt(e.target.value);
-                  // Reset height to auto first to handle content removal
-                  e.target.style.height = 'auto';
-                  // Then set to scrollHeight to expand with content
-                  const newHeight = Math.min(e.target.scrollHeight, 200);
-                  e.target.style.height = `${newHeight}px`;
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    if (prompt.trim() && !isGenerating) {
+          <div className={`p-4 border-t ${isDarkMode ? "border-gray-700/60" : "border-[#b8a990]"}`}>
+            <form onSubmit={handleGenerateAndCollapse}>
+              <div className="relative">
+                <textarea
+                  ref={textareaRef}
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
                       handleGenerateAndCollapse(null);
                     }
-                  }
-                }}
-                className={promptTextAreaClass}
-                placeholder={documentSummary 
-                  ? "Edit the extracted information or add additional instructions..." 
-                  : "Describe your diagram modifications..."}
-                disabled={isGenerating}
-                style={{ height: documentSummary ? '120px' : '72px' }}
-              />
-              
-              {/* Mobile minimalistic file upload button */}
-              <div className="md:hidden absolute right-10 bottom-2">
-                <button
-                  type="button"
-                  onClick={() => setShowFileUpload(!showFileUpload)}
-                  className={`p-2 rounded-full transition-colors group relative ${
-                    isDarkMode 
-                      ? "text-gray-400 hover:text-gray-300 hover:bg-gray-800/70" 
-                      : "text-[#8a7a66] hover:text-[#6a5c4c] hover:bg-[#d8cbb8]/50"
-                  } ${isProcessingFile || isProcessingImage ? 'animate-pulse' : ''}`}
-                >
-                  {isProcessingFile || isProcessingImage ? (
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary" />
-                  ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                      <polyline points="17 8 12 3 7 8"></polyline>
-                      <line x1="12" y1="3" x2="12" y2="15"></line>
-                    </svg>
-                  )}
-                  <span className="absolute bottom-full right-0 mb-2 px-2 py-1 text-xs font-medium bg-gray-900 text-white rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                    Import Options
-                  </span>
-                </button>
-                
-                {/* Mobile file upload dropdown */}
-                {showFileUpload && (
-                  <div className="absolute bottom-full right-0 mb-2 w-64 rounded-lg shadow-lg overflow-hidden transform transition-all duration-200 ease-in-out origin-bottom-right">
-                    <div className={`${
+                  }}
+                  className={promptTextAreaClass}
+                  placeholder="Type your instructions here..."
+                  disabled={isGenerating}
+                  style={{
+                    height: documentSummary ? '120px' : '72px',
+                  }}
+                />
+                <div className="absolute right-2.5 bottom-2.5 flex space-x-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowFileUpload(!showFileUpload)}
+                    className={`p-2 rounded-full transition-colors ${
                       isDarkMode 
-                        ? "bg-gray-800 border border-gray-700" 
-                        : "bg-white border border-[#d8cbb8]"
-                    } rounded-lg shadow-xl`}>
-                      <div className={`px-3 py-2 border-b ${
-                        isDarkMode ? "border-gray-700" : "border-[#d8cbb8]"
-                      }`}>
-                        <h3 className={`text-xs font-medium ${
-                          isDarkMode ? "text-gray-300" : "text-[#6a5c4c]"
-                        }`}>
-                          Import Options
-                        </h3>
-                      </div>
-                      <div className="p-2 space-y-1">
-                        <button
-                          type="button"
-                          onClick={() => document.getElementById('pdf-upload')?.click()}
-                          className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center space-x-2 ${
-                            isDarkMode 
-                              ? "hover:bg-gray-700 text-white" 
-                              : "hover:bg-[#f5f0e8] text-[#6a5c4c]"
-                          }`}
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                            <polyline points="14 2 14 8 20 8"></polyline>
-                            <path d="M9 15v-2h6v2"></path>
-                            <path d="M12 13v5"></path>
-                          </svg>
-                          <span>PDF Document</span>
-                        </button>
-                        
-                        <button
-                          type="button"
-                          onClick={() => document.getElementById('powerpoint-upload')?.click()}
-                          className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center space-x-2 ${
-                            isDarkMode 
-                              ? "hover:bg-gray-700 text-white" 
-                              : "hover:bg-[#f5f0e8] text-[#6a5c4c]"
-                          }`}
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                            <polyline points="14 2 14 8 20 8"></polyline>
-                            <rect x="8" y="12" width="8" height="6"></rect>
-                          </svg>
-                          <span>PowerPoint Document</span>
-                        </button>
-                        
-                        <button
-                          type="button"
-                          onClick={() => document.getElementById('word-upload')?.click()}
-                          className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center space-x-2 ${
-                            isDarkMode 
-                              ? "hover:bg-gray-700 text-white" 
-                              : "hover:bg-[#f5f0e8] text-[#6a5c4c]"
-                          }`}
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-indigo-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                            <polyline points="14 2 14 8 20 8"></polyline>
-                            <line x1="8" y1="12" x2="16" y2="12"></line>
-                            <line x1="8" y1="16" x2="14" y2="16"></line>
-                          </svg>
-                          <span>Word Document</span>
-                        </button>
-                        
-                        {handleImageUpload && (
-                          <button
-                            type="button"
-                            onClick={() => document.getElementById('image-upload')?.click()}
-                            className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center space-x-2 ${
-                              isDarkMode 
-                                ? "hover:bg-gray-700 text-white" 
-                                : "hover:bg-[#f5f0e8] text-[#6a5c4c]"
-                            }`}
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                              <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                              <polyline points="21 15 16 10 5 21"></polyline>
-                            </svg>
-                            <span>Image</span>
-                          </button>
-                        )}
-                        
-                        <button
-                          onClick={() => {
-                            setShowWebsiteInput(true);
-                            setShowFileUpload(false);
-                          }}
-                          className={`w-full text-left px-3 py-2 rounded-md text-sm flex items-center space-x-2 ${
-                            isDarkMode 
-                              ? "hover:bg-gray-700 text-white" 
-                              : "hover:bg-[#f5f0e8] text-[#6a5c4c]"
-                          }`}
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <line x1="2" y1="12" x2="22" y2="12"></line>
-                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-                          </svg>
-                          <span>Website URL</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                        ? "text-gray-400 hover:text-gray-300 hover:bg-gray-700" 
+                        : "text-[#8a7a66] hover:text-[#6a5c4c] hover:bg-[#d8cbb8]"
+                    }`}
+                    title="Upload Document or Image"
+                    disabled={isGenerating}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                    </svg>
+                  </button>
+                  <button
+                    type="submit"
+                    className={`p-2 rounded-full transition-colors ${
+                      isGenerating || !prompt.trim() && !documentSummary
+                        ? (isDarkMode ? "text-gray-600 bg-gray-800 cursor-not-allowed" : "text-[#b8a990] bg-[#e8dccc] cursor-not-allowed") 
+                        : (isDarkMode ? "text-white bg-gray-700 hover:bg-gray-600" : "text-[#4a3c2c] bg-[#d8cbb8] hover:bg-[#c8bba8]")
+                    }`}
+                    disabled={isGenerating || (!prompt.trim() && !documentSummary)}
+                    title="Send Message"
+                  >
+                    {isGenerating ? (
+                      <svg className="h-5 w-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
               </div>
-              
-              <button
-                type="submit"
-                disabled={!prompt.trim() || isGenerating}
-                className="absolute right-2 bottom-2 p-2 text-primary hover:text-primary-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {isGenerating ? (
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary" />
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                    <path d="M3.478 2.404a.75.75 0 00-.926.941l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.404z" />
-                  </svg>
-                )}
-              </button>
             </form>
             
             {/* Hidden file inputs */}
@@ -804,7 +821,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
           </div>
         )}
         {editorMode === 'code' && (
-          <div className={`p-4 border-t ${isDarkMode ? "border-gray-800" : "border-[#b8a990]"}`}>
+          <div className={`p-4 border-t ${isDarkMode ? "border-gray-700/60" : "border-[#b8a990]"}`}>
             <button
               onClick={() => onRenderDiagram(currentDiagram)}
               className="w-full py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors"

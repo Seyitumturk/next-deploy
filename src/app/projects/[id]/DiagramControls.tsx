@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import DiagramThemeSelector from './DiagramThemeSelector';
 
 interface DiagramControlsProps {
   showPromptPanel: boolean;
@@ -15,6 +16,9 @@ interface DiagramControlsProps {
   isDarkMode: boolean;
   isMobile?: boolean;
   isDownloading: string | null;
+  currentTheme: string;
+  changeTheme: (theme: string) => void;
+  diagramType: string;
 }
 
 const DiagramControls: React.FC<DiagramControlsProps> = ({
@@ -30,6 +34,9 @@ const DiagramControls: React.FC<DiagramControlsProps> = ({
   isDarkMode,
   isMobile,
   isDownloading,
+  currentTheme,
+  changeTheme,
+  diagramType,
 }) => {
   return (
     <div className={`${isMobile 
@@ -41,7 +48,7 @@ const DiagramControls: React.FC<DiagramControlsProps> = ({
         : "bg-[#e8dccc]/80 border-[#d8cbb8]/50"
     }`}>
       <div className={`flex ${isMobile ? 'justify-between items-center w-full' : 'flex-col space-y-2'}`}>
-        <div className="flex items-center space-x-2">
+        <div className={`flex items-center space-x-2`}>
           <div className={`flex items-center space-x-1 bg-white/10 dark:bg-gray-800/50 rounded-lg ${isMobile ? 'p-1' : 'p-1'}`}>
             <button 
               onClick={() => setScale(s => Math.min(s + 0.1, 5))} 
@@ -95,6 +102,16 @@ const DiagramControls: React.FC<DiagramControlsProps> = ({
               {Math.round(scale * 100)}%
             </div>
           </div>
+
+          {/* Theme Selector - Only show on mobile */}
+          {isMobile && (
+            <DiagramThemeSelector 
+              currentTheme={currentTheme}
+              changeTheme={changeTheme}
+              isDarkMode={isDarkMode}
+              diagramType={diagramType}
+            />
+          )}
         </div>
         
         {!isMobile && <div className="h-px w-full bg-gradient-to-r from-transparent via-gray-400 dark:via-gray-600 to-transparent opacity-30"></div>}

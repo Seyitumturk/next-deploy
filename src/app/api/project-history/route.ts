@@ -11,10 +11,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { projectId, prompt, diagram, updateType } = await request.json();
+    const { projectId, prompt, diagram, updateType, diagram_img } = await request.json();
     
     if (!projectId) {
       return NextResponse.json({ error: 'Project ID is required' }, { status: 400 });
+    }
+
+    if (!diagram) {
+      return NextResponse.json({ error: 'Diagram content is required' }, { status: 400 });
     }
 
     await connectDB();
@@ -33,19 +37,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
-    // Add new history item
+    console.log(`Saving history for project ${projectId}, updateType: ${updateType}`);
+    
+    // Add new history item with diagram_img
     project.history.unshift({
       prompt,
       diagram,
+      diagram_img,
       updateType,
       updatedAt: new Date(),
     });
 
-    await project.save();
+    // Also update the current diagram
+    project.currentDiagram = diagram;
+    
+    // Save the diagramSVG field as well for better compatibility
+    if (diagram_img) {
+      project.diagramSVG = diagram_img;
+    }
 
-    return NextResponse.json({ success: true });
+    await project.save();
+    console.log(`Successfully saved history for project ${projectId}`);
+
+    return NextResponse.json({ 
+      success: true,
+      message: 'History saved successfully'
+    });
   } catch (error) {
     console.error('Error in project history API:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : String(error)
+    }, { status: 500 });
   }
 } 

@@ -23,6 +23,7 @@ interface Project {
     diagram_img?: string;
     diagram: string;
   }>;
+  diagramSVG?: string;
 }
 
 interface User {
@@ -102,6 +103,32 @@ const EditableTitle = ({
     >
       {title}
     </h3>
+  );
+};
+
+const DiagramPreview = ({ project }: { project: Project }) => {
+  // Try to get the SVG from different sources
+  const svgContent = 
+    // First try the diagramSVG field
+    project.diagramSVG || 
+    // Then try the first history item's diagram_img
+    (project.history && project.history[0]?.diagram_img) || 
+    // Fallback to empty string if nothing is available
+    '';
+  
+  if (!svgContent) {
+    return (
+      <div className="flex items-center justify-center h-32 bg-gray-100 dark:bg-gray-800 rounded-lg">
+        <span className="text-sm text-gray-500 dark:text-gray-400">No preview available</span>
+      </div>
+    );
+  }
+  
+  return (
+    <div 
+      className="h-32 w-full overflow-hidden bg-white dark:bg-gray-800 rounded-lg flex items-center justify-center"
+      dangerouslySetInnerHTML={{ __html: svgContent }}
+    />
   );
 };
 
@@ -584,21 +611,7 @@ export default function ProjectsPage() {
                         ? 'bg-gradient-to-br from-gray-900/50 to-gray-800/50 border-b border-gray-700/50' 
                         : 'bg-gradient-to-br from-[#f0eee6] to-[#e8dccc]/50 border-b border-[#d8cbb8]/50'
                     } p-4 flex items-center justify-center relative overflow-hidden group-hover:from-gray-100 group-hover:to-gray-200 dark:group-hover:from-gray-800/50 dark:group-hover:to-gray-700/50 transition-all duration-300`}>
-                      {project.history?.[0]?.diagram_img ? (
-                        <div 
-                          dangerouslySetInnerHTML={{ 
-                            __html: project.history[0].diagram_img 
-                          }}
-                          className="w-full h-full flex items-center justify-center transform group-hover:scale-105 transition-transform duration-300"
-                        />
-                      ) : (
-                        <div className="relative flex items-center justify-center w-20 h-20">
-                          <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-secondary/20 blur-xl rounded-full transform scale-150" />
-                          <div className="w-14 h-14 transform group-hover:scale-110 transition-transform duration-300 relative z-10">
-                            {getDiagramIcon(project.diagramType)}
-                          </div>
-                        </div>
-                      )}
+                      <DiagramPreview project={project} />
                       
                       {/* Type badge */}
                       <div className={`absolute top-3 left-3 px-2.5 py-1 rounded-full text-xs font-medium flex items-center space-x-1 ${

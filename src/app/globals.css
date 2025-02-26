@@ -141,3 +141,62 @@ body {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* Hide all Mermaid error elements */
+.error-icon,
+.error-text,
+.error-message,
+.marker.cross,
+g[class*="error"],
+g[class*="flowchart-error"],
+g[class*="syntax-error"],
+g[class*="mermaid-error"],
+[id*="mermaid-error"],
+.mermaid > g.error,
+.mermaid > svg > g.error,
+.mermaid-error,
+.diagramError,
+.diagram-error,
+.syntax-error,
+svg[aria-roledescription="error"],
+svg[aria-roledescription="error"] *,
+svg[aria-roledescription="syntax-error"],
+svg[aria-roledescription="syntax-error"] * {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  height: 0 !important;
+  width: 0 !important;
+  position: absolute !important;
+  overflow: hidden !important;
+  max-height: 0 !important;
+  max-width: 0 !important;
+}
+
+/* Prevent scrolling on body when Mermaid errors are present */
+body:has(svg[aria-roledescription="error"]),
+body:has(svg[aria-roledescription="syntax-error"]) {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+/* Ensure no scrollbars from error elements */
+.mermaid {
+  overflow: visible !important;
+}
+
+/* Force hide any Mermaid error containers */
+[id^="mermaid-error-"],
+[id*="mermaid-error-"],
+[id*="syntax-error"],
+[id*="flowchart-error"] {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  width: 0 !important;
+  position: absolute !important;
+  overflow: hidden !important;
+  max-height: 0 !important;
+  max-width: 0 !important;
+}

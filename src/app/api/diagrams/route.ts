@@ -28,6 +28,8 @@ mermaid.initialize({
   theme: 'neutral',
   securityLevel: 'loose',
   fontFamily: 'var(--font-geist-sans)',
+  suppressErrorsInDOM: true,
+  errorLabelColor: 'transparent',
 });
 
 // Add 'architecture' to the diagramTypes array or object if it exists

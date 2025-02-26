@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserIcon, SparklesIcon } from '@heroicons/react/24/outline';
 
 export interface ChatMessageData {
@@ -8,7 +8,6 @@ export interface ChatMessageData {
   content: string;
   timestamp: Date;
   diagramVersion?: string;
-  diagramVersions?: string[];
   error?: string;
 }
 
@@ -17,6 +16,7 @@ export interface ChatMessageProps {
   onDiagramVersionSelect: (version: string) => Promise<void>;
   onRetry: () => void;
   isDarkMode?: boolean;
+  isFirstUserMessage?: boolean;
 }
 
 const formatTime = (date: Date) => {
@@ -31,7 +31,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   message, 
   onDiagramVersionSelect,
   onRetry,
-  isDarkMode = false
+  isDarkMode = false,
+  isFirstUserMessage = false
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const isSystem = message.role === 'system';
@@ -125,9 +126,34 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   }
 
   // Update the diagram version button click handler
-  const handleDiagramVersionClick = () => {
-    if (message.diagramVersion && onDiagramVersionSelect) {
-      onDiagramVersionSelect(message.diagramVersion);
+  const handleDiagramVersionClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('Diagram version click handler called with version:', message.diagramVersion);
+    
+    if (!message.diagramVersion) {
+      console.error('No diagram version available for this message');
+      return;
+    }
+    
+    if (!onDiagramVersionSelect) {
+      console.error('No onDiagramVersionSelect handler provided - this function is required for reverting diagrams');
+      return;
+    }
+    
+    try {
+      // Call the handler with the diagram version
+      console.log('Calling onDiagramVersionSelect with version:', message.diagramVersion);
+      onDiagramVersionSelect(message.diagramVersion)
+        .then(() => {
+          console.log('Successfully reverted to diagram version');
+        })
+        .catch(error => {
+          console.error('Error reverting to diagram version:', error);
+        });
+    } catch (error) {
+      console.error('Error calling onDiagramVersionSelect:', error);
     }
   };
 
@@ -137,49 +163,37 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
       {isUser ? (
         <div className={`max-w-[80%] rounded-2xl py-3 px-4 ${
           isDarkMode 
-            ? "bg-primary text-white" 
-            : "bg-primary text-white"
+            ? "bg-gray-800/90 backdrop-blur-sm text-white border border-gray-700/60 shadow-md" 
+            : "bg-[#e8dccc] text-[#4a3c2c] border border-[#b8a990] shadow-sm"
         }`}>
           <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
           <div className="mt-1 text-xs opacity-70 text-right">
             {formatTime(new Date(message.timestamp))}
           </div>
+          
+          {/* Add button to revert to this version if it has a diagram version */}
+          {message.diagramVersion && (
+            <div className="mt-2 pt-2 border-t border-gray-600/30 dark:border-gray-500/30 flex justify-end">
+              <button
+                onClick={handleDiagramVersionClick}
+                className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                  isDarkMode
+                    ? "bg-gray-700/50 hover:bg-gray-700/70 text-gray-200"
+                    : "bg-[#d8cbb8]/70 hover:bg-[#d8cbb8] text-[#4a3c2c]"
+                }`}
+              >
+                Revert to this version
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <div className={`max-w-[80%] rounded-2xl py-3 px-4 ${
           isDarkMode 
-            ? "bg-gray-800 text-white" 
-            : "bg-[#d8cbb8] text-[#4a3c2c] border border-[#b8a990]"
+            ? "bg-gray-800/80 backdrop-blur-sm text-white border border-gray-700/60 shadow-md" 
+            : "bg-[#d8cbb8] text-[#4a3c2c] border border-[#b8a990] shadow-sm"
         }`}>
           <p className="text-sm whitespace-pre-wrap break-words font-medium">{message.content}</p>
-          
-          {/* Version selector when diagram versions are available */}
-          {message.diagramVersions && message.diagramVersions.length > 0 && (
-            <div className={`mt-3 pt-3 border-t ${
-              isDarkMode ? "border-gray-700" : "border-[#b8a990]"
-            }`}>
-              <div className="flex flex-wrap gap-2">
-                {message.diagramVersions.map((version, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => onDiagramVersionSelect(version)}
-                    className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-                      message.diagramVersion === version
-                        ? (isDarkMode 
-                            ? "bg-primary/20 text-primary border border-primary/30" 
-                            : "bg-primary/20 text-primary-dark border border-primary/30")
-                        : (isDarkMode 
-                            ? "bg-gray-700 text-gray-300 hover:bg-gray-600 border border-gray-600" 
-                            : "bg-[#c8bba8] text-[#4a3c2c] hover:bg-[#b8a990] border border-[#b8a990]")
-                    }`}
-                  >
-                    Version {idx + 1}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          
           <div className="mt-1 text-xs opacity-70">
             {formatTime(new Date(message.timestamp))}
           </div>
