@@ -1,165 +1,180 @@
-import React, { useEffect, useRef } from 'react';
-import mermaid from 'mermaid';
+import React, { useEffect, useRef, useState } from 'react';
 import { DiagramType } from '../models/Project';
-import { useMermaidCleanup } from '@/lib/useMermaidCleanup';
+import { 
+  useMermaidCleanup, 
+  generateSvgFromMermaid, 
+  preprocessMermaidCode,
+  initializeMermaid
+} from '@/lib/mermaidUtils';
 
-const DiagramRenderer: React.FC = () => {
+interface DiagramRendererProps {
+  content?: string;
+  fallbackSvg?: string;
+  diagramType?: string;
+  isLoading?: boolean;
+  project?: {diagramType?: string};
+  onSvgRendered?: (svg: string) => void;
+  onError?: (error: string) => void;
+  suppressErrors?: boolean;
+}
+
+const DiagramRenderer: React.FC<DiagramRendererProps> = ({
+  content = '',
+  fallbackSvg,
+  diagramType,
+  isLoading = false,
+  project = null,
+  onSvgRendered,
+  onError,
+  suppressErrors = true
+}) => {
   const diagramRef = useRef<HTMLDivElement>(null);
-  const [content, setContent] = React.useState('');
-  const [project, setProject] = React.useState<{diagramType?: string} | null>(null);
-  const [error, setError] = React.useState('');
+  const [error, setError] = useState<string>('');
+  const [isRendering, setIsRendering] = useState<boolean>(false);
+  const renderTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Use our custom hook to clean up Mermaid error elements
   useMermaidCleanup(diagramRef);
 
-  useEffect(() => {
-    if (content) {
-      try {
-        const diagramType = project?.diagramType || '';
-        let mermaidCode = '';
+  // Function to clean any error elements from the container
+  const cleanErrorElements = () => {
+    if (!diagramRef.current) return;
+    
+    // Get all error-related elements inside the container
+    const errorElements = diagramRef.current.querySelectorAll(
+      '.error, .error-icon, .error-text, .error-message, ' +
+      '[class*="error"], [id*="error"], ' +
+      'div.mermaid > div:not(svg)'
+    );
+    
+    // Remove them
+    errorElements.forEach(el => el.remove());
+    
+    // Also clean global errors that Mermaid creates
+    if (typeof document !== 'undefined') {
+      document.querySelectorAll('.error, .error-icon, .error-text, [id*="mermaid-error"]')
+        .forEach(el => el.remove());
+    }
+  };
+
+  // Function to render the diagram
+  const renderDiagram = async (mermaidCode: string) => {
+    if (!mermaidCode.trim()) {
+      if (diagramRef.current && fallbackSvg) {
+        diagramRef.current.innerHTML = fallbackSvg;
+      }
+      return;
+    }
+    
+    setIsRendering(true);
+    
+    // Clear any existing timeout
+    if (renderTimeoutRef.current) {
+      clearTimeout(renderTimeoutRef.current);
+    }
+    
+    // Determine actual diagram type
+    let effectiveDiagramType = diagramType;
+    if (!effectiveDiagramType && project?.diagramType) {
+      effectiveDiagramType = project.diagramType.toLowerCase();
+    }
+    
+    try {
+      // Preprocess code to fix common syntax issues
+      const processedCode = preprocessMermaidCode(mermaidCode, effectiveDiagramType);
+      
+      // Render the diagram
+      const svg = await generateSvgFromMermaid(processedCode, fallbackSvg);
+      
+      if (diagramRef.current) {
+        // Set the SVG content
+        diagramRef.current.innerHTML = svg;
         
-        // Format the content based on diagram type
-        switch (diagramType) {
-          case DiagramType.FLOWCHART:
-          case DiagramType.SEQUENCE:
-          case DiagramType.CLASS:
-          case DiagramType.STATE:
-          case DiagramType.ER:
-          case DiagramType.GANTT:
-          case DiagramType.PIE:
-          case DiagramType.MINDMAP:
-          case DiagramType.TIMELINE:
-          case DiagramType.ARCHITECTURE:
-            mermaidCode = content;
-            break;
-          default:
-            mermaidCode = content;
-        }
+        // Clean up any error elements
+        cleanErrorElements();
         
-        // Ensure mermaid is configured to suppress error blocks
-        mermaid.initialize({
-          startOnLoad: false,
-          // @ts-ignore - These properties exist in newer versions of Mermaid
-          suppressErrorsInDOM: true,
-          errorLabelColor: 'transparent',
-        });
-        
-        // Use a unique ID for each render
-        const uniqueId = `mermaid-diagram-${Date.now()}`;
-        
-        mermaid.render(uniqueId, mermaidCode)
-          .then(result => {
-            if (diagramRef.current) {
-              diagramRef.current.innerHTML = result.svg;
-              
-              // Remove any error elements that might have been added
-              setTimeout(() => {
-                const errorSelectors = [
-                  '.error-icon',
-                  '.error-text',
-                  '.error-message',
-                  '.marker.cross',
-                  'g[class*="error"]',
-                  'g[class*="flowchart-error"]',
-                  'g[class*="syntax-error"]',
-                  'g[class*="mermaid-error"]',
-                  '[id*="mermaid-error"]',
-                  '.mermaid > g.error',
-                  '.mermaid > svg > g.error',
-                  '.mermaid-error',
-                  '.diagramError',
-                  '.diagram-error',
-                  '.syntax-error',
-                  'svg[aria-roledescription="error"]',
-                  'svg[aria-roledescription="syntax-error"]'
-                ];
-                
-                // Remove from diagramRef
-                if (diagramRef.current) {
-                  errorSelectors.forEach(selector => {
-                    diagramRef.current?.querySelectorAll(selector).forEach(el => {
-                      el.remove();
-                    });
-                  });
-                  
-                  // Also remove by ID pattern
-                  diagramRef.current.querySelectorAll('[id]').forEach(el => {
-                    if (
-                      el.id.includes('mermaid-error') || 
-                      el.id.includes('syntax-error') || 
-                      el.id.includes('flowchart-error')
-                    ) {
-                      el.remove();
-                    }
-                  });
-                  
-                  // Also remove by aria-roledescription
-                  diagramRef.current.querySelectorAll('[aria-roledescription]').forEach(el => {
-                    if (
-                      el.getAttribute('aria-roledescription') === 'error' || 
-                      el.getAttribute('aria-roledescription') === 'syntax-error'
-                    ) {
-                      el.remove();
-                    }
-                  });
-                }
-              }, 0);
-            }
-          })
-          .catch(err => {
-            console.error('Mermaid rendering error:', err);
-            setError('Error rendering diagram. Please check your syntax.');
-            
-            // Return a minimal SVG to prevent UI breakage
-            const fallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 100 50">
-              <rect width="100%" height="100%" fill="transparent" />
-            </svg>`;
-            
-            if (diagramRef.current) {
-              diagramRef.current.innerHTML = fallbackSvg;
-            }
-            
-            // Clean up any error elements
-            setTimeout(() => {
-              document.querySelectorAll('svg[aria-roledescription="error"], svg[aria-roledescription="syntax-error"]').forEach(el => {
-                el.remove();
-              });
-            }, 0);
-          });
-      } catch (err) {
-        console.error('Mermaid rendering error:', err);
-        setError('Error rendering diagram. Please check your syntax.');
-        
-        // Return a minimal SVG to prevent UI breakage
-        const fallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 100 50">
-          <rect width="100%" height="100%" fill="transparent" />
-        </svg>`;
-        
-        if (diagramRef.current) {
-          diagramRef.current.innerHTML = fallbackSvg;
+        // Call the callback with the rendered SVG
+        if (onSvgRendered) {
+          onSvgRendered(svg);
         }
       }
+      
+      setError('');
+    } catch (err: any) {
+      console.error('Mermaid rendering error:', err);
+      const errorMessage = err?.message || 'Error rendering diagram';
+      setError(errorMessage);
+      
+      if (onError) {
+        onError(errorMessage);
+      }
+      
+      // Show fallback SVG on error
+      if (diagramRef.current) {
+        if (fallbackSvg) {
+          diagramRef.current.innerHTML = fallbackSvg;
+        } else {
+          // Minimal fallback SVG with no error text
+          const minimalFallback = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="300" viewBox="0 0 800 300">
+            <rect width="100%" height="100%" fill="#F9FAFB" rx="8" ry="8" />
+            <text x="50%" y="50%" text-anchor="middle" font-family="sans-serif" font-size="14px" fill="#9CA3AF">
+              Diagram preview will appear here
+            </text>
+          </svg>`;
+          
+          diagramRef.current.innerHTML = minimalFallback;
+        }
+      }
+    } finally {
+      setIsRendering(false);
     }
-  }, [content, project]);
+  };
+
+  // Effect to trigger diagram rendering when content changes
+  useEffect(() => {
+    if (content && !isLoading) {
+      renderDiagram(content);
+      
+      // Set up a periodic cleanup to remove any errors that appear
+      const cleanup = setInterval(cleanErrorElements, 300);
+      return () => clearInterval(cleanup);
+    } else if (isLoading && fallbackSvg && diagramRef.current) {
+      // Show loading state with fallback SVG
+      diagramRef.current.innerHTML = fallbackSvg;
+    } else if (!content && diagramRef.current) {
+      // Clear the diagram area
+      diagramRef.current.innerHTML = '';
+    }
+    
+    // Cleanup function to clear timeout
+    return () => {
+      if (renderTimeoutRef.current) {
+        clearTimeout(renderTimeoutRef.current);
+      }
+    };
+  }, [content, isLoading, fallbackSvg, diagramType]);
 
   return (
-    <div ref={diagramRef} style={{ width: '100%', height: '300px', overflow: 'visible' }}>
-      {error && (
-        <div style={{ 
-          position: 'absolute', 
-          top: '10px', 
-          left: '10px', 
-          background: 'rgba(255, 0, 0, 0.1)', 
-          padding: '5px', 
-          borderRadius: '4px',
-          fontSize: '12px',
-          pointerEvents: 'none',
-          maxWidth: '200px',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap'
-        }}>
+    <div 
+      ref={diagramRef} 
+      className="diagram-container relative w-full min-h-[300px] overflow-visible bg-white dark:bg-gray-800 rounded-lg shadow-sm transition-all"
+      data-rendering={isRendering ? 'true' : 'false'}
+      data-error={error ? 'true' : 'false'}
+      data-diagram-type={diagramType || 'unknown'}
+    >
+      {error && !suppressErrors && (
+        <div className="absolute top-2 left-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 px-3 py-1.5 rounded-md text-xs font-medium pointer-events-none max-w-[90%] overflow-hidden text-ellipsis whitespace-nowrap">
           {error}
+        </div>
+      )}
+      {isLoading && !fallbackSvg && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+          <div className="flex flex-col items-center">
+            <div className="h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+              Generating {diagramType || 'diagram'}...
+            </p>
+          </div>
         </div>
       )}
     </div>

@@ -288,6 +288,18 @@ const DiagramDisplay: React.FC<DiagramDisplayProps> = ({
   useEffect(() => {
     if (svgOutput && svgRef.current) {
       console.log('DiagramDisplay: SVG output updated, length:', svgOutput.length);
+      
+      // Force a re-render of the SVG content
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = svgOutput;
+      
+      // Check if the SVG is valid
+      const svgElement = tempDiv.querySelector('svg');
+      if (svgElement) {
+        console.log('DiagramDisplay: Valid SVG found in output');
+      } else {
+        console.warn('DiagramDisplay: No valid SVG found in output');
+      }
     }
   }, [svgOutput]);
 
@@ -589,21 +601,21 @@ const DiagramDisplay: React.FC<DiagramDisplayProps> = ({
         {/* Diagram Display Area */}
         <div
           ref={diagramRef}
-          className={`relative flex-1 overflow-hidden ${isDarkMode ? "bg-gray-900" : "bg-white"}`}
+          className={`relative flex-1 overflow-hidden ${isDarkMode ? "bg-gray-900" : "bg-[#e8dccc]"}`}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
         >
           {/* Loading Indicator */}
           {isLoading && (
-            <div className={`absolute inset-0 flex items-center justify-center z-10 ${isDarkMode ? "bg-gray-900/50" : "bg-white/50"}`}>
+            <div className={`absolute inset-0 flex items-center justify-center z-10 ${isDarkMode ? "bg-gray-900/50" : "bg-[#e8dccc]/50"}`}>
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
             </div>
           )}
           
           {/* Downloading Indicator */}
           {isDownloading && (
-            <div className={`absolute inset-0 flex flex-col items-center justify-center z-10 ${isDarkMode ? "bg-gray-900/50" : "bg-white/50"}`}>
+            <div className={`absolute inset-0 flex flex-col items-center justify-center z-10 ${isDarkMode ? "bg-gray-900/50" : "bg-[#e8dccc]/50"}`}>
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4"></div>
               <div className={`text-sm font-medium ${isDarkMode ? "text-white" : "text-gray-800"}`}>
                 Preparing {isDownloading === 'svg' ? 'SVG' : isDownloading === 'png-transparent' ? 'transparent PNG' : 'PNG'}...
@@ -641,7 +653,7 @@ const DiagramDisplay: React.FC<DiagramDisplayProps> = ({
             <div ref={svgRef} className="mermaid">
               {svgOutput ? (
                 <ClientOnlySvgRenderer 
-                  key={`svg-${Date.now()}`}
+                  key={`svg-${svgOutput.length}-${Date.now()}`}
                   svgOutput={svgOutput} 
                 />
               ) : (

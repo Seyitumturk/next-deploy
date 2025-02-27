@@ -14,6 +14,14 @@ import { motion } from 'framer-motion';
 const DiagramEditor: React.FC<EditorProps> = (props) => {
   const editor = useDiagramEditor(props);
 
+  // Make sure editor is properly initialized before rendering components
+  useEffect(() => {
+    // Check if editor is undefined or if setIsEditorReady is not a function
+    if (!editor || typeof editor.setIsEditorReady !== 'function') {
+      console.error("Editor or setIsEditorReady not properly initialized");
+    }
+  }, [editor]);
+
   // Add dark mode toggle state
   const [isDarkMode, setIsDarkMode] = useState(true);
 
@@ -166,7 +174,7 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
           currentDiagram={editor.currentDiagram}
           setCurrentDiagram={editor.setCurrentDiagram}
           onRenderDiagram={editor.renderDiagram}
-          setIsEditorReady={editor.setIsEditorReady}
+          setIsEditorReady={typeof editor.setIsEditorReady === 'function' ? editor.setIsEditorReady : () => {}}
           setShowPromptPanel={editor.setShowPromptPanel}
           isDarkMode={isDarkMode}
           onDiagramVersionSelect={editor.handleDiagramVersionSelect}

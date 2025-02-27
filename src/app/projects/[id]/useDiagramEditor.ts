@@ -94,29 +94,49 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
   // --- auto-scroll chat on update ---
   useEffect(() => {
     // Only run on client side
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || !chatContainerRef.current) return;
     
-    // Simple but effective auto-scroll function with repeated attempts
+    console.log("CHAT HISTORY OR GENERATING STATE CHANGED - SCROLLING"); // Debug log
+    
+    // Bulletproof direct DOM approach to scrolling
     const forceScrollToBottom = () => {
-      if (!chatContainerRef.current) return;
-      
       const container = chatContainerRef.current;
+      if (!container) return;
       
-      // Always use smooth scrolling for better UX
-      container.style.scrollBehavior = 'smooth';
-      
-      // Guaranteed scroll to bottom
-      container.scrollTop = container.scrollHeight;
+      try {
+        // Force to absolute bottom with no smooth scrolling
+        container.style.scrollBehavior = 'auto'; 
+        // Add extra padding to ensure we're at the bottom
+        container.scrollTop = container.scrollHeight + 10000;
+        
+        console.log("DIAGRAM EDITOR - SCROLLED TO BOTTOM:", container.scrollTop); // Debug
+      } catch (err) {
+        console.error("Scroll error in diagram editor:", err);
+      }
     };
-    
-    // Execute immediately and then several times with increasing delays
-    // This ensures scroll happens even if content renders slowly
+
+    // Execute immediately and multiple times with delays
     forceScrollToBottom();
-    const timeoutIds = [50, 150, 300, 500, 1000].map(
-      delay => setTimeout(forceScrollToBottom, delay)
-    );
     
-    return () => timeoutIds.forEach(id => clearTimeout(id));
+    // Use both setTimeout and requestAnimationFrame for maximum reliability
+    requestAnimationFrame(() => {
+      forceScrollToBottom();
+      
+      // Multiple delayed attempts
+      [10, 50, 100, 250, 500, 1000].forEach(delay => {
+        setTimeout(forceScrollToBottom, delay);
+      });
+    });
+    
+    // Also handle new mutations to catch dynamic content loading
+    const observer = new MutationObserver(forceScrollToBottom);
+    observer.observe(chatContainerRef.current, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+    
+    return () => observer.disconnect();
   }, [chatHistory, isGenerating]);
 
   // Initialize mermaid (client-side only)
@@ -155,7 +175,7 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
       
       // Use a stable ID that doesn't change between server and client
       // This prevents hydration mismatches
-      const uniqueId = `diagram-${projectId}`;
+      const uniqueId = `diagram-${projectId}-${Date.now()}`;
       console.log('renderDiagram: Using unique ID:', uniqueId);
       
       try {
@@ -192,6 +212,7 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
         // Return a minimal SVG to prevent UI breakage
         const fallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 100 50">
           <rect width="100%" height="100%" fill="transparent" />
+          <text x="50%" y="50%" text-anchor="middle" fill="red" font-size="10">Rendering Error</text>
         </svg>`;
         
         setSvgOutput(fallbackSvg);
@@ -206,6 +227,7 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
       // Return a minimal SVG to prevent UI breakage
       const fallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 100 50">
         <rect width="100%" height="100%" fill="transparent" />
+        <text x="50%" y="50%" text-anchor="middle" fill="red" font-size="10">Rendering Error</text>
       </svg>`;
       
       setSvgOutput(fallbackSvg);
@@ -987,8 +1009,14 @@ Requested changes: ${promptText}`;
   };
 
   // --- code change handler for the code editor mode ---
-  const handleCodeChange = async (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newCode = e.target.value;
+  const handleCodeChange = async (codeOrEvent: string | React.ChangeEvent<HTMLTextAreaElement>) => {
+    // Determine if input is a string or an event object
+    const newCode = typeof codeOrEvent === 'string' 
+      ? codeOrEvent 
+      : codeOrEvent.target?.value || '';
+    
+    if (!newCode) return;
+    
     setCurrentDiagram(newCode);
     
     try {
@@ -1022,53 +1050,69 @@ Requested changes: ${promptText}`;
   // --- document processing ---
   const processDocument = async (file: File) => {
     setIsProcessingFile(true);
+    // Add a processing message to chat history immediately
+    setChatHistory(prev => [
+      ...prev,
+      {
+        role: 'system',
+        content: `Processing document ${file.name}...`,
+        timestamp: new Date(),
+      },
+    ]);
+    
     try {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('diagramType', diagramType);
       
-      setChatHistory(prev => [
-        ...prev,
-        {
-          role: 'system',
-          content: `Processing document ${file.name}...`,
-          timestamp: new Date(),
-        },
-      ]);
       const response = await fetch('/api/process-document', {
         method: 'POST',
         body: formData,
       });
+      
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to process document');
       }
+      
       const { summary, message } = await response.json();
       setDocumentSummary(summary);
+      
+      // Update the chat history with document analysis result
       setChatHistory(prev => [
         ...prev,
         {
           role: 'document',
           content: `Document Analysis: ${file.name}`,
           timestamp: new Date(),
+          documentSource: file.name,
         },
       ]);
       
       // Set the prompt to a message prompting the user to add instructions
-      setPrompt("Your document has been analyzed. Please add any additional instructions or modifications.");
+      setPrompt("What would you like to create with this document?");
       
       // Close the file upload dropdown after successful processing
       setShowFileUpload(false);
     } catch (error) {
       console.error('Error processing document:', error);
       setError(error instanceof Error ? error.message : 'Failed to process document');
+      
+      // Add error message to chat history
+      setChatHistory(prev => [
+        ...prev,
+        {
+          role: 'system',
+          content: `Error: ${error instanceof Error ? error.message : 'Failed to process document'}`,
+          timestamp: new Date(),
+        },
+      ]);
     } finally {
       setIsProcessingFile(false);
     }
   };
 
-  // --- NEW: website processing ---
-  // This function uses an API endpoint that uses Playwright to load webpage content.
+  // --- website processing ---
   const processWebsite = async (url: string) => {
     setIsProcessingFile(true);
     try {
@@ -1103,12 +1147,10 @@ Requested changes: ${promptText}`;
       ]);
       
       // Set the prompt to a message prompting the user to add instructions
-      setPrompt("Your website has been analyzed. Please add any additional instructions or modifications.");
+      setPrompt("What would you like to create with this website content?");
       
       // Close the file upload dropdown after successful processing
       setShowFileUpload(false);
-      
-      // Removed auto-generation of diagram
       
     } catch (error) {
       console.error('Error processing website:', error);
@@ -1122,21 +1164,23 @@ Requested changes: ${promptText}`;
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    
     setIsProcessingFile(true);
+    // Add a processing message to chat history immediately
+    setChatHistory(prev => [
+      ...prev,
+      {
+        role: 'system',
+        content: `Processing ${file.name}...`,
+        timestamp: new Date(),
+      },
+    ]);
+    
     try {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('diagramType', diagramType);
       formData.append('extractOnly', 'true'); // Add flag to indicate we only want to extract info
-      
-      setChatHistory(prev => [
-        ...prev,
-        {
-          role: 'system',
-          content: `Processing ${file.name}...`,
-          timestamp: new Date(),
-        },
-      ]);
       
       const response = await fetch('/api/process-document', {
         method: 'POST',
@@ -1156,13 +1200,14 @@ Requested changes: ${promptText}`;
         ...prev,
         {
           role: 'document',
-          content: message,
+          content: message || `Document Analysis: ${file.name}`,
           timestamp: new Date(),
+          documentSource: file.name,
         },
       ]);
       
-      // Set the prompt to the extracted summary so user can edit it
-      setPrompt(summary);
+      // Set the prompt to a simple question instead of the extracted summary
+      setPrompt("What would you like to create with this document?");
       
       // Close the file upload dropdown after successful processing
       setShowFileUpload(false);
@@ -1172,13 +1217,23 @@ Requested changes: ${promptText}`;
         ...prev,
         {
           role: 'system',
-          content: "Document analyzed. You can now edit the extracted information and press Enter to generate a diagram.",
+          content: "Document analyzed. You can now provide instructions to generate a diagram.",
           timestamp: new Date(),
         },
       ]);
     } catch (error) {
       console.error('Error processing document:', error);
       setError(error instanceof Error ? error.message : 'Failed to process document');
+      
+      // Add error message to chat history
+      setChatHistory(prev => [
+        ...prev,
+        {
+          role: 'system',
+          content: `Error: ${error instanceof Error ? error.message : 'Failed to process document'}`,
+          timestamp: new Date(),
+        },
+      ]);
     } finally {
       setIsProcessingFile(false);
     }
@@ -1338,20 +1393,21 @@ Requested changes: ${promptText}`;
   // --- image processing ---
   const processImage = async (file: File) => {
     setIsProcessingImage(true);
+    // Add a processing message to chat history immediately
+    setChatHistory(prev => [
+      ...prev,
+      {
+        role: 'system',
+        content: `Processing image ${file.name}...`,
+        timestamp: new Date(),
+      },
+    ]);
+    
     try {
       const formData = new FormData();
       formData.append('image', file);
       formData.append('diagramType', diagramType);
       formData.append('extractOnly', 'true'); // Add flag to indicate we only want to extract info
-      
-      setChatHistory(prev => [
-        ...prev,
-        {
-          role: 'system',
-          content: `Processing image ${file.name}...`,
-          timestamp: new Date(),
-        },
-      ]);
       
       const response = await fetch('/api/process-image', {
         method: 'POST',
@@ -1374,22 +1430,31 @@ Requested changes: ${promptText}`;
           role: 'document',
           content: `Image Analysis: ${file.name}`,
           timestamp: new Date(),
+          documentSource: file.name,
         },
       ]);
       
       // Set the prompt to a message prompting the user to add instructions
-      setPrompt("Your image has been analyzed. Please add any additional instructions or modifications.");
+      setPrompt("What would you like to create with this image?");
       setDocumentSummary(extractedText);
       
       // Close the file upload dropdown after successful processing
       setShowFileUpload(false);
       
-      // Removed auto-generation of diagram
-      
+      // Add system message about successful processing
+      setChatHistory(prev => [
+        ...prev,
+        {
+          role: 'system',
+          content: "Image analyzed. You can now provide instructions to generate a diagram.",
+          timestamp: new Date(),
+        },
+      ]);
     } catch (error) {
       console.error('Error processing image:', error);
       setError(error instanceof Error ? error.message : 'Failed to process image');
       
+      // Add error message to chat history
       setChatHistory(prev => [
         ...prev,
         {
@@ -1449,6 +1514,7 @@ Requested changes: ${promptText}`;
     editorMode,
     setEditorMode,
     isEditorReady,
+    setIsEditorReady,
     isProcessingFile,
     documentSummary,
     chatHistory,

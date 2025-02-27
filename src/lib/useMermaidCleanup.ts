@@ -1,67 +1,112 @@
 import { useEffect, RefObject } from 'react';
 
 /**
- * Custom hook to clean up Mermaid error elements from the DOM
- * This helps prevent hydration errors and keeps the UI clean
+ * A custom hook that automatically cleans up Mermaid.js error elements
+ * from the DOM. This is useful because Mermaid may render error elements
+ * that are visually disruptive during streaming diagram updates.
+ * 
+ * @param diagramRef - A ref to the element containing the Mermaid diagram
+ * @param options - Optional configuration
+ * @returns void
  */
-export function useMermaidCleanup(containerRef: RefObject<HTMLElement>) {
+export function useMermaidCleanup(
+  diagramRef: RefObject<HTMLElement>,
+  options: {
+    interval?: number;      // How often to check for errors (in ms)
+    cleanDocument?: boolean; // Whether to clean the entire document or just the diagram
+  } = {}
+) {
+  const { 
+    interval = 500, 
+    cleanDocument = true 
+  } = options;
+
   useEffect(() => {
-    // Only run on client side
-    if (typeof window === 'undefined') return;
-    
-    // Function to remove error elements
+    // Function to clean up error elements
     const cleanupErrorElements = () => {
-      if (!containerRef.current) return;
-      
-      // Find and remove error elements
-      const errorElements = containerRef.current.querySelectorAll('.error-icon, .error-text, .error-message');
-      errorElements.forEach(el => {
-        try {
-          el.parentNode?.removeChild(el);
-        } catch (err) {
-          // Ignore errors if element was already removed
-        }
-      });
-    };
-    
-    // Run cleanup initially and set up an observer
-    cleanupErrorElements();
-    
-    // Use MutationObserver to detect when new error elements are added
-    const observer = new MutationObserver(mutations => {
-      mutations.forEach(mutation => {
-        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-          // Check if any added nodes are error elements
-          mutation.addedNodes.forEach(node => {
-            if (node instanceof HTMLElement) {
-              if (
-                node.classList.contains('error-icon') ||
-                node.classList.contains('error-text') ||
-                node.classList.contains('error-message')
-              ) {
-                // Remove the error element
-                try {
-                  node.parentNode?.removeChild(node);
-                } catch (err) {
-                  // Ignore errors if element was already removed
-                }
-              }
-            }
+      // List of selectors that match Mermaid error elements
+      const errorSelectors = [
+        '.error-icon',
+        '.error-text',
+        '.error-message',
+        '.marker.cross',
+        'g[class*="error"]',
+        'g[class*="flowchart-error"]',
+        'g[class*="syntax-error"]',
+        'g[class*="mermaid-error"]',
+        '[id*="mermaid-error"]',
+        '.mermaid > g.error',
+        '.mermaid > svg > g.error',
+        '.mermaid-error',
+        '.diagramError',
+        '.diagram-error',
+        '.syntax-error',
+        'svg[aria-roledescription="error"]',
+        'svg[aria-roledescription="syntax-error"]'
+      ];
+
+      // Clean up error elements in the diagram container
+      if (diagramRef.current) {
+        errorSelectors.forEach(selector => {
+          diagramRef.current?.querySelectorAll(selector).forEach(el => {
+            el.remove();
           });
-        }
-      });
-    });
-    
-    // Start observing the container
-    if (containerRef.current) {
-      observer.observe(containerRef.current, { childList: true, subtree: true });
-    }
-    
-    // Clean up the observer when the component unmounts
-    return () => {
-      observer.disconnect();
+        });
+
+        // Also remove by ID pattern
+        diagramRef.current.querySelectorAll('[id]').forEach(el => {
+          if (
+            el.id.includes('mermaid-error') || 
+            el.id.includes('syntax-error') || 
+            el.id.includes('flowchart-error')
+          ) {
+            el.remove();
+          }
+        });
+
+        // Also remove by aria-roledescription
+        diagramRef.current.querySelectorAll('[aria-roledescription]').forEach(el => {
+          if (
+            el.getAttribute('aria-roledescription') === 'error' || 
+            el.getAttribute('aria-roledescription') === 'syntax-error'
+          ) {
+            el.remove();
+          }
+        });
+      }
+
+      // If enabled, also clean up error elements in the entire document
+      if (cleanDocument) {
+        errorSelectors.forEach(selector => {
+          document.querySelectorAll(selector).forEach(el => {
+            el.remove();
+          });
+        });
+
+        // Look for orphaned error elements by ID
+        document.querySelectorAll('[id]').forEach(el => {
+          if (
+            el.id.includes('mermaid-error') || 
+            el.id.includes('syntax-error') || 
+            el.id.includes('flowchart-error')
+          ) {
+            el.remove();
+          }
+        });
+      }
     };
-  }, [containerRef]);
+
+    // Run cleanup immediately
+    cleanupErrorElements();
+
+    // Set up interval to continuously clean up error elements during renders
+    const intervalId = setInterval(cleanupErrorElements, interval);
+
+    // Clean up the interval when the component unmounts
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [diagramRef, interval, cleanDocument]);
 }
 
 /**
