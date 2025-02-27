@@ -149,7 +149,7 @@ export async function POST(req: Request) {
               }
 
               // Check for the end of Mermaid syntax
-              if (currentChunk.includes('```') && isCollectingDiagram) {
+              if (isCollectingDiagram && currentChunk.includes('```')) {
                 diagram += currentChunk.substring(0, currentChunk.indexOf('```'));
                 isCollectingDiagram = false;
 
@@ -266,17 +266,43 @@ export async function POST(req: Request) {
                 lineBuffer.push(...lines);
 
                 if (lineBuffer.length >= 2) {
-                  diagram += lineBuffer.join('\n') + '\n';
-                  await new Promise(resolve => setTimeout(resolve, ARTIFICIAL_DELAY));
-                  controller.enqueue(
-                    `data: ${JSON.stringify({ mermaidSyntax: diagram, isComplete: false })}\n\n`
-                  );
-                  lineBuffer = [];
+                  const partialDiagram = diagram + lineBuffer.join('\n') + '\n';
+                  
+                  // Ensure we're not sending malformed JSON that could break the stream
+                  try {
+                    JSON.stringify({ mermaidSyntax: partialDiagram, isComplete: false });
+                    
+                    // Add the lines to the diagram
+                    diagram += lineBuffer.join('\n') + '\n';
+                    
+                    // Add artificial delay to prevent overwhelming the client
+                    await new Promise(resolve => setTimeout(resolve, ARTIFICIAL_DELAY));
+                    
+                    // Send the update
+                    controller.enqueue(
+                      `data: ${JSON.stringify({ mermaidSyntax: diagram, isComplete: false })}\n\n`
+                    );
+                    
+                    // Clear the buffer
+                    lineBuffer = [];
+                  } catch (error) {
+                    console.warn('Error stringifying diagram update, skipping this chunk:', error);
+                    // Don't clear the buffer, we'll try again with the next chunk
+                  }
                 }
               }
             }
           }
         } catch (error) {
+          console.error('Error in streaming response:', error);
+          // Send an error message that the client can handle
+          try {
+            controller.enqueue(
+              `data: ${JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' })}\n\n`
+            );
+          } catch (e) {
+            console.error('Failed to send error message:', e);
+          }
           controller.error(error);
         } finally {
           controller.close();

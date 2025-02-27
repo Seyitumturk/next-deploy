@@ -261,14 +261,23 @@ const DiagramDisplay: React.FC<DiagramDisplayProps> = ({
 
   const handleRenderError = useCallback((error: Error) => {
     console.error('Diagram rendering error:', error);
+    
+    // Don't show errors during generation to keep the UI clean
+    if (isGenerating) {
+      return;
+    }
+    
     // Add basic error display
     if (diagramRef.current) {
+      // First, remove any existing error messages to avoid duplicates
+      diagramRef.current.querySelectorAll('.diagram-error-message').forEach(el => el.remove());
+      
       const errorMessage = document.createElement('div');
-      errorMessage.className = 'text-red-500 p-4 text-sm';
+      errorMessage.className = 'text-red-500 p-4 text-sm diagram-error-message';
       errorMessage.textContent = 'Error rendering diagram. Please check your syntax.';
       diagramRef.current.appendChild(errorMessage);
     }
-  }, []);
+  }, [isGenerating]);
 
   useEffect(() => {
     if (currentDiagram?.trim().toLowerCase().startsWith('gantt')) {
@@ -623,8 +632,8 @@ const DiagramDisplay: React.FC<DiagramDisplayProps> = ({
             </div>
           )}
           
-          {/* Render Error Display */}
-          {renderError && (
+          {/* Render Error Display - Only show when not generating */}
+          {renderError && !isGenerating && (
             <div className="absolute top-4 left-4 right-4 bg-red-500/10 border border-red-500/30 rounded-lg p-3 z-10">
               <div className="flex items-start">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">

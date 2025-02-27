@@ -162,7 +162,11 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
     try {
       console.log('renderDiagram: Starting render process');
       setIsLoading(true);
-      setRenderError(null);
+      
+      // Don't clear render error during streaming to avoid UI flashing
+      if (!isGenerating) {
+        setRenderError(null);
+      }
       
       const codeToRender = diagramCode || currentDiagram;
       console.log('renderDiagram: Code to render length:', codeToRender?.length || 0);
@@ -206,31 +210,43 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
       } catch (error) {
         console.warn('renderDiagram: Non-critical error during rendering:', error);
         
-        // Set error state
-        setRenderError(error instanceof Error ? error.message : String(error));
-        
-        // Return a minimal SVG to prevent UI breakage
-        const fallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 100 50">
-          <rect width="100%" height="100%" fill="transparent" />
-          <text x="50%" y="50%" text-anchor="middle" fill="red" font-size="10">Rendering Error</text>
-        </svg>`;
-        
-        setSvgOutput(fallbackSvg);
+        // Only set error state if we're not in the middle of generating
+        // This prevents error messages from appearing during streaming
+        if (!isGenerating) {
+          setRenderError(error instanceof Error ? error.message : String(error));
+          
+          // Only use fallback SVG if we don't already have an SVG (first render)
+          // Otherwise, keep the last valid SVG to maintain visual continuity
+          if (!svgOutput) {
+            const fallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 100 50">
+              <rect width="100%" height="100%" fill="transparent" />
+              <text x="50%" y="50%" text-anchor="middle" fill="red" font-size="10">Rendering Error</text>
+            </svg>`;
+            
+            setSvgOutput(fallbackSvg);
+          }
+        }
         
         setIsLoading(false);
         return false;
       }
     } catch (error) {
       console.error('Error in renderDiagram function:', error);
-      setRenderError(error instanceof Error ? error.message : String(error));
       
-      // Return a minimal SVG to prevent UI breakage
-      const fallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 100 50">
-        <rect width="100%" height="100%" fill="transparent" />
-        <text x="50%" y="50%" text-anchor="middle" fill="red" font-size="10">Rendering Error</text>
-      </svg>`;
-      
-      setSvgOutput(fallbackSvg);
+      // Only set error state if we're not in the middle of generating
+      if (!isGenerating) {
+        setRenderError(error instanceof Error ? error.message : String(error));
+        
+        // Only use fallback SVG if we don't already have an SVG
+        if (!svgOutput) {
+          const fallbackSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 100 50">
+            <rect width="100%" height="100%" fill="transparent" />
+            <text x="50%" y="50%" text-anchor="middle" fill="red" font-size="10">Rendering Error</text>
+          </svg>`;
+          
+          setSvgOutput(fallbackSvg);
+        }
+      }
       
       setIsLoading(false);
       return false;
@@ -347,9 +363,59 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
         
         // Update the SVG output state
         setSvgOutput(svg);
+        
+        // Clear any render errors since we successfully rendered
+        setRenderError(null);
       } catch (error) {
         console.warn('Non-critical error during streaming render:', error);
         // Don't update SVG if there's an error to avoid flickering
+        // Don't set renderError to keep the UI clean during streaming
+        
+        // Try to render a simplified version of the diagram by adding proper declarations
+        try {
+          // Extract the diagram type from the first line or use the project's diagram type
+          const lines = newContent.split('\n');
+          const firstLine = lines[0]?.trim().toLowerCase() || '';
+          let fixedContent = newContent;
+          
+          // If the first line doesn't contain a valid diagram declaration, add one
+          if (!firstLine.startsWith('flowchart') && 
+              !firstLine.startsWith('sequencediagram') && 
+              !firstLine.startsWith('classDiagram') && 
+              !firstLine.startsWith('erdiagram') && 
+              !firstLine.startsWith('gantt') && 
+              !firstLine.startsWith('pie') && 
+              !firstLine.startsWith('graph') && 
+              !firstLine.startsWith('statediagram') && 
+              !firstLine.startsWith('journey') && 
+              !firstLine.startsWith('mindmap')) {
+            
+            // Add appropriate declaration based on project diagram type
+            if (diagramType === 'flowchart') {
+              fixedContent = `flowchart TD\n${newContent}`;
+            } else if (diagramType === 'sequence') {
+              fixedContent = `sequenceDiagram\n${newContent}`;
+            } else if (diagramType === 'class') {
+              fixedContent = `classDiagram\n${newContent}`;
+            } else if (diagramType === 'er' || diagramType === 'erd') {
+              fixedContent = `erDiagram\n${newContent}`;
+            } else if (diagramType === 'gantt') {
+              fixedContent = `gantt\ndateFormat YYYY-MM-DD\n${newContent}`;
+            } else if (diagramType === 'state') {
+              fixedContent = `stateDiagram-v2\n${newContent}`;
+            } else if (diagramType === 'mindmap') {
+              fixedContent = `mindmap\n${newContent}`;
+            }
+            
+            // Try rendering with the fixed content
+            const { svg } = await mermaid.render(`${streamingRenderID}-fixed`, fixedContent);
+            setSvgOutput(svg);
+            console.log('Successfully rendered with fixed diagram declaration');
+          }
+        } catch (fixError) {
+          console.warn('Could not fix diagram during streaming:', fixError);
+          // Still don't show any errors to the user
+        }
       }
     })();
   };
