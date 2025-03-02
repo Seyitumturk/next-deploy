@@ -160,9 +160,10 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
   });
 
   // Wrap the processDocument function to update documentSummary
-  const processDocument = async (text: string) => {
-    setDocumentSummary(text);
-    return originalProcessDocument(text);
+  const processDocument = async (file: File) => {
+    const textContent = await file.text();
+    setDocumentSummary(textContent.substring(0, 1000) + (textContent.length > 1000 ? '...' : ''));
+    return originalProcessDocument(file);
   };
 
   const {
@@ -174,13 +175,12 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
     setError
   });
 
-  // Add new states for retry functionality
+  // Modify state variables for retry functionality
   const [isRetrying, setIsRetrying] = useState<boolean>(false);
-  const [retryAttempt, setRetryAttempt] = useState<number>(0);
+  // Remove auto-retry related states
   const [lastErrorMessage, setLastErrorMessage] = useState<string>('');
-  const MAX_AUTO_RETRIES = 1; // Auto-retry only once
 
-  // Modify the handleGenerateDiagram function to enhance error handling and retry logic
+  // Modify the handleGenerateDiagram function to simplify error handling
   const handleGenerateDiagram = async (e: React.FormEvent<HTMLFormElement> | null, initialPrompt?: string, isRetry: boolean = false, failureReason?: string) => {
     if (e) e.preventDefault();
     
@@ -201,9 +201,7 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
     // Update retry state
     if (isRetry) {
       setIsRetrying(true);
-      setRetryAttempt(prev => prev + 1);
     } else {
-      setRetryAttempt(0);
       setIsRetrying(false);
     }
 
@@ -231,8 +229,8 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
     } else {
       // If it's a retry, add a retry notification and a new typing indicator
       const retryNotification: ChatMessageData = {
-        role: 'system',
-        content: 'Retrying diagram generation with a fresh approach...',
+        role: 'assistant',
+        content: 'Retrying diagram generation...',
         timestamp: new Date(),
         isSystemNotification: true,
       };
@@ -251,8 +249,17 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
       // but skip the last two messages (user prompt and typing indicator)
       // so we don't duplicate them in the request
       const currentMessagesForContext = isRetry 
-        ? messages.filter(msg => !msg.isRetrying && !msg.isTyping) // Filter out retry notifications and typing indicators
-        : messages.slice(0, -2);
+        ? messages
+            .filter(msg => 
+              !msg.isRetrying && 
+              !msg.isTyping && 
+              !msg.error && 
+              !msg.isSystemNotification && 
+              (msg.role === 'user' || msg.role === 'assistant')
+            ) // Filter out all system messages and notifications
+        : messages
+            .slice(0, -2)
+            .filter(msg => msg.role === 'user' || msg.role === 'assistant'); // Only include user and assistant roles
 
       // Configure request options
       const options: RequestInit = {
@@ -300,7 +307,8 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
         let isComplete = false;
         let hasError = false;
         let errorMessage = '';
-        let needsRetry = false;
+        let allErrorMessages: string[] = []; // Collect all error messages during streaming
+        let isFinalError = false; // Flag to track if we're at the final error state
         
         while (!isComplete) {
           const { done, value } = await reader.read();
@@ -336,16 +344,17 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
                   if (data.error) {
                     hasError = true;
                     errorMessage = data.errorMessage || 'Failed to generate diagram';
-                    needsRetry = data.needsRetry || false;
-                    isComplete = data.isComplete || false;
                     
-                    // If we have a partial diagram, save it for reference
-                    if (data.mermaidSyntax) {
-                      receivedDiagram = data.mermaidSyntax;
+                    // Collect error message but don't throw yet
+                    if (errorMessage && !allErrorMessages.includes(errorMessage)) {
+                      allErrorMessages.push(errorMessage);
                     }
                     
-                    if (isComplete) {
-                      throw new Error(errorMessage);
+                    // Mark as final error if explicitly stated
+                    if (data.isComplete) {
+                      isComplete = true;
+                      isFinalError = true;
+                      break;
                     }
                     continue;
                   }
@@ -504,6 +513,15 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
           }
         }
         
+        // After the streaming completes, handle any accumulated errors
+        if (hasError && allErrorMessages.length > 0) {
+          // Store the error message for debugging purposes only
+          const finalErrorMessage = allErrorMessages[allErrorMessages.length - 1];
+          console.log(`[handleGenerateDiagram] Had streaming errors: ${finalErrorMessage}`);
+          console.log(`[handleGenerateDiagram] Checking if final diagram renders correctly despite streaming errors`);
+          // We no longer throw here - we'll let the diagram renderer decide if the final diagram has an error
+        }
+        
         // Use the received diagram
         const newDiagram = receivedDiagram;
         console.log(`[handleGenerateDiagram] Received final diagram code, length: ${newDiagram.length}`);
@@ -511,19 +529,29 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
         
         // Only proceed with saving if we have a valid diagram
         if (!newDiagram || newDiagram.trim().length === 0) {
-          throw new Error('Generated diagram is empty');
+          const emptyDiagramError = new Error('Generated diagram is empty');
+          (emptyDiagramError as any).hasRetryButton = true;
+          throw emptyDiagramError;
         }
+        
+        // Important: Clear any streaming errors since we have a complete diagram now
+        hasError = false;
+        setError('');
         
         // Remove typing indicator and add real AI response
         const aiMessage: ChatMessageData = {
           role: 'assistant',
-          content: explanation || 'Here is your updated diagram.',
+          content: 'Here is your updated diagram.',
           timestamp: new Date(),
           diagramVersion: newDiagram,
         };
         
         // Remove all typing indicators and add the real response
-        setMessages(prev => prev.filter(msg => !msg.isTyping).concat(aiMessage));
+        setMessages(prev => {
+          // When adding a success message, remove any existing error messages and typing indicators
+          const filteredMessages = prev.filter(msg => !msg.error && !msg.isTyping);
+          return [...filteredMessages, aiMessage];
+        });
         
         // Update history in database only for successful diagrams
         console.log(`[handleGenerateDiagram] Calling updateHistory with promptToUse: ${promptToUse.substring(0, 30)}..., newDiagram length: ${newDiagram.length}, type: chat`);
@@ -556,13 +584,17 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
         // Remove typing indicator and add real AI response
         const aiMessage: ChatMessageData = {
           role: 'assistant',
-          content: data.explanation || 'Here is your updated diagram.',
+          content: 'Here is your updated diagram.',
           timestamp: new Date(),
           diagramVersion: newDiagram,
         };
         
         // Remove all typing indicators and add the real response
-        setMessages(prev => prev.filter(msg => !msg.isTyping).concat(aiMessage));
+        setMessages(prev => {
+          // When adding a success message, remove any existing error messages and typing indicators
+          const filteredMessages = prev.filter(msg => !msg.error && !msg.isTyping);
+          return [...filteredMessages, aiMessage];
+        });
         
         // Update history in database
         console.log(`[handleGenerateDiagram] Calling updateHistory with promptToUse: ${promptToUse.substring(0, 30)}..., newDiagram length: ${newDiagram.length}, type: chat`);
@@ -588,147 +620,97 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
         renderDiagram(newDiagram);
       }
     } catch (err: any) {
-      console.error(`[handleGenerateDiagram] Error generating diagram:`, err);
-      const errorMsg = err.message || 'An error occurred';
+      console.error('Error generating diagram:', err);
       
-      // Check if we have a successful diagram despite the error
-      let hasValidDiagram = false;
-      let validDiagram = '';
+      // Enhanced error handling
+      const errorText = err?.message || 'Failed to generate diagram';
+      setError(errorText);
+      setLastErrorMessage(errorText); // Store for potential retry
       
-      // We need to check if the current diagram renders correctly
-      try {
-        // If we got to the point where we have a diagram and SVG
-        if (svgOutput && svgOutput.length > 0 && currentDiagram && currentDiagram.length > 0) {
-          console.log(`[handleGenerateDiagram] Got error but we have SVG output (${svgOutput.length} bytes) and diagram code (${currentDiagram.length} bytes)`);
-          hasValidDiagram = true;
-          validDiagram = currentDiagram;
-        } 
-        // Or if we can render the current diagram successfully
-        else if (currentDiagram && currentDiagram.length > 0) {
-          const testRenderSuccess = await renderDiagram(currentDiagram);
-          if (testRenderSuccess && svgOutput && svgOutput.length > 0) {
-            console.log(`[handleGenerateDiagram] Got error but rendering test succeeded, SVG: ${svgOutput.length} bytes`);
-            hasValidDiagram = true;
-            validDiagram = currentDiagram;
-          }
-        }
-        
-        // If we have a valid diagram, save it to history despite the error
-        if (hasValidDiagram) {
-          console.log(`[handleGenerateDiagram] Saving valid diagram to history despite error`);
-          
-          // Update messages to show we're using the valid diagram
-          const aiMessage: ChatMessageData = {
-            role: 'assistant',
-            content: 'Here is your diagram. (Note: There was a minor issue but I found a valid diagram to display)',
-            timestamp: new Date(),
-            diagramVersion: validDiagram,
-          };
-          
-          // Remove all typing indicators and add the real response
-          setMessages(prev => prev.filter(msg => !msg.isTyping).concat(aiMessage));
-          
-          // Save to history
-          await updateHistory({
-            prompt: promptToUse,
-            diagram: validDiagram,
-            diagram_img: svgOutput || latestSvgRef.current,
-            updateType: 'chat'
-          });
-          
-          // Persist history to database
-          await persistHistory({
-            prompt: promptToUse,
-            diagram: validDiagram,
-            diagram_img: svgOutput || latestSvgRef.current,
-            updateType: 'chat'
-          });
-          
-          // Also save SVG separately to ensure it's stored properly
-          try {
-            const saveSvgResponse = await fetch('/api/diagrams/save-svg', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                projectId,
-                svg: svgOutput || latestSvgRef.current
-              }),
-            });
-            console.log(`[handleGenerateDiagram] Emergency SVG save response: ${saveSvgResponse.status}`);
-          } catch (svgError) {
-            console.error('[handleGenerateDiagram] Failed to save SVG in error recovery:', svgError);
-          }
-          
-          // Clear prompt since we successfully handled this
-          setPrompt('');
-          
-          // Return early without showing error
-          return;
-        }
-      } catch (renderErr) {
-        console.error('Error during render test:', renderErr);
-      }
-      
-      // Regular error handling for actual errors
-      setError(errorMsg);
-      setLastErrorMessage(errorMsg);
-      
-      // If this is not yet a retry attempt, try again automatically
-      if (!isRetry && retryAttempt < MAX_AUTO_RETRIES) {
-        console.log('[handleGenerateDiagram] First attempt failed, retrying automatically...');
-        
-        // Add retry notification for the user
-        const retryingMessage: ChatMessageData = {
-          role: 'system',
-          content: 'There was an issue with diagram generation. Retrying automatically...',
-          timestamp: new Date(),
-          isSystemNotification: true,
-        };
-        
-        // Update messages to show the retry notification
-        setMessages(prev => prev.filter(msg => !msg.isTyping).concat(retryingMessage));
-        
-        // Add a small delay before retrying
-        setTimeout(() => {
-          handleGenerateDiagram(null, promptToUse, true, errorMsg);
-        }, 1500);
-        return; // Early return to avoid adding error message here
-      }
-      
-      // This was already a retry attempt or we hit another error, show error message
+      // Create a single error message for chat
       const errorMessage: ChatMessageData = {
         role: 'assistant',
-        content: isRetry 
-          ? 'I\'m having trouble creating this diagram. Please try a clearer prompt or a different diagram type.' 
-          : 'Sorry, I encountered an error while generating your diagram. You can try again with the retry button.',
+        content: `I couldn't create your diagram. Would you like to try again with a different prompt?`,
         timestamp: new Date(),
-        error: errorMsg,
-        hasRetryButton: true, // Add a flag to indicate this message should show a retry button
+        error: errorText,
+        hasRetryButton: true,
       };
       
       // Remove all typing indicators and add the error message
-      setMessages(prev => prev.filter(msg => !msg.isTyping).concat(errorMessage));
+      setMessages(prev => {
+        // Filter out any existing error messages and typing indicators
+        const filteredMessages = prev.filter(msg => !msg.error && !msg.isTyping);
+        return [...filteredMessages, errorMessage];
+      });
     } finally {
       setIsGenerating(false);
       setIsRetrying(false);
     }
   };
 
-  // Enhanced function to handle manual retry from the UI
+  // Add listener for the DIAGRAM_SYNTAX_ERROR message from iframe
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === 'DIAGRAM_SYNTAX_ERROR') {
+        // Only process final diagram errors, not intermediate streaming ones
+        if (!event.data.isFinal) {
+          console.log('[handleMessage] Ignoring non-final diagram error');
+          return;
+        }
+        
+        console.log('[handleMessage] Processing final diagram error');
+        
+        // This ensures the error from the diagram rendering is properly handled
+        const errorText = event.data.error || 'Diagram syntax error';
+        
+        // Only process the error if it's not already being displayed
+        if (!error || error !== errorText) {
+          setError(errorText);
+          setLastErrorMessage(errorText);
+          
+          // Create error message for chat
+          const errorMessage: ChatMessageData = {
+            role: 'assistant',
+            content: `I couldn't create your diagram. Would you like to try again with a different prompt?`,
+            timestamp: new Date(),
+            error: errorText,
+            hasRetryButton: event.data.hasRetryButton !== false, // Honor the hasRetryButton property, default to true
+          };
+          
+          // Add the error message to chat, but only if we're not already showing errors
+          setMessages(prev => {
+            // Filter out any existing error messages and typing indicators
+            const filteredMessages = prev.filter(msg => !msg.error && !msg.isTyping);
+            return [...filteredMessages, errorMessage];
+          });
+        }
+      }
+    };
+    
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [error]); // Add error to dependency array
+
+  // Simplified function to handle manual retry from the UI
   const handleRetry = () => {
     if (lastPrompt) {
       // Reset error state
       setError('');
+      setRenderError(null);
+      
+      // Add a system message about retry
       setMessages(prev => {
-        // Remove the last error message
-        const filteredMessages = prev.filter(msg => !msg.error);
+        // Filter out error messages and previous retry messages
+        const filteredMessages = prev.filter(msg => 
+          !msg.error && 
+          !msg.isSystemNotification && 
+          !(msg.content && msg.content.includes('Retrying diagram generation'))
+        );
         
-        // Add a system message about retry
+        // Add single retry message
         const retryMessage: ChatMessageData = {
-          role: 'system',
-          content: 'Retrying with a fresh approach...',
+          role: 'assistant', // Important: Use 'assistant' role instead of 'system' to avoid API errors
+          content: 'Creating a new diagram for you...',
           timestamp: new Date(),
           isSystemNotification: true,
         };
@@ -736,8 +718,18 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
         return [...filteredMessages, retryMessage];
       });
       
-      // Trigger generation with fresh cache and pass the last error message
-      handleGenerateDiagram(null, lastPrompt, true, lastErrorMessage);
+      // Log retry attempt
+      console.log(`[handleRetry] Retrying diagram generation`);
+      
+      // Trigger generation with fresh cache - set isGenerating to prevent multiple clicks
+      setIsGenerating(true);
+      // Use timeout to ensure UI updates before starting the request
+      setTimeout(() => {
+        handleGenerateDiagram(null, lastPrompt, true, lastErrorMessage);
+      }, 100);
+    } else {
+      // If somehow there's no last prompt, show an error
+      setError('No previous prompt to retry. Please enter a new prompt.');
     }
   };
 
@@ -815,6 +807,36 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
     // Load chat history
     loadChatHistory();
   }, []);
+
+  // Function to handle diagram syntax errors
+  const handleDiagramSyntaxError = useCallback((errorText: string) => {
+    console.log(`[handleDiagramSyntaxError] Handling syntax error: ${errorText}`);
+    setError(errorText);
+    setLastErrorMessage(errorText);
+    
+    // Create error message for chat
+    const errorMessage: ChatMessageData = {
+      role: 'assistant',
+      content: `I had trouble understanding how to create this diagram. Let's try a different approach or use a simpler description.`,
+      timestamp: new Date(),
+      error: errorText, // Store actual error for debugging
+      hasRetryButton: true,
+    };
+    
+    // Add the error message to chat, but only if we're not already showing errors
+    setMessages(prev => {
+      // Filter out any existing error messages and typing indicators
+      const filteredMessages = prev.filter(msg => !msg.error && !msg.isTyping);
+      return [...filteredMessages, errorMessage];
+    });
+  }, [setError, setLastErrorMessage, setMessages]);
+
+  // Listen for render errors and handle them
+  useEffect(() => {
+    if (renderError && !error) { // Only handle render errors if no other error is already displayed
+      handleDiagramSyntaxError(renderError);
+    }
+  }, [renderError, handleDiagramSyntaxError, error]);
 
   return {
     // State

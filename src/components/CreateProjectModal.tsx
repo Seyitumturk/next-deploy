@@ -99,10 +99,10 @@ export default function CreateProjectModal({ isOpen, onClose, isDarkMode }: Crea
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
           onClick={(e) => e.stopPropagation()}
           className={`${isDarkMode 
-            ? "bg-gradient-to-br from-gray-900 to-gray-800" 
+            ? "bg-[#201c1c] border-[#281c1c]/50" 
             : "bg-gradient-to-br from-white to-[#f0eee6]"} 
             rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border ${
-            isDarkMode ? "border-gray-700/50" : "border-gray-200/70"
+            isDarkMode ? "border-[#281c1c]/50" : "border-gray-200/70"
           }`}
         >
           <form
@@ -124,7 +124,7 @@ export default function CreateProjectModal({ isOpen, onClose, isDarkMode }: Crea
             <div className="relative">
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-80"></div>
               
-              <div className="p-6 border-b dark:border-gray-700/50">
+              <div className="p-6 border-b dark:border-[#281c1c]/70">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
@@ -221,7 +221,7 @@ export default function CreateProjectModal({ isOpen, onClose, isDarkMode }: Crea
                       
                       <div className={`relative rounded-xl overflow-hidden ${
                         isDarkMode 
-                          ? "bg-gray-800/50 border border-gray-700" 
+                          ? "bg-[#281c1c]/70 border border-[#281c1c]" 
                           : "bg-white/80 border border-gray-200 shadow-sm"
                       }`}>
                         <input
@@ -284,14 +284,14 @@ export default function CreateProjectModal({ isOpen, onClose, isDarkMode }: Crea
                                   ? "bg-primary/20 border-2 border-primary" 
                                   : "bg-primary/10 border-2 border-primary"
                                 : isDarkMode 
-                                  ? "bg-gray-800/70 border border-gray-700 hover:border-primary/50" 
+                                  ? "bg-[#281c1c]/70 border border-[#281c1c] hover:border-primary/50" 
                                   : "bg-white/80 border border-gray-200 hover:border-primary/50 shadow-sm"
                             }`}
                           >
                             <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
                               formData.diagramType === type.value
                                 ? "bg-primary/20"
-                                : isDarkMode ? "bg-gray-700/50" : "bg-gray-100"
+                                : isDarkMode ? "bg-[#281c1c] border border-[#281c1c]/80" : "bg-gray-100"
                             }`}>
                               <Image 
                                 src={type.icon} 

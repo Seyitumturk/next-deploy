@@ -3,7 +3,7 @@ import { downloadFile, convertSvgToPng, getFormattedFileName } from '../utils/ex
 
 interface UseDiagramExportProps {
   projectTitle: string;
-  svgRef: React.RefObject<HTMLDivElement>;
+  svgRef: React.RefObject<HTMLDivElement | null>;
   svgOutput: string;
   setIsDownloading: React.Dispatch<React.SetStateAction<string | null>>;
   diagramType: string;

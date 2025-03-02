@@ -78,7 +78,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({
             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
             </svg>
-            <span className="font-medium">Diagram rendering failed</span>
+            <span className="font-medium">Unable to create diagram</span>
           </div>
           <p className="ml-7 text-sm mb-2">{message.content}</p>
           
@@ -86,27 +86,25 @@ export const MessageContent: React.FC<MessageContentProps> = ({
             {!message.hasRetryButton ? (
               <p>We'll automatically retry once to create a simpler diagram...</p>
             ) : (
-              <p>Try writing a clearer prompt or selecting a different diagram type.</p>
+              <div>
+                <p className="mb-2">Try writing a clearer prompt or selecting a different diagram type.</p>
+                {onRetry && (
+                  <button 
+                    onClick={onRetry}
+                    className={`flex items-center px-4 py-2 mt-2 text-sm font-medium rounded-md 
+                      ${isDarkMode 
+                        ? 'bg-blue-700 hover:bg-blue-600 text-white' 
+                        : 'bg-blue-600 hover:bg-blue-500 text-white'}`}
+                  >
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    Try Again
+                  </button>
+                )}
+              </div>
             )}
           </div>
-          
-          {message.hasRetryButton && onRetry && (
-            <div className="mt-3 text-center">
-              <button
-                onClick={onRetry}
-                className={`inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium ${
-                  isDarkMode 
-                    ? 'bg-red-800 text-white hover:bg-red-700' 
-                    : 'bg-red-100 text-red-700 hover:bg-red-200'
-                }`}
-              >
-                <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                </svg>
-                Retry Generation
-              </button>
-            </div>
-          )}
         </div>
       </div>
     );

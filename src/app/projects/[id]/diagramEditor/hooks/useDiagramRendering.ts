@@ -102,8 +102,7 @@ const useDiagramRendering = ({
       // Log the error to console but don't display it to user
       console.error('[renderDiagram] Error rendering diagram:', error);
       
-      // Set error message for UI display only for actual syntax errors
-      // This prevents false "failed" states at the end of streaming
+      // Enhanced error detection - expand the list of error patterns
       if (error.message && (
         error.message.includes('Syntax error') || 
         error.message.includes('Parse error') ||
@@ -112,9 +111,48 @@ const useDiagramRendering = ({
         error.message.includes('Expecting') ||
         error.message.includes('Unexpected token') ||
         error.message.includes('not defined') ||
-        error.message.includes('missing')
+        error.message.includes('missing') ||
+        error.message.includes('failed') ||
+        error.message.includes('error in') ||
+        error.message.includes('Unknown') ||
+        error.message.includes('Cannot') ||
+        error.message.includes('No such') ||
+        error.message.includes('not allowed') ||
+        error.message.includes('malformed')
       )) {
-        setRenderError(`Diagram syntax error: ${error.message}`);
+        // Create a more user-friendly error message
+        const errorMsg = error.message
+          .replace(/^Error: /, '')
+          .replace(/\([^)]*\)/g, '')  // Remove parenthetical code references
+          .replace(/\s+/g, ' ')       // Normalize whitespace
+          .replace(/\n/g, ' ')        // Remove newlines
+          .trim();
+          
+        // Set only one error message, avoiding multiple error states
+        if (!errorMsg.includes('TypeError') && !errorMsg.includes('undefined')) {
+          setRenderError(`Diagram syntax error: ${errorMsg}`);
+        
+          // Signal to the parent component that we have a syntax error - only for final diagrams
+          // Use a debounced approach to avoid sending multiple error messages
+          const isFinalDiagram = !!currentDiagram && currentDiagram.length > 0;
+          
+          if (isFinalDiagram) {
+            console.log('[renderDiagram] Reporting syntax error for final diagram');
+            // Use a small delay to avoid multiple rapid messages
+            setTimeout(() => {
+              if (window.parent) {
+                window.parent.postMessage({
+                  type: 'DIAGRAM_SYNTAX_ERROR',
+                  error: errorMsg,
+                  hasRetryButton: true,
+                  isFinal: true
+                }, '*');
+              }
+            }, 100);
+          } else {
+            console.log('[renderDiagram] Ignoring syntax error for partial/streaming diagram');
+          }
+        }
       } else {
         // For other types of errors, don't set render error to avoid "failed" state
         // This helps with stream-end errors that aren't actually syntax issues

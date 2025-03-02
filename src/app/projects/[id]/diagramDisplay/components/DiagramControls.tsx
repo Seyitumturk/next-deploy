@@ -21,6 +21,8 @@ interface DiagramControlsProps {
   currentTheme: MermaidTheme;
   changeTheme: (theme: MermaidTheme) => void;
   diagramType: string;
+  hasRenderError?: boolean;
+  onRetry?: () => void;
 }
 
 export const DiagramControls: React.FC<DiagramControlsProps> = ({
@@ -39,7 +41,9 @@ export const DiagramControls: React.FC<DiagramControlsProps> = ({
   isDownloading,
   currentTheme,
   changeTheme,
-  diagramType
+  diagramType,
+  hasRenderError,
+  onRetry
 }) => {
   // State for theme selector
   const [showThemeSelector, setShowThemeSelector] = React.useState(false);

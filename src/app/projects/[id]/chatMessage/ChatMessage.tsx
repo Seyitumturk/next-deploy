@@ -94,8 +94,8 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
           )}
         </div>
         
-        {/* Message actions (only for non-typing assistant messages) */}
-        {message.role === 'assistant' && !message.isTyping && (
+        {/* Message actions (for assistant messages and error messages) */}
+        {(message.role === 'assistant' || (message.error && message.hasRetryButton)) && !message.isTyping && (
           <MessageActions 
             message={message}
             onDiagramVersionSelect={handleDiagramVersionSelect}

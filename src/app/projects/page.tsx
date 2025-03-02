@@ -431,23 +431,6 @@ export default function ProjectsPage() {
         {/* Search and Filter Bar */}
         <div className="mb-10">
           <div className="flex flex-col md:flex-row gap-4 items-start justify-between">
-            <div className="relative w-full md:w-96 flex-shrink-0">
-              <input
-                type="text"
-                placeholder="Search diagrams..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={`w-full px-4 py-3 pl-10 rounded-xl ${
-                  isDarkMode ? "bg-[#281c1c]/70 text-white focus:bg-[#281c1c] border border-[#281c1c] focus:border-primary/50" : "bg-white text-gray-900 border border-gray-200 focus:border-primary/50"
-                } focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all`}
-              />
-              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1110.5 3a7.5 7.5 0 016.15 12.65z" />
-                </svg>
-              </div>
-            </div>
-            
             {/* New Diagram button for mobile */}
             <button
               onClick={() => setIsModalOpen(true)}
@@ -499,7 +482,6 @@ export default function ProjectsPage() {
                     </button>
                   ))}
                 </div>
-                
                 {showScrollIndicator && (
                   <div 
                     className="absolute right-0 top-1/2 transform -translate-y-1/2 cursor-pointer z-10"
@@ -525,13 +507,31 @@ export default function ProjectsPage() {
               {/* New Diagram button for desktop */}
               <button
                 onClick={() => setIsModalOpen(true)}
-                className="hidden md:flex px-4 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-xl transition-colors items-center space-x-2 shadow-lg shadow-primary/20 whitespace-nowrap flex-shrink-0"
+                className="hidden md:flex px-4 py-2.5 bg-primary hover:bg-primary-dark text-white rounded-xl transition-colors items-center space-x-2 shadow-lg shadow-primary/20"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
                 </svg>
                 <span>New Diagram</span>
               </button>
+            </div>
+          </div>
+          
+          {/* Search moved under filters */}
+          <div className="relative w-full md:w-96 flex-shrink-0 mt-4">
+            <input
+              type="text"
+              placeholder="Search projects..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className={`w-full px-4 py-3 pl-10 rounded-xl ${
+                isDarkMode ? "bg-[#281c1c]/70 text-white focus:bg-[#281c1c] border border-[#281c1c] focus:border-primary/50" : "bg-white text-gray-900 border border-gray-200 focus:border-primary/50"
+              } focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all`}
+            />
+            <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1110.5 3a7.5 7.5 0 016.15 12.65z" />
+              </svg>
             </div>
           </div>
         </div>
