@@ -309,12 +309,14 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
         let errorMessage = '';
         let allErrorMessages: string[] = []; // Collect all error messages during streaming
         let isFinalError = false; // Flag to track if we're at the final error state
+        let isStreamActive = true; // New flag to track if streaming is active
         
         while (!isComplete) {
           const { done, value } = await reader.read();
           
           if (done) {
             isComplete = true;
+            isStreamActive = false; // Mark streaming as complete
             break;
           }
           
@@ -340,22 +342,27 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
                   
                   const data = JSON.parse(jsonStr);
                   
-                  // Check for errors first
+                  // Silently collect errors during streaming, don't display them
                   if (data.error) {
+                    // Just collect the error info, don't set state or display it
                     hasError = true;
                     errorMessage = data.errorMessage || 'Failed to generate diagram';
                     
-                    // Collect error message but don't throw yet
+                    // Collect error message but don't display or throw
                     if (errorMessage && !allErrorMessages.includes(errorMessage)) {
                       allErrorMessages.push(errorMessage);
+                      console.log(`[handleGenerateDiagram] Collected streaming error (not displaying): ${errorMessage}`);
                     }
                     
-                    // Mark as final error if explicitly stated
+                    // Mark as final error only if explicitly complete
                     if (data.isComplete) {
                       isComplete = true;
                       isFinalError = true;
+                      isStreamActive = false; // Mark streaming as complete
                       break;
                     }
+                    
+                    // Skip completely - no state updates for streaming errors
                     continue;
                   }
                   
@@ -394,6 +401,7 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
                   if (data.isComplete && data.gptResponseId) {
                     console.log(`[handleGenerateDiagram] Stream complete, gptResponseId: ${data.gptResponseId}`);
                     isComplete = true;
+                    isStreamActive = false; // Mark streaming as complete
                     
                     // Immediately save the current SVG if available
                     const immediateCurrentSvg = svgOutput || latestSvgRef.current;
@@ -513,15 +521,50 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
           }
         }
         
-        // After the streaming completes, handle any accumulated errors
-        if (hasError && allErrorMessages.length > 0) {
-          // Store the error message for debugging purposes only
-          const finalErrorMessage = allErrorMessages[allErrorMessages.length - 1];
-          console.log(`[handleGenerateDiagram] Had streaming errors: ${finalErrorMessage}`);
-          console.log(`[handleGenerateDiagram] Checking if final diagram renders correctly despite streaming errors`);
-          // We no longer throw here - we'll let the diagram renderer decide if the final diagram has an error
+        // Handle errors after streaming is completely done
+        isStreamActive = false; // Ensure streaming state is marked as complete
+        
+        // Only show error UI if this was a true final error and not a resolved streaming error
+        if (isFinalError) {
+          const finalErrorMessage = allErrorMessages.length > 0 
+            ? allErrorMessages[allErrorMessages.length - 1] 
+            : 'Failed to generate diagram';
+            
+          console.log(`[handleGenerateDiagram] Final error occurred: ${finalErrorMessage}`);
+          
+          // Now we can set error states
+          setError(finalErrorMessage);
+          setLastErrorMessage(finalErrorMessage);
+          
+          // Create error message for chat
+          const errorMessage: ChatMessageData = {
+            role: 'assistant',
+            content: `I couldn't create your diagram. Would you like to try again with a different prompt?`,
+            timestamp: new Date(),
+            error: finalErrorMessage,
+            hasRetryButton: true,
+          };
+          
+          // Add the error message to chat, replacing any typing indicators
+          setMessages(prev => {
+            // Filter out any existing typing indicators
+            const filteredMessages = prev.filter(msg => !msg.isTyping);
+            return [...filteredMessages, errorMessage];
+          });
+          
+          // Clean up
+          setIsGenerating(false);
+          setIsRetrying(false);
+          return; // Exit early - don't proceed to processing the diagram
+        } 
+        else if (hasError && allErrorMessages.length > 0) {
+          // We had streaming errors, but the final diagram rendered successfully
+          console.log(`[handleGenerateDiagram] Had ${allErrorMessages.length} streaming errors but final diagram rendered successfully. Not showing error UI.`);
+          // Clear any existing error state to be safe
+          setError('');
         }
         
+        // Process the successful diagram if we get here
         // Use the received diagram
         const newDiagram = receivedDiagram;
         console.log(`[handleGenerateDiagram] Received final diagram code, length: ${newDiagram.length}`);

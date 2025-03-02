@@ -196,7 +196,7 @@ Please try again with a completely fresh approach, focusing on simpler, more rel
             stream: boolean;
           } = {
             model: "claude-3-7-sonnet-20250219",
-            max_tokens: 10000,
+            max_tokens: 50000,
             temperature: 0.9,
             system: systemPrompt,
             messages: messageContent,

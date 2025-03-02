@@ -16,6 +16,7 @@ export interface ChatMessageData {
   hasRetryButton?: boolean;
   isSystemNotification?: boolean;
   isFinalError?: boolean;
+  isTemporaryError?: boolean;
   reactions?: string[];
   documentSource?: string;
 }
