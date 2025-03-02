@@ -337,12 +337,12 @@ export default function ProjectsPage() {
   };
 
   return (
-    <div className={`min-h-screen relative flex flex-col ${isDarkMode ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900" : "bg-gradient-to-br from-[#f0eee6] via-white to-[#f0eee6]"}`}>
+    <div className={`min-h-screen relative flex flex-col ${isDarkMode ? "bg-[#201c1c]" : "bg-gradient-to-br from-[#f0eee6] via-white to-[#f0eee6]"}`}>
       {/* Modern Navbar */}
       <nav
         className={`sticky top-0 z-50 h-16 backdrop-blur-md ${
           isDarkMode 
-            ? "bg-gray-900/80 border-b border-gray-800/50" 
+            ? "bg-[#201c1c]/80 border-b border-[#281c1c]/50" 
             : "bg-[#e8dccc]/80 border-b border-[#e8dccc]/50"
         }`}
       >
@@ -419,7 +419,7 @@ export default function ProjectsPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
             className={`relative max-w-2xl mx-auto px-6 py-4 rounded-lg ${
-              isDarkMode ? "bg-[#282424]/60 border border-[#282424]/50" : "bg-[#e8dccc]/60 border border-[#d8cbb8]/50"
+              isDarkMode ? "bg-[#281c1c]/60 border border-[#281c1c]/50" : "bg-[#e8dccc]/60 border border-[#d8cbb8]/50"
             } shadow-md`}
           >
             <p className={`text-xl ${isDarkMode ? "text-white" : "text-gray-900"}`}>
@@ -438,7 +438,7 @@ export default function ProjectsPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className={`w-full px-4 py-3 pl-10 rounded-xl ${
-                  isDarkMode ? "bg-[#282424]/70 text-white focus:bg-[#282424] border border-[#282424] focus:border-primary/50" : "bg-white text-gray-900 border border-gray-200 focus:border-primary/50"
+                  isDarkMode ? "bg-[#281c1c]/70 text-white focus:bg-[#281c1c] border border-[#281c1c] focus:border-primary/50" : "bg-white text-gray-900 border border-gray-200 focus:border-primary/50"
                 } focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all`}
               />
               <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
@@ -477,7 +477,7 @@ export default function ProjectsPage() {
                     className={`px-3 py-1.5 text-sm rounded-full whitespace-nowrap transition-all flex-shrink-0 ${
                       activeFilter === null
                         ? (isDarkMode ? 'bg-primary text-white' : 'bg-primary text-white')
-                        : (isDarkMode ? 'bg-[#282424] text-gray-300 hover:bg-[#343030]' : 'bg-gray-100 text-gray-700 hover:bg-gray-200')
+                        : (isDarkMode ? 'bg-[#281c1c] text-gray-300 hover:bg-[#281c1c]' : 'bg-gray-100 text-gray-700 hover:bg-gray-200')
                     }`}
                   >
                     All
@@ -489,7 +489,7 @@ export default function ProjectsPage() {
                       className={`px-3 py-1.5 text-sm rounded-full whitespace-nowrap flex items-center space-x-1 transition-all flex-shrink-0 ${
                         activeFilter === type
                           ? (isDarkMode ? 'bg-primary text-white' : 'bg-primary text-white')
-                          : (isDarkMode ? 'bg-[#282424] text-gray-300 hover:bg-[#343030]' : 'bg-gray-100 text-gray-700 hover:bg-gray-200')
+                          : (isDarkMode ? 'bg-[#281c1c] text-gray-300 hover:bg-[#281c1c]' : 'bg-gray-100 text-gray-700 hover:bg-gray-200')
                       }`}
                     >
                       <span className="w-3 h-3">
@@ -506,7 +506,7 @@ export default function ProjectsPage() {
                     onClick={scrollRight}
                   >
                     <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
-                      isDarkMode ? 'bg-[#282424]/90 hover:bg-[#343030]/90' : 'bg-gray-100/90 hover:bg-gray-200/90'
+                      isDarkMode ? 'bg-[#281c1c]/90 hover:bg-[#281c1c]/90' : 'bg-gray-100/90 hover:bg-gray-200/90'
                     } shadow-sm transition-colors`}>
                       <svg 
                         xmlns="http://www.w3.org/2000/svg" 
@@ -541,12 +541,12 @@ export default function ProjectsPage() {
             {[...Array(6)].map((_, i) => (
               <div
                 key={i}
-                className={`rounded-xl p-6 shadow-md animate-pulse ${isDarkMode ? 'bg-[#282424]/50' : 'bg-[#e8dccc]/50'}`}
+                className={`rounded-xl p-6 shadow-md animate-pulse ${isDarkMode ? 'bg-[#281c1c]/50' : 'bg-[#e8dccc]/50'}`}
               >
-                <div className="h-48 bg-gray-200 dark:bg-[#343030] rounded-lg mb-4" />
-                <div className="h-8 bg-gray-200 dark:bg-[#343030] rounded w-3/4 mb-4" />
-                <div className="h-4 bg-gray-200 dark:bg-[#343030] rounded w-1/2 mb-2" />
-                <div className="h-4 bg-gray-200 dark:bg-[#343030] rounded w-1/4" />
+                <div className="h-48 bg-gray-200 dark:bg-[#201c1c] rounded-lg mb-4" />
+                <div className="h-8 bg-gray-200 dark:bg-[#201c1c] rounded w-3/4 mb-4" />
+                <div className="h-4 bg-gray-200 dark:bg-[#201c1c] rounded w-1/2 mb-2" />
+                <div className="h-4 bg-gray-200 dark:bg-[#201c1c] rounded w-1/4" />
               </div>
             ))}
           </div>
@@ -555,7 +555,7 @@ export default function ProjectsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className={`text-center py-16 px-4 rounded-2xl ${isDarkMode ? 'bg-[#282424]/50' : 'bg-[#e8dccc]/50'} shadow-xl`}
+            className={`text-center py-16 px-4 rounded-2xl ${isDarkMode ? 'bg-[#281c1c]/50' : 'bg-[#e8dccc]/50'} shadow-xl`}
           >
             <div className="text-6xl mb-6">🎨</div>
             <h3 className={`text-2xl font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-black'}`}>
@@ -575,7 +575,7 @@ export default function ProjectsPage() {
             </button>
           </motion.div>
         ) : searchQuery && filteredProjects.length === 0 ? (
-          <div className={`text-center py-12 px-4 rounded-2xl ${isDarkMode ? 'bg-[#282424]/50' : 'bg-[#e8dccc]/50'} shadow-xl`}>
+          <div className={`text-center py-12 px-4 rounded-2xl ${isDarkMode ? 'bg-[#281c1c]/50' : 'bg-[#e8dccc]/50'} shadow-xl`}>
             <h3 className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>
               No diagrams match &quot;{searchQuery}&quot;
             </h3>
@@ -599,9 +599,9 @@ export default function ProjectsPage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: index * 0.05 }}
                   className={`group relative ${
-                    isDarkMode ? 'bg-[#282424]/70 hover:bg-[#282424]' : 'bg-[#e8dccc]/70 hover:bg-[#e8dccc]'
+                    isDarkMode ? 'bg-[#281c1c]/70 hover:bg-[#281c1c]' : 'bg-[#e8dccc]/70 hover:bg-[#e8dccc]'
                   } rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 border ${
-                    isDarkMode ? 'border-[#343030]' : 'border-[#d8cbb8]'
+                    isDarkMode ? 'border-[#201c1c]' : 'border-[#d8cbb8]'
                   }`}
                 >
                   {/* Preview section - clickable */}
@@ -616,7 +616,7 @@ export default function ProjectsPage() {
                       
                       {/* Type badge */}
                       <div className={`absolute top-3 left-3 px-2.5 py-1 rounded-full text-xs font-medium flex items-center space-x-1 ${
-                        isDarkMode ? 'bg-[#282424]/70 text-gray-300' : 'bg-[#d8cbb8]/70 text-[#6a5c4c]'
+                        isDarkMode ? 'bg-[#281c1c]/70 text-gray-300' : 'bg-[#d8cbb8]/70 text-[#6a5c4c]'
                       }`}>
                         <span className="w-3 h-3 flex items-center justify-center">
                           {getDiagramIcon(project.diagramType)}
@@ -660,7 +660,7 @@ export default function ProjectsPage() {
                       <Link 
                         href={`/projects/${project._id}`}
                         className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
-                          isDarkMode ? 'bg-[#282424] hover:bg-[#343030] text-white' : 'bg-[#d8cbb8] text-[#6a5c4c] hover:bg-[#c8bba8]'
+                          isDarkMode ? 'bg-[#281c1c] hover:bg-[#281c1c] text-white' : 'bg-[#d8cbb8] text-[#6a5c4c] hover:bg-[#c8bba8]'
                         } transition-colors flex items-center space-x-1`}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -696,7 +696,7 @@ export default function ProjectsPage() {
                   onClick={loadMoreProjects}
                   disabled={isLoadingMore}
                   className={`px-6 py-3 rounded-xl ${
-                    isDarkMode ? 'bg-[#282424] hover:bg-[#343030] text-white border border-[#343030]' : 'bg-[#e8dccc] hover:bg-[#d8cbb8] text-[#6a5c4c] border border-[#d8cbb8]'
+                    isDarkMode ? 'bg-[#281c1c] hover:bg-[#281c1c] text-white border border-[#281c1c]' : 'bg-[#e8dccc] hover:bg-[#d8cbb8] text-[#6a5c4c] border border-[#d8cbb8]'
                   } transition-colors shadow-sm flex items-center space-x-2`}
                 >
                   {isLoadingMore ? (

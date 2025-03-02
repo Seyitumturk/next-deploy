@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import useLocalStorage from '@/lib/useLocalStorage';
 import { EditorProps, MermaidTheme } from './types';
 import { ChatMessageData } from '../chatMessage/types';
@@ -18,7 +18,7 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [showPromptPanel, setShowPromptPanel] = useState(true);
-  const [svgOutput, setSvgOutput] = useState<string>('');
+  const [svgOutput, _setSvgOutput] = useState<string>('');
   const [messages, setMessages] = useState<ChatMessageData[]>([]);
   const [versionId, setVersionId] = useState<string>('');
   const [isVersionSelectionInProgress, setIsVersionSelectionInProgress] = useState<boolean>(false);
@@ -42,7 +42,7 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
   // Add a state to track when chat history is loading
   const [isChatHistoryLoading, setIsChatHistoryLoading] = useState(false);
   
-  // Add a ref to track the current SVG output for saving
+  // Add a ref to always track the latest SVG to ensure it's available for saves
   const latestSvgRef = useRef<string>('');
 
   // --- Refs ---
@@ -59,6 +59,27 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
     setDiagramHistory,
     updateHistory
   } = useHistory({ initialDiagram, initialHistory });
+
+  // Create a wrapper for setSvgOutput that also updates the ref
+  const setSvgOutput = useCallback((value: React.SetStateAction<string>) => {
+    if (typeof value === 'function') {
+      _setSvgOutput(prevSvg => {
+        const newSvg = value(prevSvg);
+        if (newSvg && newSvg.length > 0) {
+          latestSvgRef.current = newSvg;
+          console.log(`[setSvgOutput] Updated latestSvgRef with SVG, length: ${newSvg.length}`);
+        }
+        return newSvg;
+      });
+    } else {
+      // It's a direct string value
+      if (value && value.length > 0) {
+        latestSvgRef.current = value;
+        console.log(`[setSvgOutput] Updated latestSvgRef with SVG, length: ${value.length}`);
+      }
+      _setSvgOutput(value);
+    }
+  }, []);
 
   // Function to persist history changes to the database
   const persistHistory = async (historyData: {
@@ -100,20 +121,7 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
   } = useDiagramRendering({
     currentDiagram,
     setCurrentDiagram,
-    setSvgOutput: (svg: string | ((prevSvg: string) => string)) => {
-      // Handle both string and function updates and keep our ref updated
-      if (typeof svg === 'function') {
-        setSvgOutput(prevSvg => {
-          const newSvg = svg(prevSvg);
-          latestSvgRef.current = newSvg;
-          return newSvg;
-        });
-      } else {
-        // It's a direct string value
-        latestSvgRef.current = svg;
-        setSvgOutput(svg);
-      }
-    },
+    setSvgOutput,
     setVersionId,
     setRenderError,
     currentTheme,
@@ -354,15 +362,19 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
                     // Track successful renders for improved save reliability
                     if (renderSuccess && svgOutput && svgOutput.length > 0) {
                       console.log(`[handleGenerateDiagram] Successfully rendered diagram with SVG length: ${svgOutput.length}`);
-                      // We don't need to modify latestSvgRef directly as svgOutput state will update
+                      latestSvgRef.current = svgOutput; // Explicitly update the ref for safety
                     }
                     
-                    // If we still don't have SVG output after rendering, try rendering again
+                    // If we still don't have SVG output after rendering, try rendering again with increased delay
                     if ((!svgOutput || svgOutput.length === 0) && renderSuccess) {
                       console.log(`[handleGenerateDiagram] Initial render didn't produce SVG, rendering again`);
-                      setTimeout(() => {
-                        renderDiagram(receivedDiagram);
-                      }, 200);
+                      setTimeout(async () => {
+                        const reRenderSuccess = await renderDiagram(receivedDiagram);
+                        console.log(`[handleGenerateDiagram] Re-render result: ${reRenderSuccess}, SVG length: ${svgOutput?.length || 0}`);
+                        if (reRenderSuccess && svgOutput && svgOutput.length > 0) {
+                          latestSvgRef.current = svgOutput;
+                        }
+                      }, 500); // Increased from 200ms to 500ms for better reliability
                     }
                   }
                   
@@ -374,10 +386,32 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
                     console.log(`[handleGenerateDiagram] Stream complete, gptResponseId: ${data.gptResponseId}`);
                     isComplete = true;
                     
-                    // Wait a moment for final rendering to complete, then save the SVG
+                    // Immediately save the current SVG if available
+                    const immediateCurrentSvg = svgOutput || latestSvgRef.current;
+                    if (immediateCurrentSvg && immediateCurrentSvg.length > 0) {
+                      console.log(`[handleGenerateDiagram] Saving immediate SVG, length: ${immediateCurrentSvg.length}`);
+                      try {
+                        const saveSvgResponse = await fetch('/api/diagrams/save-svg', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          body: JSON.stringify({
+                            projectId,
+                            gptResponseId: data.gptResponseId,
+                            svg: immediateCurrentSvg
+                          }),
+                        });
+                        console.log(`[handleGenerateDiagram] Immediate SVG save response: ${saveSvgResponse.status}`);
+                      } catch (error) {
+                        console.error('[handleGenerateDiagram] Error saving immediate SVG:', error);
+                      }
+                    }
+                    
+                    // Wait a moment for final rendering to complete, then save the SVG again
                     setTimeout(async () => {
                       // Get the most recent SVG output
-                      const currentSvg = svgOutput;
+                      const currentSvg = svgOutput || latestSvgRef.current;
                       
                       // Perform one final render attempt if needed
                       if (!currentSvg || currentSvg.length === 0) {
@@ -385,11 +419,15 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
                         if (receivedDiagram && receivedDiagram.length > 0) {
                           const finalRenderSuccess = await renderDiagram(receivedDiagram);
                           console.log(`[handleGenerateDiagram] Final render attempt result: ${finalRenderSuccess}, svg length now: ${svgOutput?.length || 0}`);
+                          // Update latest SVG ref after final render
+                          if (svgOutput && svgOutput.length > 0) {
+                            latestSvgRef.current = svgOutput;
+                          }
                         }
                       }
                       
                       // Now try to save whatever SVG we have
-                      const svgToSave = svgOutput;
+                      const svgToSave = svgOutput || latestSvgRef.current;
                       if (svgToSave && svgToSave.length > 0) {
                         console.log(`[handleGenerateDiagram] Saving SVG separately after stream completion, SVG length: ${svgToSave.length}`);
                         try {
@@ -419,6 +457,11 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
                         
                         // Try one more time after another delay
                         setTimeout(async () => {
+                          // Force one last render attempt before final save
+                          if (receivedDiagram) {
+                            await renderDiagram(receivedDiagram);
+                          }
+                          
                           const finalSvg = latestSvgRef.current || svgOutput;
                           if (finalSvg && finalSvg.length > 0) {
                             console.log(`[handleGenerateDiagram] Second attempt - Saving SVG after delay, length: ${finalSvg.length}`);
@@ -441,9 +484,9 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
                           } else {
                             console.error('[handleGenerateDiagram] Still no SVG available after second attempt');
                           }
-                        }, 1000);
+                        }, 1500); // Increased from 1000ms to 1500ms for better reliability
                       }
-                    }, 2000); // Increased delay to 2 seconds
+                    }, 2500); // Increased from 2000ms to 2500ms for better reliability
                   }
                 } catch (e) {
                   console.error('Error parsing SSE data:', e, line);
@@ -487,7 +530,7 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
         await updateHistory({
           prompt: promptToUse,
           diagram: newDiagram,
-          diagram_img: svgOutput,
+          diagram_img: svgOutput || latestSvgRef.current,
           updateType: 'chat'
         });
         
@@ -495,7 +538,7 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
         await persistHistory({
           prompt: promptToUse,
           diagram: newDiagram,
-          diagram_img: svgOutput,
+          diagram_img: svgOutput || latestSvgRef.current,
           updateType: 'chat'
         });
         
@@ -526,7 +569,7 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
         await updateHistory({
           prompt: promptToUse,
           diagram: newDiagram,
-          diagram_img: svgOutput,
+          diagram_img: svgOutput || latestSvgRef.current,
           updateType: 'chat'
         });
         
@@ -534,7 +577,7 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
         await persistHistory({
           prompt: promptToUse,
           diagram: newDiagram,
-          diagram_img: svgOutput,
+          diagram_img: svgOutput || latestSvgRef.current,
           updateType: 'chat'
         });
         
@@ -589,7 +632,7 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
           await updateHistory({
             prompt: promptToUse,
             diagram: validDiagram,
-            diagram_img: svgOutput,
+            diagram_img: svgOutput || latestSvgRef.current,
             updateType: 'chat'
           });
           
@@ -597,7 +640,7 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
           await persistHistory({
             prompt: promptToUse,
             diagram: validDiagram,
-            diagram_img: svgOutput,
+            diagram_img: svgOutput || latestSvgRef.current,
             updateType: 'chat'
           });
           
@@ -610,7 +653,7 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
               },
               body: JSON.stringify({
                 projectId,
-                svg: svgOutput
+                svg: svgOutput || latestSvgRef.current
               }),
             });
             console.log(`[handleGenerateDiagram] Emergency SVG save response: ${saveSvgResponse.status}`);

@@ -10,7 +10,7 @@ export default async function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#3A0CA3] to-[#0D0D0D] animate-gradient flex flex-col items-center justify-center">
+    <main className="min-h-screen bg-[#201c1c] flex flex-col items-center justify-center">
       <CTAButton />
       
       <div className="mt-12 bg-white/10 backdrop-blur-md rounded-xl p-6 border border-white/20 flex flex-col gap-4">
