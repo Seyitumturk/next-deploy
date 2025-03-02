@@ -354,7 +354,7 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
                       console.log(`[handleGenerateDiagram] Collected streaming error (not displaying): ${errorMessage}`);
                     }
                     
-                    // Mark as final error only if explicitly complete
+                    // If we're explicitly told this is a final error, handle it
                     if (data.isComplete) {
                       isComplete = true;
                       isFinalError = true;
@@ -362,8 +362,11 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
                       break;
                     }
                     
-                    // Skip completely - no state updates for streaming errors
-                    continue;
+                    // If we're still in streaming, never show streaming errors to user
+                    if (isStreamActive) {
+                      // Skip completely - no state updates for streaming errors
+                      continue;
+                    }
                   }
                   
                   // If we got mermaid syntax, update the diagram
@@ -543,6 +546,8 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
             timestamp: new Date(),
             error: finalErrorMessage,
             hasRetryButton: true,
+            isTemporaryError: false, // Explicitly mark as NOT temporary
+            isFinalError: true, // Mark as final error
           };
           
           // Add the error message to chat, replacing any typing indicators
@@ -677,6 +682,8 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
         timestamp: new Date(),
         error: errorText,
         hasRetryButton: true,
+        isTemporaryError: false, // This is not a temporary error
+        isFinalError: true, // This is a final error
       };
       
       // Remove all typing indicators and add the error message
@@ -695,9 +702,12 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.data && event.data.type === 'DIAGRAM_SYNTAX_ERROR') {
+        // Ignore errors while streaming is active
+        const isStreaming = isGenerating && !event.data.isFinal;
+
         // Only process final diagram errors, not intermediate streaming ones
-        if (!event.data.isFinal) {
-          console.log('[handleMessage] Ignoring non-final diagram error');
+        if (isStreaming) {
+          console.log('[handleMessage] Ignoring error during streaming - not displaying to user');
           return;
         }
         
@@ -718,6 +728,7 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
             timestamp: new Date(),
             error: errorText,
             hasRetryButton: event.data.hasRetryButton !== false, // Honor the hasRetryButton property, default to true
+            isTemporaryError: false, // This is a final error, not a temporary one
           };
           
           // Add the error message to chat, but only if we're not already showing errors
@@ -732,7 +743,7 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
     
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [error]); // Add error to dependency array
+  }, [error, isGenerating]); // Add isGenerating to dependency array
 
   // Simplified function to handle manual retry from the UI
   const handleRetry = () => {
