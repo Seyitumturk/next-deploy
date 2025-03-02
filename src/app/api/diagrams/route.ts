@@ -20,6 +20,15 @@ const diagramConfig = yaml.parse(fs.readFileSync(diagramConfigPath, 'utf8'));
 
 const ARTIFICIAL_DELAY = 400;
 
+// Add ChatMessage interface for type safety
+interface ChatMessage {
+  role: string;
+  content: string;
+  isTyping?: boolean;
+  diagramVersion?: string;
+  timestamp: Date;
+}
+
 function getPromptForDiagramType(diagramType: string, userPrompt: string) {
   const config = diagramConfig.definitions[diagramType];
   
@@ -70,13 +79,21 @@ export async function POST(req: Request) {
     await connectDB();
 
     // Destructure the request body
-    const { textPrompt, diagramType, projectId, clientSvg } = await req.json();
+    const { textPrompt, diagramType, projectId, clientSvg, chatHistory = [] } = await req.json();
+
+    // Add detailed logging for SVG tracking
+    console.log("[SVG_TRACKING] Request received with SVG:", {
+      hasSVG: !!clientSvg,
+      svgLength: clientSvg ? clientSvg.length : 0,
+      isFirstPrompt: chatHistory.length === 0,
+    });
 
     console.log("[diagrams API] Incoming request body:", {
       textPrompt: textPrompt ? textPrompt.substring(0, 100) + "..." : "none",
       diagramType,
       projectId,
       clientSvg: clientSvg ? clientSvg.substring(0, 100) + "..." : "none",
+      chatHistoryLength: chatHistory.length,
     });
 
     // Normalize the incoming diagram type
@@ -115,7 +132,20 @@ export async function POST(req: Request) {
           const systemPrompt = getSystemPromptForDiagramType(effectiveDiagramType);
           const userPrompt = getPromptForDiagramType(effectiveDiagramType, textPrompt);
           
+          // Convert chat history into the format expected by Anthropic
+          const previousMessages = chatHistory
+            .filter((msg: ChatMessage) => !msg.isTyping && msg.role !== 'document') // Filter out typing indicators and document messages
+            .slice(-10) // Limit to last 10 messages to avoid token limits
+            .map((msg: ChatMessage) => ({
+              role: msg.role as "user" | "assistant",
+              content: msg.role === 'assistant' && msg.diagramVersion 
+                ? `${msg.content}\n\nHere is the diagram I created based on your request:\n\n\`\`\`mermaid\n${msg.diagramVersion}\n\`\`\``
+                : msg.content
+            }));
+          
+          // Add the current user prompt as the last message
           const messageContent = [
+            ...previousMessages,
             {
               role: "user" as const,
               content: userPrompt
@@ -168,8 +198,23 @@ export async function POST(req: Request) {
                   }
                 }
                 
-                // If the first real line doesn't contain the diagram type, insert it
-                if (firstNonCommentLineIndex > 0 || !lines[0].toLowerCase().includes(effectiveDiagramType)) {
+                // Check if the diagram already has a proper declaration
+                const hasProperDeclaration = lines.some(line => {
+                  const lowercaseLine = line.toLowerCase().trim();
+                  return lowercaseLine.startsWith('flowchart ') ||
+                         lowercaseLine.startsWith('erdiagram') ||
+                         lowercaseLine.startsWith('classdiagram') ||
+                         lowercaseLine.startsWith('sequencediagram') ||
+                         lowercaseLine.startsWith('mindmap') ||
+                         lowercaseLine.startsWith('timeline') ||
+                         lowercaseLine.startsWith('gantt') ||
+                         lowercaseLine.startsWith('statediagram-v2');
+                });
+                
+                console.log(`Diagram type: ${effectiveDiagramType}, Has proper declaration: ${hasProperDeclaration}`);
+                
+                // If no proper declaration is found, add it based on diagram type
+                if (!hasProperDeclaration) {
                   // For flowcharts, add the proper declaration at the top
                   if (effectiveDiagramType === 'flowchart') {
                     lines.unshift('flowchart TD');
@@ -192,12 +237,29 @@ export async function POST(req: Request) {
                 
                 processedDiagram = lines.join('\n');
                 
+                // Special handling for flowcharts - ensure proper direction is specified
+                if (effectiveDiagramType === 'flowchart') {
+                  const firstLine = processedDiagram.split('\n')[0].trim();
+                  if (firstLine === 'flowchart' || firstLine === 'flowChart') {
+                    // Add TD (top-down) direction if missing
+                    processedDiagram = 'flowchart TD\n' + processedDiagram.split('\n').slice(1).join('\n');
+                  } else if (!firstLine.match(/flowchart\s+(TD|TB|LR|RL|BT)/i)) {
+                    // Add TD direction if no direction is specified
+                    processedDiagram = 'flowchart TD\n' + processedDiagram;
+                  }
+                }
+                
                 // Save the processed diagram
                 diagram = processedDiagram;
 
                 // Use the client-provided SVG
                 const svgOutput = clientSvg;
-                console.log('Using SVG for save:', svgOutput ? svgOutput.substring(0, 100) + '...' : 'No SVG to save');
+                console.log('[SVG_TRACKING] Processing SVG for saving:', {
+                  hasSVG: !!svgOutput,
+                  svgLength: svgOutput ? svgOutput.length : 0,
+                  isFirstPrompt: chatHistory.length === 0,
+                  promptText: textPrompt ? textPrompt.substring(0, 50) + "..." : "none"
+                });
 
                 // Process any remaining lines in the buffer
                 if (lineBuffer.length > 0) {
@@ -210,37 +272,73 @@ export async function POST(req: Request) {
                 // Add final delay before completion
                 await new Promise(resolve => setTimeout(resolve, 800));
 
+                // Make sure we have SVG to save
+                if (!svgOutput) {
+                  console.warn('[SVG_TRACKING] No SVG provided for saving. This might lead to missing SVG for initial diagram.');
+                  // For the first prompt, we could attempt server-side rendering
+                  // but this would require additional dependencies and isn't ideal.
+                  // Instead, we'll rely on the client to fix the issue by always sending SVG.
+                }
+
+                // Try to ensure we have diagram SVG before saving - this is a critical must-fix issue
+                let finalSvg = svgOutput;
+                if (!finalSvg || finalSvg.length === 0) {
+                  console.log('[SVG_TRACKING] No SVG provided - this is a critical issue that must be fixed');
+                  
+                  // Remove the failing check-svg call and rely on client-side SVG save
+                  console.log('[SVG_TRACKING] Will rely on client-side delayed SVG save via save-svg endpoint');
+                }
+
                 // Save with logging
                 const gptResponse = new GptResponse({
                   prompt: textPrompt,
                   gptResponse: diagram,
                   extractedSyntax: diagram.trim(),
-                  diagramSvg: svgOutput,
+                  diagramSvg: finalSvg,
                   projectId: projectId,
                 });
                 await gptResponse.save();
-                console.log('Saved GPT response with SVG:', gptResponse._id);
+                console.log('[SVG_TRACKING] Saved GPT response with SVG:', {
+                  gptResponseId: gptResponse._id.toString(),
+                  hasSVG: !!gptResponse.diagramSvg,
+                  svgLength: gptResponse.diagramSvg ? gptResponse.diagramSvg.length : 0
+                });
 
                 // Save to project history
                 project.history.unshift({
                   _id: new mongoose.Types.ObjectId(),
                   prompt: textPrompt,
                   diagram: diagram.trim(),
-                  diagram_img: svgOutput,
+                  diagram_img: finalSvg,
                   updateType: 'chat',
                   updatedAt: new Date()
                 });
+                console.log('[SVG_TRACKING] Added to project history:', {
+                  historyLength: project.history.length,
+                  firstItemHasSVG: !!project.history[0].diagram_img,
+                  svgLength: project.history[0].diagram_img ? project.history[0].diagram_img.length : 0
+                });
+                
                 if (project.history.length > 30) {
                   project.history.pop();
                 }
 
                 // Save the latest diagram state to the project
-                project.diagramSVG = svgOutput;
+                project.diagramSVG = finalSvg;
                 project.currentDiagram = diagram.trim();
                 project.markModified('history');
-                console.log(">> diagrams API: Saved project.currentDiagram:", project.currentDiagram);
+                console.log("[SVG_TRACKING] Project state before save:", {
+                  hasDiagramSVG: !!project.diagramSVG,
+                  svgLength: project.diagramSVG ? project.diagramSVG.length : 0,
+                  hasDiagram: !!project.currentDiagram
+                });
+                
                 await project.save();
-                console.log('Saved project with SVG:', project._id);
+                console.log('[SVG_TRACKING] Saved project with SVG:', {
+                  projectId: project._id.toString(),
+                  hasSVG: !!project.diagramSVG,
+                  svgLength: project.diagramSVG ? project.diagramSVG.length : 0
+                });
 
                 // Update user's token balance
                 await User.findByIdAndUpdate(user._id, {

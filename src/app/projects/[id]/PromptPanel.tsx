@@ -1,12 +1,15 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import Editor from '@monaco-editor/react';
-import ChatMessage, { ChatMessageData } from './ChatMessage';
+import { ChatMessageData } from './chatMessage/types';
+import { ChatMessage } from './chatMessage';
 import FileUploadOptions from './FileUploadOptions';
 import { ChatBubbleLeftEllipsisIcon, CodeBracketIcon } from '@heroicons/react/24/outline';
 import Image from 'next/image';
+import { EyeIcon } from '@heroicons/react/24/outline';
+import { PaperAirplaneIcon, ArrowDownCircleIcon } from '@heroicons/react/24/solid';
 
 export interface PromptPanelProps {
   handleCodeChange?: (code: string) => void;
@@ -130,6 +133,19 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
   // Create a separate ref for the mobile chat container
   const mobileChatContainerRef = useRef<HTMLDivElement | null>(null);
   
+  // Add state to track if refs are initialized
+  const [refsInitialized, setRefsInitialized] = useState(false);
+
+  // Add a useEffect to check if refs are initialized
+  useEffect(() => {
+    // Check if refs are properly initialized
+    const areRefsReady = !!chatContainerRef && !!mobileChatContainerRef;
+    if (areRefsReady) {
+      setRefsInitialized(true);
+      console.log("Chat container refs initialized");
+    }
+  }, [chatContainerRef, mobileChatContainerRef]);
+
   // GUARANTEED scroll to bottom function - memoized with useCallback
   const guaranteedScrollToBottom = React.useCallback(() => {
     console.log("ATTEMPTING SCROLL TO BOTTOM"); // Debug log
@@ -137,7 +153,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
     // Function for direct DOM scrolling
     const scrollNow = () => {
       // Scroll desktop container
-      if (chatContainerRef.current) {
+      if (chatContainerRef && chatContainerRef.current) {
         try {
           // Force to the very bottom with smooth behavior
           const container = chatContainerRef.current;
@@ -160,7 +176,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
       }
       
       // Scroll mobile container
-      if (mobileChatContainerRef.current) {
+      if (mobileChatContainerRef && mobileChatContainerRef.current) {
         try {
           // Force to the very bottom with smooth behavior
           const container = mobileChatContainerRef.current;
@@ -188,7 +204,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
     
     // Schedule one more scroll with a short delay to ensure it works after any rendering
     window.setTimeout(scrollNow, 100);
-  }, [chatContainerRef]);
+  }, [chatContainerRef, mobileChatContainerRef]);
   
   // Add state for the generating message
   const [generatingMessage, setGeneratingMessage] = useState("Generating diagram...");
@@ -242,7 +258,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
   // Add an additional useEffect specifically for chat history changes
   useEffect(() => {
     // When chat history changes, ensure we scroll to bottom
-    if (chatHistory.length > 0) {
+    if (chatHistory && chatHistory.length > 0) {
       console.log("CHAT HISTORY CHANGED, SCROLLING DOWN");
       guaranteedScrollToBottom();
     }
@@ -287,7 +303,11 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
 
   // Add a useEffect to set up a MutationObserver for the mobile chat container
   useEffect(() => {
-    if (!mobileChatContainerRef.current) return;
+    // Don't proceed if the ref isn't defined or if its current property is null
+    if (!mobileChatContainerRef || !mobileChatContainerRef.current) {
+      console.log("Mobile chat container ref not available yet");
+      return;
+    }
     
     console.log("Setting up MutationObserver for mobile chat container");
     
@@ -324,7 +344,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
     return () => {
       observer.disconnect();
     };
-  }, [mobileChatContainerRef.current, guaranteedScrollToBottom]); // Include guaranteedScrollToBottom in dependencies
+  }, [mobileChatContainerRef, guaranteedScrollToBottom]); // Include guaranteedScrollToBottom in dependencies
 
   // Wrap the file upload handlers to close the dropdown
   const wrappedHandleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -341,17 +361,26 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
 
   // Add an initial scroll effect when component mounts
   useEffect(() => {
+    // Don't attempt to scroll if refs aren't initialized
+    if (!refsInitialized) {
+      console.log("Refs not initialized yet, skipping initial scroll");
+      return;
+    }
+
     // Initial scroll to bottom when component mounts
+    console.log("Component mounted, attempting initial scroll");
     guaranteedScrollToBottom();
     
     // Also set a timeout to scroll after initial render
-    const timer = setTimeout(guaranteedScrollToBottom, 300);
+    const timer = setTimeout(() => {
+      guaranteedScrollToBottom();
+    }, 300);
     
     // Clean up timeouts
     return () => {
       clearTimeout(timer);
     };
-  }, [guaranteedScrollToBottom]);
+  }, [guaranteedScrollToBottom, refsInitialized]);
 
   // Add a useEffect to handle scrolling when the panel becomes visible
   useEffect(() => {
@@ -383,16 +412,19 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
 
   // Add a typing indicator to the last message if generating
   useEffect(() => {
-    if (isGenerating && chatHistory.length > 0) {
+    if (isGenerating && chatHistory && chatHistory.length > 0) {
       // Add a typing indicator message at the end of chat history
       const lastMessage = chatHistory[chatHistory.length - 1];
-      if (lastMessage.role !== 'assistant' || !lastMessage.isTyping) {
+      if (lastMessage && (lastMessage.role !== 'assistant' || !lastMessage.isTyping)) {
         // We would add a typing indicator here, but since we can't modify chatHistory directly,
         // we'll show the indicator in the UI instead
-        guaranteedScrollToBottom();
+        // Ensure refs exist before scrolling
+        if (chatContainerRef || mobileChatContainerRef) {
+          guaranteedScrollToBottom();
+        }
       }
     }
-  }, [isGenerating, chatHistory, guaranteedScrollToBottom]);
+  }, [isGenerating, chatHistory, guaranteedScrollToBottom, chatContainerRef, mobileChatContainerRef]);
 
   // Define conditional textarea classes without scrollbar classes
   const promptTextAreaClass = `w-full rounded-xl border px-4 pb-4 pt-3 pr-14 text-sm focus:ring-2 focus:ring-primary/50 focus:border-transparent resize-none ${
@@ -523,88 +555,97 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
           <>
             <div
               ref={chatContainerRef}
-              className="p-4 space-y-4 h-full overflow-y-auto scroll-smooth chat-scroll-container relative"
+              className="h-full overflow-y-auto scroll-smooth chat-scroll-container relative"
               style={{ 
                 scrollBehavior: 'smooth',
                 height: 'calc(100% - 120px)',
-                minHeight: '300px',
+                minHeight: chatHistory && chatHistory.length > 0 ? '300px' : '60px',
               }}
             >
               {/* Welcome Message */}
-              {chatHistory.length === 0 && (
-                <div className="flex items-start space-x-3">
+              {(!chatHistory || chatHistory.length === 0) && (
+                <div className="absolute top-0 left-0 right-0 flex items-start p-1 mt-1">
                   <div
-                    className={`flex-1 rounded-2xl p-4 shadow-sm ${
+                    className={`flex-1 mx-2 rounded-lg py-1.5 px-3 shadow-sm ${
                       isDarkMode 
                         ? "bg-gray-800/80 backdrop-blur-sm border border-gray-700/60" 
                         : "bg-[#d8cbb8] border border-[#b8a990]"
                     }`}
+                    style={{ maxHeight: "50px", overflow: "hidden" }}
                   >
                     <p
-                      className={isDarkMode ? "text-gray-300" : "text-[#4a3c2c] font-medium"}
+                      className={`text-xs ${isDarkMode ? "text-gray-300" : "text-[#4a3c2c] font-medium"}`}
                     >
-                      Hello! I'm your AI assistant. Describe what you'd like to create or modify in your diagram, and I'll help you bring it to life.
+                      Hello! Describe what you'd like to create or modify in your diagram.
                     </p>
                   </div>
                 </div>
               )}
 
               {/* Chat History */}
-              {chatHistory.map((message, index) => {
-                // Find the first user message with a diagram version
-                const firstUserMessageWithDiagram = chatHistory.find(
-                  msg => msg.role === 'user' && msg.diagramVersion
-                );
-                
-                // Check if this message is the first user message with a diagram
-                const isFirstUserMessage = 
-                  message.role === 'user' && 
-                  message.diagramVersion && 
-                  message === firstUserMessageWithDiagram ? true : false;
-                
-                // Log warning if onDiagramVersionSelect is missing but message has diagram
-                if (message.diagramVersion && !onDiagramVersionSelect) {
-                  console.warn('Warning: Message has diagram version but onDiagramVersionSelect is missing', {
-                    messageIndex: index,
-                    hasVersion: Boolean(message.diagramVersion)
-                  });
+              {chatHistory && chatHistory.length > 0 && chatHistory.map((message, index) => {
+                // Debug logging for all user messages with diagram versions
+                if (message.role === 'user' && message.diagramVersion) {
+                  const versionLength = message.diagramVersion?.length || 0;
+                  const msgId = message.messageId || `no-id-${index}`;
+                  console.log(`User message with diagram version found [${msgId}]: ${versionLength} chars`);
                 }
                 
+                // Check if this is the first user message
+                const isFirstMsg = index === 0 || 
+                  (index > 0 && 
+                   message.role === 'user' && 
+                   chatHistory.slice(0, index).every(m => m.role !== 'user'));
+                
+                const safeTimestamp = message.timestamp || Date.now();
+
+                // Create clean copy of diagram version to avoid reference issues
+                let messageVersion = undefined;
+                if (message.diagramVersion) {
+                  try {
+                    // Safely clone diagram version (which is a string)
+                    messageVersion = String(message.diagramVersion);
+                  } catch (e) {
+                    console.error('Error cloning diagram version', e);
+                  }
+                }
+
+                // Create clean copy of diagram_img to avoid reference issues
+                let messageDiagramImg = undefined;
+                if (message.diagram_img) {
+                  try {
+                    // Safely clone diagram_img (which is a string)
+                    messageDiagramImg = String(message.diagram_img);
+                  } catch (e) {
+                    console.error('Error cloning diagram_img', e);
+                  }
+                }
+
                 return (
-                  <ChatMessage 
-                    key={index} 
-                    message={message} 
-                    onDiagramVersionSelect={onDiagramVersionSelect}
-                    onRetry={() => {
-                      handleGenerateAndCollapse(null);
-                    }}
-                    isDarkMode={isDarkMode}
-                    isFirstUserMessage={isFirstUserMessage}
-                    onReaction={(messageIndex, reaction) => {
-                      // This would be implemented in the parent component
-                      console.log(`Reaction ${reaction} added to message ${messageIndex}`);
-                      
-                      // Here we would update the chatHistory with the reaction
-                      // Since we can't modify chatHistory directly, this would need to be
-                      // implemented in the parent component
-                    }}
-                    messageIndex={index}
-                    onCollapseMessage={() => {
-                      // For user messages with document content, collapse and focus on input
-                      if (message.role === 'user' || message.role === 'document') {
-                        // Focus on the textarea
-                        if (textareaRef.current) {
-                          textareaRef.current.focus();
-                        }
-                        
-                        // If this is a document message, we might want to clear it or handle differently
-                        if (message.role === 'document' && documentSummary) {
-                          // This would need to be implemented in the parent component
-                          console.log('Document message collapsed');
-                        }
-                      }
-                    }}
-                  />
+                  <div key={`${message.messageId || index}-${message.content.substring(0, 10)}`} className="message-container">
+                    <ChatMessage
+                      message={{
+                        ...message,
+                        // Ensure we're passing a clean copy of the diagram version, not a reference
+                        diagramVersion: messageVersion,
+                        // Ensure we're passing the diagram_img
+                        diagram_img: messageDiagramImg,
+                        // Just use current timestamp if there's an issue
+                        timestamp: Date.now()
+                      }} 
+                      onDiagramVersionSelect={onDiagramVersionSelect}
+                      onRetry={() => handleGenerateDiagram(null)}
+                      isDarkMode={!!isDarkMode}
+                      isFirstUserMessage={!!isFirstMsg}
+                      messageIndex={index}
+                      onReaction={(messageIndex: number, reaction: string) => {
+                        console.log(`Adding reaction ${reaction} to message ${messageIndex}`);
+                        // This would be implemented in the parent component
+                        // Since we can't modify chatHistory directly, this would need to be
+                        // implemented in the parent component
+                      }}
+                    />
+                  </div>
                 );
               })}
               
@@ -626,212 +667,92 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
               )}
             </div>
             
-            {/* Chat Input Area - Fixed height */}
-            <div 
-              className={`p-4 border-t ${
-                isDarkMode ? "border-gray-700/60" : "border-[#b8a990]"
-              }`}
-              style={{ flexShrink: 0 }}
-            >
-              {error && (
-                <div className="mb-2 p-2 text-sm text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/20 rounded-md">
-                  {error}
-                </div>
-              )}
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                guaranteedScrollToBottom(); // Scroll before form submission
-                handleGenerateAndCollapse(e);
-              }}>
-                <div className="relative">
-                  {/* Show generating indicator above the textarea */}
-                  {isGenerating && (
-                    <GeneratingIndicator isDarkMode={isDarkMode} message={generatingMessage} />
-                  )}
-                  
-                  <textarea
-                    ref={textareaRef}
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        guaranteedScrollToBottom(); // Scroll before Enter key submission
-                        handleGenerateAndCollapse(null);
-                      }
-                    }}
-                    className={`${promptTextAreaClass} ${isGenerating ? 'opacity-70' : 'opacity-100'}`}
-                    placeholder={isGenerating ? "Generating diagram..." : "Type your instructions here..."}
-                    disabled={isGenerating}
-                  />
-                  <div className="absolute right-2.5 bottom-2.5 flex space-x-1">
+            {/* Prompt Form */}
+            <div className={`p-4 border-t ${isDarkMode ? "border-gray-700/60" : "border-[#b8a990]"}`}>
+              <form onSubmit={(e) => handleGenerateAndCollapse(e)} className="w-full relative">
+                {isGenerating && <GeneratingIndicator isDarkMode={isDarkMode} message={generatingMessage} />}
+                
+                <textarea
+                  ref={textareaRef}
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  placeholder="Type a message..."
+                  className={promptTextAreaClass}
+                  disabled={isGenerating}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleGenerateAndCollapse(null);
+                    }
+                  }}
+                />
+                
+                {/* Upload button */}
+                <div className="absolute right-14 bottom-3.5">
+                  <div className="relative">
                     <button
                       type="button"
                       onClick={() => setShowFileUpload(!showFileUpload)}
-                      className={`p-2 rounded-full transition-colors ${
-                        isDarkMode 
-                          ? "text-gray-400 hover:text-gray-300 hover:bg-gray-700" 
-                          : "text-[#8a7a66] hover:text-[#6a5c4c] hover:bg-[#d8cbb8]"
-                      }`}
-                      title="Upload Document or Image"
+                      className={`p-2 rounded-lg transition-colors ${
+                        isDarkMode
+                          ? "hover:bg-gray-700 text-gray-400 hover:text-gray-300"
+                          : "hover:bg-[#d8cbb8] text-[#8a7a66] hover:text-[#6a5c4c]"
+                      } ${isGenerating ? "opacity-40 cursor-not-allowed" : ""}`}
                       disabled={isGenerating}
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                        <path fillRule="evenodd" d="M15.621 4.379a3 3 0 00-4.242 0l-7 7a3 3 0 004.241 4.243h.001l.497-.5a.75.75 0 011.064 1.057l-.498.501-.002.002a4.5 4.5 0 01-6.364-6.364l7-7a4.5 4.5 0 016.368 6.36l-3.455 3.553A2.625 2.625 0 119.52 9.52l3.45-3.451a.75.75 0 111.061 1.06l-3.45 3.451a1.125 1.125 0 001.587 1.595l3.454-3.553a3 3 0 000-4.242z" clipRule="evenodd" />
                       </svg>
                     </button>
-                    <button
-                      type="submit"
-                      className={`p-2 rounded-full transition-colors ${
-                        isGenerating || !prompt.trim() && !documentSummary
-                          ? (isDarkMode ? "text-gray-600 bg-gray-800 cursor-not-allowed" : "text-[#b8a990] bg-[#e8dccc] cursor-not-allowed") 
-                          : (isDarkMode ? "text-white bg-gray-700 hover:bg-gray-600" : "text-[#4a3c2c] bg-[#d8cbb8] hover:bg-[#c8bba8]")
-                      }`}
-                      disabled={isGenerating || (!prompt.trim() && !documentSummary)}
-                      title={isGenerating ? "Generating diagram..." : "Send Message"}
-                    >
-                      {isGenerating ? (
-                        <div className="relative">
-                          <svg className="h-5 w-5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                        </div>
-                      ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                        </svg>
-                      )}
-                    </button>
+                    
+                    {/* File Upload Menu */}
+                    {showFileUpload && (
+                      <FileUploadOptions 
+                        handleFileUpload={wrappedHandleFileUpload}
+                        handleImageUpload={wrappedHandleImageUpload}
+                        processWebsite={processWebsite}
+                        isDarkMode={isDarkMode}
+                        isProcessingFile={isProcessingFile || false}
+                        isProcessingImage={isProcessingImage || false}
+                        showFileUpload={showFileUpload}
+                        setShowFileUpload={setShowFileUpload}
+                      />
+                    )}
                   </div>
                 </div>
                 
-                {/* Always show file upload options below the textarea */}
-                {showFileUpload && (
-                  <div className="mt-2 rounded-lg overflow-hidden">
-                    <FileUploadOptions
-                      showFileUpload={showFileUpload}
-                      setShowFileUpload={setShowFileUpload}
-                      isProcessingFile={isProcessingFile}
-                      isProcessingImage={isProcessingImage || false}
-                      handleFileUpload={wrappedHandleFileUpload}
-                      handleImageUpload={wrappedHandleImageUpload || (() => {})}
-                      processWebsite={processWebsite}
-                      isDarkMode={isDarkMode}
-                    />
-                  </div>
-                )}
+                {/* Submit button */}
+                <button
+                  type="submit"
+                  disabled={isGenerating || !prompt.trim()}
+                  className={`absolute right-3 bottom-3.5 p-2 rounded-lg transition-colors ${
+                    isDarkMode
+                      ? "bg-gray-800 hover:bg-gray-700 text-blue-400 hover:text-blue-300"
+                      : "bg-[#d8cbb8] hover:bg-[#c8bba8] text-[#5a4c3c] hover:text-[#4a3c2c]"
+                  } ${(!prompt.trim() || isGenerating) ? "opacity-40 cursor-not-allowed" : ""}`}
+                >
+                  <PaperAirplaneIcon className="h-5 w-5" />
+                </button>
               </form>
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col">
-            <div className={`flex-1 ${isDarkMode ? "bg-gray-900" : "bg-[#e8dccc]"}`}>
-              <div className={`h-full w-full ${isDarkMode ? "bg-gray-900" : "bg-[#e8dccc]"}`}>
-                <Editor
-                  height="100%"
-                  defaultLanguage="mermaid"
-                  value={currentDiagram}
-                  onChange={(value) => {
-                    if (value !== undefined) {
-                      setCurrentDiagram(value);
-                      if (handleCodeChange) {
-                        // Show saving indicator
-                        setIsSaving(true);
-                        handleCodeChange(value);
-                        // Hide saving indicator after a delay
-                        setTimeout(() => {
-                          setIsSaving(false);
-                        }, 1500);
-                      }
-                    }
-                  }}
-                  onMount={() => {
-                    if (typeof setIsEditorReady === 'function') {
-                      setIsEditorReady(true);
-                    } else {
-                      console.warn('setIsEditorReady is not a function');
-                    }
-                  }}
-                  options={{
-                    ...monacoOptions,
-                    theme: isDarkMode ? 'vs-dark' : 'vs',
-                  }}
-                />
-              </div>
+          <>
+            <div className="p-4 space-y-4 h-full overflow-y-auto scroll-smooth">
+              <Editor
+                height="calc(100% - 120px)"
+                width="100%"
+                language="javascript"
+                value={prompt}
+                onChange={(value) => setPrompt(value || '')}
+                options={monacoOptions}
+              />
             </div>
-            <div className={`p-4 border-t ${isDarkMode ? "border-gray-700/60" : "border-[#b8a990]"}`}>
-              <div className={`flex items-center justify-between ${
-                isDarkMode 
-                  ? "text-gray-300" 
-                  : "text-[#6a5c4c]"
-              }`}>
-                <div className="text-sm font-medium">Auto-saving enabled</div>
-                <div className="flex items-center space-x-2">
-                  {isGenerating ? (
-                    <div className="flex items-center space-x-2 text-sm">
-                      <svg className="animate-spin h-4 w-4 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      <span>Rendering...</span>
-                    </div>
-                  ) : isSaving ? (
-                    <div className="flex items-center space-x-2 text-sm animate-pulse">
-                      <svg className="animate-spin h-4 w-4 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      <span>Saving changes...</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center space-x-2 text-sm">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-500" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                      </svg>
-                      <span>Changes auto-saved</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
+          </>
         )}
       </div>
-
-      {/* Floating chat button when panel is collapsed (mobile only) */}
-      {!isVisible && (
-        <button
-          onClick={() => setShowPromptPanel(true)}
-          className={`md:hidden fixed bottom-4 right-4 p-3 rounded-full shadow-lg transition-all transform hover:scale-105 z-30 ${
-            isDarkMode 
-              ? "bg-primary text-white" 
-              : "bg-primary text-white"
-          }`}
-          aria-label="Open chat"
-        >
-          <ChatBubbleLeftEllipsisIcon className="h-6 w-6" />
-        </button>
-      )}
-      
-      {/* Global generating indicator for mobile */}
-      {isGenerating && !isVisible && (
-        <div className="md:hidden fixed top-4 left-1/2 transform -translate-x-1/2 z-50 animate-fadeIn">
-          <div className={`px-3 py-1.5 rounded-full text-xs font-medium flex items-center space-x-2 shadow-md ${
-            isDarkMode 
-              ? "bg-gray-800 text-blue-300 border border-gray-700" 
-              : "bg-[#d8cbb8] text-[#4a3c2c] border border-[#b8a990]"
-          }`}>
-            <svg className="h-3.5 w-3.5 animate-spin mr-1.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <span>{generatingMessage}</span>
-          </div>
-        </div>
-      )}
     </>
   );
 };
 
-export default PromptPanel; 
+export default PromptPanel;

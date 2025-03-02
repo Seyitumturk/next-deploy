@@ -1,0 +1,10 @@
+---
+description: Always run the command line commands for power shell.
+globs: 
+alwaysApply: false
+---
+
+# Your rule content
+Always run the command line commands for power shell. 
+- You can @ files here
+- You can use markdown but dont have to

@@ -84,7 +84,6 @@ definitions:
       Important:
       - Start with ```mermaid
       - Use proper node shapes for each element type
-      - Include clear comments using %%
       - Group related elements in subgraphs
       - Add meaningful connection labels
       - Apply consistent styling
@@ -320,14 +319,10 @@ definitions:
     description: |
       Create an organized mindmap following these guidelines:
       - Start with a clear central concept (root)
-      - Use modern node shapes:
-        * Default shape: no special syntax
-        * Square: [text]
-        * Rounded square: (text)
-        * Circle: ((text))
-        * Bang: ))text((
-        * Cloud: )text(
-        * Hexagon: {{text}}
+      - Node shape system:
+        * Root node: Always uses cloud shape )text(
+        * All other nodes: Always use rounded style (text)
+        * Note: All nodes will be automatically styled based on this convention
       - Structure and Hierarchy:
         * Use indentation to define hierarchy levels
         * Each level should be clearly indented from its parent
@@ -339,52 +334,51 @@ definitions:
         * Unicode emoji support
       - Best Practices:
         * Keep node text concise and clear
-        * Use consistent shape types for similar concepts
         * Group related ideas under common parents
         * Utilize icons to enhance visual understanding
     example: |
       mindmap
-        root((Project Plan))
-          Requirements
+        )Project Plan(
+          (Requirements)
             :::important
-            Functional
+            (Functional)
               ::icon(fa fa-cogs)
-              Core Features
-              User Interface
-              API Integration
-            Non-Functional
+              (Core Features)
+              (User Interface)
+              (API Integration)
+            (Non-Functional)
               ::icon(fa fa-shield)
-              Security
-              Performance
-              Scalability
-      Resources
-        "`**Team Members**`"
-          Frontend Devs
-          Backend Devs
-          UX Designer
-        Tools
-          :::tools
-          Version Control
-          CI/CD Pipeline
-          Testing Suite
-      Timeline
-        ::icon(fa fa-calendar)
-        Phase 1
-          Planning
-          Setup
-        Phase 2
-          Development
-          Testing
-        Phase 3
-          "`*Deployment*
-          and Launch`"
+              (Security)
+              (Performance)
+              (Scalability)
+        (Resources)
+          ("`**Team Members**`")
+            (Frontend Devs)
+            (Backend Devs)
+            (UX Designer)
+          (Tools)
+            :::tools
+            (Version Control)
+            (CI/CD Pipeline)
+            (Testing Suite)
+        (Timeline)
+          ::icon(fa fa-calendar)
+          (Phase 1)
+            (Planning)
+            (Setup)
+          (Phase 2)
+            (Development)
+            (Testing)
+          (Phase 3)
+            ("`*Deployment*
+            and Launch`")
     prompt_template: |
       As an expert Mermaid.js diagram creator, create a professional mindmap that follows modern best practices. Your task is to:
 
       1. Analyze the requirements: {prompt}
       2. Create a mindmap that:
-         - Has a clear central concept
-         - Uses appropriate node shapes
+         - Has a clear central concept as cloud shape for the root node
+         - Uses rounded style for all other nodes
          - Maintains proper hierarchy
          - Utilizes icons and styling
          - Groups related concepts effectively
@@ -394,7 +388,8 @@ definitions:
 
       Important:
       - Start with ```mermaid
-      - Use proper node shapes
+      - Use cloud shape for root node: )Root Concept(
+      - Use rounded shape for all other nodes: (Node Text)
       - Maintain consistent indentation
       - Add icons and classes where appropriate
       - Keep text concise
@@ -1014,6 +1009,14 @@ prompts:
     --
     Example:
     {example}
+    --
+    IMPORTANT CONTEXT HANDLING INSTRUCTIONS:
+    1. This is a continuous conversation. Maintain context from previous messages.
+    2. When the user asks for updates or modifications to a diagram, modify the existing diagram instead of creating a new one.
+    3. If you previously created a diagram, the user's follow-up prompts are about modifying or extending that same diagram.
+    4. Build upon the previously generated diagram when the user asks for changes, rather than starting from scratch.
+    5. If you're asked to add or modify elements, keep the existing elements and structure intact unless explicitly told to remove or change them.
+    6. For clarity, include a brief explanation of what you've changed or added to the diagram.
   user_template: >
     Please create a {diagram_type} diagram based on the following prompt:
     {prompt}

@@ -5,7 +5,7 @@ import { LoadingSpinner, UploadIcon, FileIcon, ImageIcon, CloseIcon, GlobeIcon }
 
 interface FileUploadOptionsProps {
   handleFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleImageUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   isProcessingFile: boolean;
   isProcessingImage: boolean;
   showFileUpload: boolean;
@@ -48,7 +48,7 @@ export default function FileUploadOptions({
   const handleFileUploadWithTracking = (option: string, e: React.ChangeEvent<HTMLInputElement>) => {
     setProcessingOption(option);
     if (option === 'image-upload') {
-      handleImageUpload(e);
+      handleImageUpload && handleImageUpload(e);
     } else {
       handleFileUpload(e);
     }
@@ -80,7 +80,7 @@ export default function FileUploadOptions({
             files: e.dataTransfer.files
           }
         } as unknown as React.ChangeEvent<HTMLInputElement>;
-        handleImageUpload(syntheticEvent);
+        handleImageUpload && handleImageUpload(syntheticEvent);
         setProcessingOption('image-upload');
       } else if (fileType === 'application/pdf') {
         // Create a synthetic event for PDF upload

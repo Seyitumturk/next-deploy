@@ -107,6 +107,9 @@ const EditableTitle = ({
 };
 
 const DiagramPreview = ({ project }: { project: Project }) => {
+  // Add state for showing code preview
+  const [showCode, setShowCode] = useState(false);
+  
   // Try to get the SVG from different sources
   const svgContent = 
     // First try the diagramSVG field
@@ -115,8 +118,15 @@ const DiagramPreview = ({ project }: { project: Project }) => {
     (project.history && project.history[0]?.diagram_img) || 
     // Fallback to empty string if nothing is available
     '';
+    
+  // Get the most recent diagram code
+  const diagramCode = 
+    // Try to get the latest diagram code from history
+    (project.history && project.history[0]?.diagram) ||
+    // Fallback to empty string if not available
+    '';
   
-  if (!svgContent) {
+  if (!svgContent && !diagramCode) {
     return (
       <div className="flex items-center justify-center h-32 bg-gray-100 dark:bg-gray-800 rounded-lg">
         <span className="text-sm text-gray-500 dark:text-gray-400">No preview available</span>
@@ -125,10 +135,42 @@ const DiagramPreview = ({ project }: { project: Project }) => {
   }
   
   return (
-    <div 
-      className="h-32 w-full overflow-hidden bg-white dark:bg-gray-800 rounded-lg flex items-center justify-center"
-      dangerouslySetInnerHTML={{ __html: svgContent }}
-    />
+    <div className="relative">
+      {/* Toggle button for code/svg view */}
+      <button 
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setShowCode(!showCode);
+        }}
+        className="absolute top-2 right-2 z-10 bg-gray-200 dark:bg-gray-700 p-1 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+        title={showCode ? "Show diagram" : "Show code"}
+      >
+        {showCode ? (
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-700 dark:text-gray-300" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+            <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+          </svg>
+        ) : (
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-700 dark:text-gray-300" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+          </svg>
+        )}
+      </button>
+      
+      {showCode ? (
+        <div className="h-32 w-full overflow-auto bg-gray-100 dark:bg-gray-800 rounded-lg p-2">
+          <pre className="text-xs text-gray-800 dark:text-gray-300 h-full font-mono">
+            {diagramCode ? diagramCode.substring(0, 500) : 'No diagram code available'}
+          </pre>
+        </div>
+      ) : (
+        <div 
+          className="h-32 w-full overflow-hidden bg-white dark:bg-gray-800 rounded-lg flex items-center justify-center"
+          dangerouslySetInnerHTML={{ __html: svgContent }}
+        />
+      )}
+    </div>
   );
 };
 

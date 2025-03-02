@@ -7,8 +7,9 @@ import Image from 'next/image';
 // Modularized component imports
 import PromptPanel from './PromptPanel';
 import DiagramDisplay from './DiagramDisplay';
-// Import our custom hook
-import useDiagramEditor, { EditorProps } from './useDiagramEditor';
+// Import our custom hook directly from the modular file
+import useDiagramEditor from './diagramEditor/useDiagramEditor';
+import { EditorProps } from './diagramEditor/types';
 import { motion } from 'framer-motion';
 
 const DiagramEditor: React.FC<EditorProps> = (props) => {
@@ -44,7 +45,7 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
   }, [isDarkMode]);
 
   return (
-    <div className={`min-h-screen flex flex-col ${isDarkMode ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900" : "bg-gradient-to-br from-[#f0eee6] via-white to-[#f0eee6]"}`}>
+    <div className={`h-screen flex flex-col editor-page ${isDarkMode ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900" : "bg-gradient-to-br from-[#f0eee6] via-white to-[#f0eee6]"}`}>
       {/* Header */}
       <header className={`h-16 backdrop-blur-md border-b ${
         isDarkMode 
@@ -150,7 +151,7 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
       <div className="w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-80" />
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-auto">
+      <div className="flex-1 flex overflow-hidden">
         <PromptPanel
           isVisible={editor.showPromptPanel}
           editorMode={editor.editorMode}
@@ -195,19 +196,36 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
           diagramRef={editor.diagramRef}
           svgRef={editor.svgRef}
           handleMouseDown={(e) => {
+            // Only proceed for left mouse button
+            if (e.button !== 0) return;
+            
+            // Prevent default to avoid text selection
+            e.preventDefault();
+            
+            // If already dragging, don't reset
             if (editor.isDragging) return;
+            
+            // Set dragging state
             editor.setIsDragging(true);
-            editor.setDragStart({ x: e.pageX, y: e.pageY });
+            
+            // Apply dragging style to body to prevent text selection
+            document.body.classList.add('diagram-dragging');
+            
+            // Set drag start position relative to the current position
+            editor.setDragStart({
+              x: e.clientX - editor.position.x, 
+              y: e.clientY - editor.position.y
+            });
           }}
           downloadSVG={editor.downloadSVG}
           downloadPNG={editor.downloadPNG}
-          showExportMenu={editor.showExportMenu}
-          setShowExportMenu={editor.setShowExportMenu}
+          showExportMenu={editor.showExportMenu || false}
+          setShowExportMenu={editor.setShowExportMenu || (() => {})}
           isDarkMode={isDarkMode}
-          currentDiagram={editor.currentDiagram}
+          currentDiagram={editor.currentDiagram || ''}
           setCurrentDiagram={editor.setCurrentDiagram}
           renderError={editor.renderError}
-          isLoading={editor.isLoading}
+          isLoading={editor.isLoading || false}
           isDownloading={editor.isDownloading}
           currentTheme={editor.currentTheme}
           changeTheme={editor.changeTheme}

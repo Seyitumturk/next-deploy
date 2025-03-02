@@ -12,13 +12,14 @@
   --accent-1: #3B82F6;
   --accent-2: #EC4899;
   --border-light: #b8a990;
-  --border-dark: #374151;
+  --border-dark: #222222;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0F172A;
     --foreground: #ffffff;
+    --border-dark: #222222;
   }
 }
 
@@ -211,6 +212,33 @@ body {
   display: none;
 }
 
+/* Modernized chat message animations */
+.chat-message-user {
+  animation: fadeIn 0.25s ease-out forwards;
+}
+
+.chat-message-assistant {
+  animation: fadeIn 0.25s ease-out forwards;
+}
+
+.chat-message-system {
+  animation: fadeIn 0.25s ease-out forwards;
+}
+
+.chat-message-document {
+  animation: fadeIn 0.25s ease-out forwards;
+}
+
+/* Add subtle hover effect to chat messages */
+.chat-message-hover {
+  transition: all 0.2s ease;
+}
+
+.chat-message-hover:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px -2px rgba(0, 0, 0, 0.1);
+}
+
 /* Hide all Mermaid error elements */
 .error-icon,
 .error-text,
@@ -243,6 +271,34 @@ svg[aria-roledescription="syntax-error"] * {
   max-width: 0 !important;
 }
 
+/* Editor page no scroll */
+.editor-page {
+  height: 100vh;
+  overflow: hidden;
+}
+
+html:has(.editor-page),
+body:has(.editor-page) {
+  overflow: hidden;
+  height: 100%;
+  position: fixed;
+  width: 100%;
+}
+
+/* Additional diagram container rules */
+.editor-page > div {
+  max-height: 100vh;
+}
+
+.editor-page .flex-1 {
+  max-height: calc(100vh - 4.05rem); /* 4rem for header + 0.05rem for border */
+  height: calc(100vh - 4.05rem);
+}
+
+.editor-page .flex-1 > div {
+  height: 100%;
+}
+
 /* Prevent scrolling on body when Mermaid errors are present */
 body:has(svg[aria-roledescription="error"]),
 body:has(svg[aria-roledescription="syntax-error"]) {
@@ -268,4 +324,101 @@ body:has(svg[aria-roledescription="syntax-error"]) {
   overflow: hidden !important;
   max-height: 0 !important;
   max-width: 0 !important;
+}
+
+/* Additional diagram-specific styles */
+.editor-page .diagram-controls {
+  border-bottom-width: 1px;
+  position: relative;
+}
+
+/* Remove gradient line below diagram controls */
+.editor-page:not(.dark) .diagram-controls::after {
+  display: none; /* Hide the gradient effect */
+}
+
+/* Light mode border - solid dark color */
+.editor-page:not(.dark) .diagram-controls {
+  border-color: var(--border-light); /* Using the light mode border color variable */
+}
+
+/* Dark mode - solid dark color */
+.editor-page .dark .diagram-controls::after {
+  display: none;
+}
+
+.editor-page .diagram-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
+
+.editor-page .diagram-content {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  position: relative;
+}
+
+/* Additional styles for dark mode diagram controls */
+body.dark .diagram-controls,
+.editor-page .dark .diagram-controls,
+.dark .diagram-controls {
+  border-color: #1a202c !important; /* Darker gray for dark mode */
+  border-bottom: 1px solid #1a202c !important;
+}
+
+/* Remove the overlay for dark mode */
+.dark .diagram-controls::before {
+  display: none;
+}
+
+/* Simplify chat container structure */
+.message-container {
+  margin: 0;
+  padding: 0;
+}
+
+.message-container > div {
+  margin: 0;
+}
+
+/* Initial welcome message styling */
+.chat-scroll-container > div:first-child[class*="absolute"] {
+  max-height: 40px !important;
+  z-index: 10;
+  opacity: 0.95;
+}
+
+.chat-scroll-container > div:first-child .flex-1 {
+  min-height: unset;
+  max-height: 40px;
+  overflow: hidden;
+}
+
+.chat-scroll-container > div:first-child p {
+  line-height: 1.2;
+  margin: 0;
+}
+
+/* Add styling for SVG previews in chat messages */
+.svg-preview {
+  max-width: 100%;
+  overflow: auto;
+  border: 1px solid #eaeaea;
+  border-radius: 0.25rem;
+  padding: 0.5rem;
+  background-color: white;
+}
+
+.svg-preview svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* In dark mode */
+.dark .svg-preview {
+  background-color: #1a1a1a;
+  border-color: #333;
 }

@@ -133,7 +133,7 @@ export function useMermaidInit(theme: string = 'default') {
         console.log('useMermaidInit: Configuring mermaid');
         mermaid.initialize({
           startOnLoad: false,
-          theme: theme,
+          theme: theme as any, // Type cast to avoid type error
           securityLevel: 'loose',
           fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
           themeVariables: {
@@ -162,6 +162,41 @@ export function useMermaidInit(theme: string = 'default') {
           suppressErrorsInDOM: true,
           errorLabelColor: 'transparent',
         });
+        
+        // Add custom CSS for mindmap styling
+        if (typeof document !== 'undefined') {
+          // Remove existing style if it exists
+          const existingStyle = document.getElementById('mermaid-mindmap-style');
+          if (existingStyle) {
+            existingStyle.remove();
+          }
+          
+          // Create new style element
+          const style = document.createElement('style');
+          style.id = 'mermaid-mindmap-style';
+          style.textContent = `
+            /* Make root nodes always cloud shape */
+            .mindmap-node.section-root rect.node-rect,
+            .mindmap-node.section--1 rect.node-rect,
+            .mindmap-node.section-root .node-bkg,
+            .mindmap-node.section--1 .node-bkg {
+              rx: 50px !important;
+              ry: 25px !important;
+              shape-rendering: auto !important;
+              d: path('M0,15 Q0,0 15,0 L85,0 Q100,0 100,15 Q115,15 115,30 L115,70 Q115,85 100,85 L15,85 Q0,85 0,70 Q-15,70 -15,55 L-15,30 Q-15,15 0,15 Z') !important;
+              fill-rule: evenodd !important;
+            }
+            
+            /* Make all other nodes fully rounded (not circle) */
+            .mindmap-node:not(.section-root):not(.section--1) rect.node-rect,
+            .mindmap-node:not(.section-root):not(.section--1) .node-bkg {
+              rx: 15px !important;
+              ry: 15px !important;
+              shape-rendering: auto !important;
+            }
+          `;
+          document.head.appendChild(style);
+        }
         
         console.log('useMermaidInit: Mermaid initialized successfully');
       } catch (error) {
