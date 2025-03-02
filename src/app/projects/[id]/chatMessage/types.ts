@@ -11,6 +11,9 @@ export interface ChatMessageData {
   diagram_img?: string;
   error?: string;
   isTyping?: boolean;
+  isRetrying?: boolean;
+  hasRetryButton?: boolean;
+  isSystemNotification?: boolean;
   reactions?: string[];
   documentSource?: string;
 }

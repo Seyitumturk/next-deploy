@@ -49,8 +49,8 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
       {/* Header */}
       <header className={`h-16 backdrop-blur-md border-b ${
         isDarkMode 
-          ? "bg-gray-900/80 border-gray-800/50" 
-          : "bg-[#e8dccc]/80 border-[#e8dccc]/50"
+          ? "bg-[#201c1c]/80 border-[#282424]/50" 
+          : "bg-[#e8dccc]/80 border-[#b8a990]/50"
       } sticky top-0 z-50`}>
         <div className="h-full px-6 flex items-center justify-between">
           {/* Desktop view: show project title and diagram type */}
@@ -86,7 +86,7 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
             {/* Dark/Light Mode Toggle Button */}
             <button
               onClick={() => setIsDarkMode(!isDarkMode)}
-              className={`p-2 rounded-full ${isDarkMode ? "bg-gray-800 hover:bg-gray-700" : "bg-gray-100 hover:bg-gray-200"} transition-colors`}
+              className={`p-2 rounded-full ${isDarkMode ? "bg-[#282424] hover:bg-[#343030]" : "bg-gray-100 hover:bg-gray-200"} transition-colors`}
               title="Toggle Dark Mode"
             >
               {isDarkMode ? (
@@ -124,7 +124,7 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
             <div className="flex items-center">
               <div className={`flex items-center space-x-1 h-8 px-3 py-1 rounded-lg ${
                 isDarkMode 
-                  ? "bg-gray-800/50 text-gray-300" 
+                  ? "bg-[#282424]/50 text-gray-300" 
                   : "bg-[#d8cbb8]/70 text-[#6a5c4c]"
               } flex-shrink-0`}>
                 <svg
@@ -148,7 +148,6 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
           </div>
         </div>
       </header>
-      <div className="w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-80" />
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
@@ -181,6 +180,7 @@ const DiagramEditor: React.FC<EditorProps> = (props) => {
           onDiagramVersionSelect={editor.handleDiagramVersionSelect}
           downloadSVG={editor.downloadSVG}
           downloadPNG={editor.downloadPNG}
+          onRetry={editor.handleRetry}
         />
         <DiagramDisplay
           showPromptPanel={editor.showPromptPanel}

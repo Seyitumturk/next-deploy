@@ -196,7 +196,7 @@ export const DiagramDisplay: React.FC<DiagramDisplayProps> = ({
       
       {/* Diagram container */}
       <div className={`relative flex-grow overflow-hidden diagram-content ${
-        isDarkMode ? "bg-gray-900" : "bg-[#e8dccc]"
+        isDarkMode ? "bg-[#201c1c]" : "bg-[#e8dccc]"
       }`}>
         {/* Diagram content */}
         <div

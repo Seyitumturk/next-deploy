@@ -9,6 +9,7 @@ import yaml from 'yaml';
 import fs from 'fs';
 import path from 'path';
 import mongoose from 'mongoose';
+import { validateMermaidCode } from '@/lib/mermaidUtils';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -27,6 +28,7 @@ interface ChatMessage {
   isTyping?: boolean;
   diagramVersion?: string;
   timestamp: Date;
+  errorMessage?: string;
 }
 
 function getPromptForDiagramType(diagramType: string, userPrompt: string) {
@@ -79,13 +81,24 @@ export async function POST(req: Request) {
     await connectDB();
 
     // Destructure the request body
-    const { textPrompt, diagramType, projectId, clientSvg, chatHistory = [] } = await req.json();
+    const { 
+      textPrompt, 
+      diagramType, 
+      projectId, 
+      clientSvg, 
+      chatHistory = [],
+      isRetry = false,
+      clearCache = false, 
+      failureReason = ''
+    } = await req.json();
 
     // Add detailed logging for SVG tracking
     console.log("[SVG_TRACKING] Request received with SVG:", {
       hasSVG: !!clientSvg,
       svgLength: clientSvg ? clientSvg.length : 0,
       isFirstPrompt: chatHistory.length === 0,
+      isRetry,
+      clearCache
     });
 
     console.log("[diagrams API] Incoming request body:", {
@@ -94,6 +107,9 @@ export async function POST(req: Request) {
       projectId,
       clientSvg: clientSvg ? clientSvg.substring(0, 100) + "..." : "none",
       chatHistoryLength: chatHistory.length,
+      isRetry,
+      clearCache,
+      failureReason
     });
 
     // Normalize the incoming diagram type
@@ -129,8 +145,26 @@ export async function POST(req: Request) {
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          const systemPrompt = getSystemPromptForDiagramType(effectiveDiagramType);
-          const userPrompt = getPromptForDiagramType(effectiveDiagramType, textPrompt);
+          // Create retry-enhanced system prompt
+          let systemPrompt = getSystemPromptForDiagramType(effectiveDiagramType);
+          
+          // Add retry-specific instructions if this is a retry
+          if (isRetry) {
+            systemPrompt += `\n\nThis is a retry attempt because the previous diagram had syntax errors. 
+Please create a simpler diagram with more reliable syntax. Focus on clarity and correctness over complexity.
+Avoid advanced features that might cause syntax errors. Double-check your syntax before submitting.`;
+          }
+          
+          // Create user prompt with specific retry guidance if needed
+          let userPrompt = getPromptForDiagramType(effectiveDiagramType, textPrompt);
+          
+          if (isRetry && failureReason) {
+            userPrompt += `\n\nThe previous attempt failed with this error: "${failureReason}". 
+Please create a new diagram from scratch with simpler, more reliable syntax.`;
+          } else if (isRetry) {
+            userPrompt += `\n\nThe previous attempt failed due to syntax errors. 
+Please try again with a completely fresh approach, focusing on simpler, more reliable syntax.`;
+          }
           
           // Convert chat history into the format expected by Anthropic
           const previousMessages = chatHistory
@@ -152,21 +186,45 @@ export async function POST(req: Request) {
             }
           ];
           
-          const response = await anthropic.messages.create({
+          // Configure Anthropic API parameters
+          let anthropicParams: {
+            model: string;
+            max_tokens: number;
+            temperature: number;
+            system: string;
+            messages: any[];
+            stream: boolean;
+          } = {
             model: "claude-3-7-sonnet-20250219",
-            max_tokens: 4000,
-            temperature: 0.7,
+            max_tokens: 10000,
+            temperature: 0.9,
             system: systemPrompt,
             messages: messageContent,
             stream: true
-          });
+          };
+
+          // If this is a retry with cleared cache, adjust parameters
+          if (isRetry && clearCache) {
+            anthropicParams = {
+              ...anthropicParams,
+              temperature: 1.0, // Increase temperature to get more variety
+            };
+            
+            console.log("[diagrams API] Using retry parameters with cleared cache:", {
+              temperature: anthropicParams.temperature
+            });
+          }
+
+          // Create a streaming response
+          const response = await anthropic.messages.create(anthropicParams);
 
           let diagram = '';
           let currentChunk = '';
           let isCollectingDiagram = false;
           let lineBuffer: string[] = [];
 
-          for await (const chunk of response) {
+          // Use type assertion to handle the response as an async iterable
+          for await (const chunk of response as any) {
             if (chunk.type === 'content_block_delta' && chunk.delta.text) {
               const content = chunk.delta.text;
               currentChunk += content;
@@ -251,6 +309,28 @@ export async function POST(req: Request) {
                 
                 // Save the processed diagram
                 diagram = processedDiagram;
+
+                // Validate the diagram syntax before proceeding
+                const validationResult = await validateMermaidCode(diagram, effectiveDiagramType);
+                
+                if (!validationResult.valid) {
+                  // Handle validation failure
+                  console.error('[diagrams API] Validation failed:', validationResult.message);
+                  
+                  // Send error to client
+                  controller.enqueue(
+                    `data: ${JSON.stringify({ 
+                      error: true,
+                      errorMessage: validationResult.message,
+                      mermaidSyntax: diagram.trim(),
+                      needsRetry: !isRetry, // Only auto-retry on first failure
+                      isComplete: true
+                    })}\n\n`
+                  );
+                  
+                  // Don't save invalid diagrams
+                  return;
+                }
 
                 // Use the client-provided SVG
                 const svgOutput = clientSvg;
@@ -395,13 +475,21 @@ export async function POST(req: Request) {
           console.error('Error in streaming response:', error);
           // Send an error message that the client can handle
           try {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            
             controller.enqueue(
-              `data: ${JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' })}\n\n`
+              `data: ${JSON.stringify({ 
+                error: true, 
+                errorMessage,
+                needsRetry: !isRetry, // Only auto-retry on first failure
+                isComplete: true 
+              })}\n\n`
             );
           } catch (e) {
             console.error('Failed to send error message:', e);
           }
-          controller.error(error);
+          
+          // Don't throw error here - we've already sent an error response
         } finally {
           controller.close();
         }

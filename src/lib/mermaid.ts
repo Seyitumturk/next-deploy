@@ -1,3 +1,5 @@
+"use client";
+
 import mermaid from 'mermaid';
 
 // Initialize mermaid with improved configuration for streaming

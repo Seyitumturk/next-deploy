@@ -51,10 +51,10 @@ export const DiagramThemeSelector: React.FC<DiagramThemeSelectorProps> = ({
     <div 
       ref={selectorRef}
       className={`p-2 rounded-lg ${
-        isDarkMode ? 'bg-gray-800' : 'bg-white'
+        isDarkMode ? 'bg-[#282424]' : 'bg-white'
       } shadow-xl w-56`}
     >
-      <div className="mb-2 px-2 pb-2 border-b border-gray-200 dark:border-gray-700">
+      <div className="mb-2 px-2 pb-2 border-b border-gray-200 dark:border-[#343030]">
         <h3 className="text-sm font-medium">Select Theme</h3>
       </div>
       <div className="space-y-1" role="menu" aria-orientation="vertical">
@@ -68,7 +68,7 @@ export const DiagramThemeSelector: React.FC<DiagramThemeSelectorProps> = ({
                   ? 'bg-indigo-600 text-white' 
                   : 'bg-indigo-100 text-indigo-800'
                 : isDarkMode
-                  ? 'text-gray-200 hover:bg-gray-700'
+                  ? 'text-gray-200 hover:bg-[#343030]'
                   : 'text-gray-700 hover:bg-gray-100'
             }`}
             role="menuitem"

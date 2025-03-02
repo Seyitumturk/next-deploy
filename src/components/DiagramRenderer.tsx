@@ -157,7 +157,7 @@ const DiagramRenderer: React.FC<DiagramRendererProps> = ({
   return (
     <div 
       ref={diagramRef} 
-      className="diagram-container relative w-full min-h-[300px] overflow-visible bg-white dark:bg-gray-800 rounded-lg shadow-sm transition-all"
+      className="diagram-container relative w-full min-h-[300px] overflow-visible bg-white dark:bg-[#282424] rounded-lg shadow-sm transition-all"
       data-rendering={isRendering ? 'true' : 'false'}
       data-error={error ? 'true' : 'false'}
       data-diagram-type={diagramType || 'unknown'}

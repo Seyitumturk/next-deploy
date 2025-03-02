@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import useLocalStorage from '@/lib/useLocalStorage';
 import { EditorProps, MermaidTheme } from './types';
-import { ChatMessageData, ChatMessageUtils } from '../chatMessage';
+import { ChatMessageData } from '../chatMessage/types';
 
 // Import specialized hooks
 import useHistory from './hooks/useHistory';
@@ -15,13 +15,13 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
   // --- Core state ---
   const [prompt, setPrompt] = useState('');
   const [lastPrompt, setLastPrompt] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [error, setError] = useState('');
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [error, setError] = useState<string>('');
   const [showPromptPanel, setShowPromptPanel] = useState(true);
   const [svgOutput, setSvgOutput] = useState<string>('');
   const [messages, setMessages] = useState<ChatMessageData[]>([]);
   const [versionId, setVersionId] = useState<string>('');
-  const [isVersionSelectionInProgress, setIsVersionSelectionInProgress] = useState(false);
+  const [isVersionSelectionInProgress, setIsVersionSelectionInProgress] = useState<boolean>(false);
   const [isEditorReady, setIsEditorReady] = useState(false);
   const [editorMode, setEditorMode] = useState<'chat' | 'code'>('chat');
   const [documentSummary, setDocumentSummary] = useState('');
@@ -59,6 +59,39 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
     setDiagramHistory,
     updateHistory
   } = useHistory({ initialDiagram, initialHistory });
+
+  // Function to persist history changes to the database
+  const persistHistory = async (historyData: {
+    prompt?: string;
+    diagram: string;
+    diagram_img?: string;
+    updateType: 'chat' | 'code' | 'reversion';
+  }) => {
+    try {
+      console.log(`[persistHistory] Persisting diagram to database, projectId: ${projectId}`);
+      const response = await fetch('/api/project-history', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          projectId,
+          ...historyData
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to save history: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log(`[persistHistory] History saved successfully:`, data);
+      return true;
+    } catch (error) {
+      console.error(`[persistHistory] Error saving history:`, error);
+      return false;
+    }
+  };
 
   const {
     renderDiagram,
@@ -133,60 +166,109 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
     setError
   });
 
-  // --- Handle generate diagram ---
-  const handleGenerateDiagram = async (e: React.FormEvent<HTMLFormElement> | null, initialPrompt?: string) => {
+  // Add new states for retry functionality
+  const [isRetrying, setIsRetrying] = useState<boolean>(false);
+  const [retryAttempt, setRetryAttempt] = useState<number>(0);
+  const [lastErrorMessage, setLastErrorMessage] = useState<string>('');
+  const MAX_AUTO_RETRIES = 1; // Auto-retry only once
+
+  // Modify the handleGenerateDiagram function to enhance error handling and retry logic
+  const handleGenerateDiagram = async (e: React.FormEvent<HTMLFormElement> | null, initialPrompt?: string, isRetry: boolean = false, failureReason?: string) => {
     if (e) e.preventDefault();
     
-    const promptToUse = initialPrompt || prompt;
-    if (!promptToUse.trim()) return;
-    
-    console.log(`[handleGenerateDiagram] Processing prompt: "${promptToUse.substring(0, 50)}${promptToUse.length > 50 ? '...' : ''}"`);
-    console.log(`[handleGenerateDiagram] Current diagram exists: ${!!currentDiagram}, SVG exists: ${!!svgOutput}, SVG length: ${svgOutput?.length || 0}`);
-    
-    setIsGenerating(true);
+    // Clear any previous errors
     setError('');
+    
+    // Get the prompt value
+    const promptToUse = initialPrompt || prompt;
+    
+    // Store last prompt for retry functionality
     setLastPrompt(promptToUse);
     
-    // Add user message
+    // Don't proceed if no prompt or if currently generating or retrying
+    if (!promptToUse || isGenerating) {
+      return;
+    }
+    
+    // Update retry state
+    if (isRetry) {
+      setIsRetrying(true);
+      setRetryAttempt(prev => prev + 1);
+    } else {
+      setRetryAttempt(0);
+      setIsRetrying(false);
+    }
+
+    setIsGenerating(true);
+    
+    // Add user message to chat
     const userMessage: ChatMessageData = {
       role: 'user',
       content: promptToUse,
       timestamp: new Date(),
     };
     
-    setMessages(prev => [...prev, userMessage]);
-    
-    // Add AI typing indicator message
+    // Add typing indicator message
     const typingMessage: ChatMessageData = {
       role: 'assistant',
-      content: '',
+      content: 'Generating your diagram...',
       timestamp: new Date(),
       isTyping: true,
+      isRetrying: isRetry,
     };
     
-    setMessages(prev => [...prev, typingMessage]);
+    // Only add user message if it's not a retry attempt
+    if (!isRetry) {
+      setMessages(prev => [...prev, userMessage, typingMessage]);
+    } else {
+      // If it's a retry, add a retry notification and a new typing indicator
+      const retryNotification: ChatMessageData = {
+        role: 'system',
+        content: 'Retrying diagram generation with a fresh approach...',
+        timestamp: new Date(),
+        isSystemNotification: true,
+      };
+      
+      // Replace the last typing message with the retry notification and a new typing indicator
+      setMessages(prev => {
+        // Filter out the previous typing message
+        const withoutTyping = prev.filter(msg => !msg.isTyping);
+        // Add the retry notification and a new typing indicator
+        return [...withoutTyping, retryNotification, typingMessage];
+      });
+    }
 
     try {
-      // Get current messages for context
-      const currentMessages = [...messages, userMessage];
+      // Use currentMessagesForContext to prepare chat history
+      // but skip the last two messages (user prompt and typing indicator)
+      // so we don't duplicate them in the request
+      const currentMessagesForContext = isRetry 
+        ? messages.filter(msg => !msg.isRetrying && !msg.isTyping) // Filter out retry notifications and typing indicators
+        : messages.slice(0, -2);
 
-      console.log(`[handleGenerateDiagram] Calling /api/diagrams API endpoint with projectId: ${projectId}, diagramType: ${diagramType}`);
-      console.log(`[handleGenerateDiagram] Including SVG in request: ${!!svgOutput}, SVG length: ${svgOutput?.length || 0}`);
-      
-      // Call API to generate diagram with streaming response
-      const response = await fetch('/api/diagrams', {
+      // Configure request options
+      const options: RequestInit = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          projectId,
           textPrompt: promptToUse,
           diagramType,
-          clientSvg: svgOutput || '',
-          chatHistory: currentMessages,
+          projectId,
+          clientSvg: svgOutput,
+          chatHistory: currentMessagesForContext,
+          isRetry: isRetry,
+          clearCache: isRetry, // Clear cache on retry attempts
+          failureReason: failureReason || lastErrorMessage, // Pass the failure reason to the API
         }),
-      });
+      };
+
+      console.log(`[handleGenerateDiagram] Calling /api/diagrams API endpoint with projectId: ${projectId}, diagramType: ${diagramType}`);
+      console.log(`[handleGenerateDiagram] Including SVG in request: ${!!svgOutput}, SVG length: ${svgOutput?.length || 0}`);
+      
+      // Call API to generate diagram with streaming response
+      const response = await fetch('/api/diagrams', options);
 
       console.log(`[handleGenerateDiagram] API response status: ${response.status}`);
 
@@ -208,6 +290,9 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
         let receivedDiagram = '';
         let explanation = '';
         let isComplete = false;
+        let hasError = false;
+        let errorMessage = '';
+        let needsRetry = false;
         
         while (!isComplete) {
           const { done, value } = await reader.read();
@@ -239,6 +324,24 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
                   
                   const data = JSON.parse(jsonStr);
                   
+                  // Check for errors first
+                  if (data.error) {
+                    hasError = true;
+                    errorMessage = data.errorMessage || 'Failed to generate diagram';
+                    needsRetry = data.needsRetry || false;
+                    isComplete = data.isComplete || false;
+                    
+                    // If we have a partial diagram, save it for reference
+                    if (data.mermaidSyntax) {
+                      receivedDiagram = data.mermaidSyntax;
+                    }
+                    
+                    if (isComplete) {
+                      throw new Error(errorMessage);
+                    }
+                    continue;
+                  }
+                  
                   // If we got mermaid syntax, update the diagram
                   if (data.mermaidSyntax) {
                     receivedDiagram = data.mermaidSyntax;
@@ -247,6 +350,12 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
                     // Render the updated diagram immediately
                     const renderSuccess = await renderDiagram(receivedDiagram);
                     console.log(`[handleGenerateDiagram] Diagram rendered successfully: ${renderSuccess}, SVG length after render: ${svgOutput?.length || 0}`);
+                    
+                    // Track successful renders for improved save reliability
+                    if (renderSuccess && svgOutput && svgOutput.length > 0) {
+                      console.log(`[handleGenerateDiagram] Successfully rendered diagram with SVG length: ${svgOutput.length}`);
+                      // We don't need to modify latestSvgRef directly as svgOutput state will update
+                    }
                     
                     // If we still don't have SVG output after rendering, try rendering again
                     if ((!svgOutput || svgOutput.length === 0) && renderSuccess) {
@@ -267,11 +376,22 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
                     
                     // Wait a moment for final rendering to complete, then save the SVG
                     setTimeout(async () => {
-                      // Use the latest SVG from our ref to ensure we have the most recent version
-                      const currentSvg = latestSvgRef.current || svgOutput;
+                      // Get the most recent SVG output
+                      const currentSvg = svgOutput;
                       
-                      if (currentSvg && currentSvg.length > 0) {
-                        console.log(`[handleGenerateDiagram] Saving SVG separately after stream completion, SVG length: ${currentSvg.length}`);
+                      // Perform one final render attempt if needed
+                      if (!currentSvg || currentSvg.length === 0) {
+                        console.log(`[handleGenerateDiagram] No SVG available at stream completion, attempting final render`);
+                        if (receivedDiagram && receivedDiagram.length > 0) {
+                          const finalRenderSuccess = await renderDiagram(receivedDiagram);
+                          console.log(`[handleGenerateDiagram] Final render attempt result: ${finalRenderSuccess}, svg length now: ${svgOutput?.length || 0}`);
+                        }
+                      }
+                      
+                      // Now try to save whatever SVG we have
+                      const svgToSave = svgOutput;
+                      if (svgToSave && svgToSave.length > 0) {
+                        console.log(`[handleGenerateDiagram] Saving SVG separately after stream completion, SVG length: ${svgToSave.length}`);
                         try {
                           const saveSvgResponse = await fetch('/api/diagrams/save-svg', {
                             method: 'POST',
@@ -281,7 +401,7 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
                             body: JSON.stringify({
                               projectId,
                               gptResponseId: data.gptResponseId,
-                              svg: currentSvg
+                              svg: svgToSave
                             }),
                           });
                           console.log(`[handleGenerateDiagram] SVG save response status: ${saveSvgResponse.status}`);
@@ -325,12 +445,16 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
                       }
                     }, 2000); // Increased delay to 2 seconds
                   }
-                  
-                  if (data.error) {
-                    throw new Error(data.error);
-                  }
                 } catch (e) {
                   console.error('Error parsing SSE data:', e, line);
+                  // Only propagate critical errors, not parsing issues at the end of stream
+                  if (!isRetry && line.includes('error') && !isComplete) {
+                    throw new Error('Failed to parse diagram data');
+                  } else {
+                    // For errors at the end of streaming, just log them but don't propagate
+                    // This prevents unnecessary retries when the diagram is actually valid
+                    console.log('[handleGenerateDiagram] Non-critical parse error, continuing');
+                  }
                 }
               }
             }
@@ -342,6 +466,11 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
         console.log(`[handleGenerateDiagram] Received final diagram code, length: ${newDiagram.length}`);
         console.log(`[handleGenerateDiagram] Current SVG output length: ${svgOutput?.length || 0}`);
         
+        // Only proceed with saving if we have a valid diagram
+        if (!newDiagram || newDiagram.trim().length === 0) {
+          throw new Error('Generated diagram is empty');
+        }
+        
         // Remove typing indicator and add real AI response
         const aiMessage: ChatMessageData = {
           role: 'assistant',
@@ -350,11 +479,20 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
           diagramVersion: newDiagram,
         };
         
+        // Remove all typing indicators and add the real response
         setMessages(prev => prev.filter(msg => !msg.isTyping).concat(aiMessage));
         
-        // Update history in database
+        // Update history in database only for successful diagrams
         console.log(`[handleGenerateDiagram] Calling updateHistory with promptToUse: ${promptToUse.substring(0, 30)}..., newDiagram length: ${newDiagram.length}, type: chat`);
         await updateHistory({
+          prompt: promptToUse,
+          diagram: newDiagram,
+          diagram_img: svgOutput,
+          updateType: 'chat'
+        });
+        
+        // Persist history to database
+        await persistHistory({
           prompt: promptToUse,
           diagram: newDiagram,
           diagram_img: svgOutput,
@@ -380,11 +518,20 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
           diagramVersion: newDiagram,
         };
         
+        // Remove all typing indicators and add the real response
         setMessages(prev => prev.filter(msg => !msg.isTyping).concat(aiMessage));
         
         // Update history in database
         console.log(`[handleGenerateDiagram] Calling updateHistory with promptToUse: ${promptToUse.substring(0, 30)}..., newDiagram length: ${newDiagram.length}, type: chat`);
         await updateHistory({
+          prompt: promptToUse,
+          diagram: newDiagram,
+          diagram_img: svgOutput,
+          updateType: 'chat'
+        });
+        
+        // Persist history to database
+        await persistHistory({
           prompt: promptToUse,
           diagram: newDiagram,
           diagram_img: svgOutput,
@@ -399,19 +546,155 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
       }
     } catch (err: any) {
       console.error(`[handleGenerateDiagram] Error generating diagram:`, err);
-      setError(err.message || 'An error occurred');
+      const errorMsg = err.message || 'An error occurred';
       
-      // Remove typing indicator and add error message
+      // Check if we have a successful diagram despite the error
+      let hasValidDiagram = false;
+      let validDiagram = '';
+      
+      // We need to check if the current diagram renders correctly
+      try {
+        // If we got to the point where we have a diagram and SVG
+        if (svgOutput && svgOutput.length > 0 && currentDiagram && currentDiagram.length > 0) {
+          console.log(`[handleGenerateDiagram] Got error but we have SVG output (${svgOutput.length} bytes) and diagram code (${currentDiagram.length} bytes)`);
+          hasValidDiagram = true;
+          validDiagram = currentDiagram;
+        } 
+        // Or if we can render the current diagram successfully
+        else if (currentDiagram && currentDiagram.length > 0) {
+          const testRenderSuccess = await renderDiagram(currentDiagram);
+          if (testRenderSuccess && svgOutput && svgOutput.length > 0) {
+            console.log(`[handleGenerateDiagram] Got error but rendering test succeeded, SVG: ${svgOutput.length} bytes`);
+            hasValidDiagram = true;
+            validDiagram = currentDiagram;
+          }
+        }
+        
+        // If we have a valid diagram, save it to history despite the error
+        if (hasValidDiagram) {
+          console.log(`[handleGenerateDiagram] Saving valid diagram to history despite error`);
+          
+          // Update messages to show we're using the valid diagram
+          const aiMessage: ChatMessageData = {
+            role: 'assistant',
+            content: 'Here is your diagram. (Note: There was a minor issue but I found a valid diagram to display)',
+            timestamp: new Date(),
+            diagramVersion: validDiagram,
+          };
+          
+          // Remove all typing indicators and add the real response
+          setMessages(prev => prev.filter(msg => !msg.isTyping).concat(aiMessage));
+          
+          // Save to history
+          await updateHistory({
+            prompt: promptToUse,
+            diagram: validDiagram,
+            diagram_img: svgOutput,
+            updateType: 'chat'
+          });
+          
+          // Persist history to database
+          await persistHistory({
+            prompt: promptToUse,
+            diagram: validDiagram,
+            diagram_img: svgOutput,
+            updateType: 'chat'
+          });
+          
+          // Also save SVG separately to ensure it's stored properly
+          try {
+            const saveSvgResponse = await fetch('/api/diagrams/save-svg', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                projectId,
+                svg: svgOutput
+              }),
+            });
+            console.log(`[handleGenerateDiagram] Emergency SVG save response: ${saveSvgResponse.status}`);
+          } catch (svgError) {
+            console.error('[handleGenerateDiagram] Failed to save SVG in error recovery:', svgError);
+          }
+          
+          // Clear prompt since we successfully handled this
+          setPrompt('');
+          
+          // Return early without showing error
+          return;
+        }
+      } catch (renderErr) {
+        console.error('Error during render test:', renderErr);
+      }
+      
+      // Regular error handling for actual errors
+      setError(errorMsg);
+      setLastErrorMessage(errorMsg);
+      
+      // If this is not yet a retry attempt, try again automatically
+      if (!isRetry && retryAttempt < MAX_AUTO_RETRIES) {
+        console.log('[handleGenerateDiagram] First attempt failed, retrying automatically...');
+        
+        // Add retry notification for the user
+        const retryingMessage: ChatMessageData = {
+          role: 'system',
+          content: 'There was an issue with diagram generation. Retrying automatically...',
+          timestamp: new Date(),
+          isSystemNotification: true,
+        };
+        
+        // Update messages to show the retry notification
+        setMessages(prev => prev.filter(msg => !msg.isTyping).concat(retryingMessage));
+        
+        // Add a small delay before retrying
+        setTimeout(() => {
+          handleGenerateDiagram(null, promptToUse, true, errorMsg);
+        }, 1500);
+        return; // Early return to avoid adding error message here
+      }
+      
+      // This was already a retry attempt or we hit another error, show error message
       const errorMessage: ChatMessageData = {
         role: 'assistant',
-        content: 'Sorry, I encountered an error while generating your diagram.',
+        content: isRetry 
+          ? 'I\'m having trouble creating this diagram. Please try a clearer prompt or a different diagram type.' 
+          : 'Sorry, I encountered an error while generating your diagram. You can try again with the retry button.',
         timestamp: new Date(),
-        error: err.message,
+        error: errorMsg,
+        hasRetryButton: true, // Add a flag to indicate this message should show a retry button
       };
       
+      // Remove all typing indicators and add the error message
       setMessages(prev => prev.filter(msg => !msg.isTyping).concat(errorMessage));
     } finally {
       setIsGenerating(false);
+      setIsRetrying(false);
+    }
+  };
+
+  // Enhanced function to handle manual retry from the UI
+  const handleRetry = () => {
+    if (lastPrompt) {
+      // Reset error state
+      setError('');
+      setMessages(prev => {
+        // Remove the last error message
+        const filteredMessages = prev.filter(msg => !msg.error);
+        
+        // Add a system message about retry
+        const retryMessage: ChatMessageData = {
+          role: 'system',
+          content: 'Retrying with a fresh approach...',
+          timestamp: new Date(),
+          isSystemNotification: true,
+        };
+        
+        return [...filteredMessages, retryMessage];
+      });
+      
+      // Trigger generation with fresh cache and pass the last error message
+      handleGenerateDiagram(null, lastPrompt, true, lastErrorMessage);
     }
   };
 
@@ -425,6 +708,8 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
       
       // Render the selected version
       await renderDiagram(version);
+      
+      // Don't switch to code editor mode, stay in chat mode
       
     } catch (error) {
       console.error('Error selecting diagram version:', error);
@@ -467,8 +752,21 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
 
   // Initial setup effect
   useEffect(() => {
+    console.log(`[Initial Setup] Starting with initialHistory length: ${initialHistory?.length || 0}`);
+    
     if (currentDiagram) {
-      renderDiagram(currentDiagram);
+      console.log(`[Initial Setup] Have currentDiagram, length: ${currentDiagram.length}`);
+      
+      // If we have initialHistory with diagram_img for the current diagram, use it immediately
+      if (initialHistory && initialHistory.length > 0 && initialHistory[0]?.diagram_img) {
+        console.log(`[Initial Setup] Using SVG from history immediately, length: ${initialHistory[0].diagram_img.length}`);
+        setSvgOutput(initialHistory[0].diagram_img);
+        latestSvgRef.current = initialHistory[0].diagram_img;
+      } else {
+        // If no SVG in history, render the diagram to generate it
+        console.log(`[Initial Setup] No SVG in history, rendering diagram to generate SVG`);
+        renderDiagram(currentDiagram);
+      }
     }
     
     // Load chat history
@@ -541,6 +839,7 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
     setScale,
     updateHistory,
     handleDiagramVersionSelect,
+    handleRetry,
   };
 }
 

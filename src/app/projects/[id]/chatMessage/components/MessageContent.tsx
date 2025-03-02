@@ -13,6 +13,8 @@ interface MessageContentProps {
   isDarkMode: boolean;
   showDiagramPreview: boolean;
   setShowDiagramPreview: React.Dispatch<React.SetStateAction<boolean>>;
+  onDiagramVersionSelect?: () => Promise<void>;
+  onRetry?: () => void;
 }
 
 // Character limit for preview
@@ -23,7 +25,9 @@ export const MessageContent: React.FC<MessageContentProps> = ({
   isExpanded,
   isDarkMode,
   showDiagramPreview,
-  setShowDiagramPreview
+  setShowDiagramPreview,
+  onDiagramVersionSelect,
+  onRetry
 }) => {
   const [isCodeExpanded, setIsCodeExpanded] = useState<Record<number, boolean>>({});
   
@@ -54,12 +58,56 @@ export const MessageContent: React.FC<MessageContentProps> = ({
   // Check if message contains markdown code blocks
   const hasCodeBlock = message.content.includes('```');
 
-  // Render error message if present
+  // Render system notifications with styled appearance
+  if (message.isSystemNotification) {
+    return (
+      <div className={`py-2 text-center italic ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+        {message.content}
+      </div>
+    );
+  }
+
+  // Render error message with retry button if needed
   if (message.error) {
     return (
-      <div className="text-red-500">
-        <p className="font-medium mb-1">Error:</p>
-        <p>{message.error}</p>
+      <div>
+        <div className={`p-3 rounded-md ${
+          isDarkMode ? 'bg-red-900/20 text-red-300' : 'bg-red-50 text-red-600'
+        }`}>
+          <div className="flex items-center mb-2">
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+            <span className="font-medium">Diagram rendering failed</span>
+          </div>
+          <p className="ml-7 text-sm mb-2">{message.content}</p>
+          
+          <div className="ml-7 text-sm">
+            {!message.hasRetryButton ? (
+              <p>We'll automatically retry once to create a simpler diagram...</p>
+            ) : (
+              <p>Try writing a clearer prompt or selecting a different diagram type.</p>
+            )}
+          </div>
+          
+          {message.hasRetryButton && onRetry && (
+            <div className="mt-3 text-center">
+              <button
+                onClick={onRetry}
+                className={`inline-flex items-center px-3 py-1.5 rounded-md text-sm font-medium ${
+                  isDarkMode 
+                    ? 'bg-red-800 text-white hover:bg-red-700' 
+                    : 'bg-red-100 text-red-700 hover:bg-red-200'
+                }`}
+              >
+                <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+                Retry Generation
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -74,27 +122,43 @@ export const MessageContent: React.FC<MessageContentProps> = ({
     );
   }
 
-  // Render diagram preview if available and requested
-  if ((message.diagramVersion || message.diagram_img) && showDiagramPreview) {
+  // Special handling for typing indicator with retry status
+  if (message.isTyping && message.isRetrying) {
     return (
-      <div>
-        <div className="mb-2">{message.content}</div>
-        <div className="mt-3 border rounded p-2 bg-gray-50">
-          <div className="text-xs text-gray-500 mb-1">Diagram Preview:</div>
-          {message.diagramVersion && (
-            <pre className="text-xs overflow-x-auto p-2 bg-gray-100 rounded">
-              {message.diagramVersion.length > 500 
-                ? `${message.diagramVersion.substring(0, 500)}...` 
-                : message.diagramVersion}
-            </pre>
-          )}
-          {message.diagram_img && (
-            <div className="mt-2">
-              <div className="text-xs text-gray-500 mb-1">SVG Image:</div>
-              <div className="svg-preview" dangerouslySetInnerHTML={{ __html: message.diagram_img }} />
+      <div className="py-3">
+        <div className="flex items-center mb-2">
+          <div className="relative mr-2">
+            <div className="w-6 h-6 flex items-center justify-center">
+              <div className="absolute w-5 h-5 border-2 rounded-full border-blue-500 border-t-transparent animate-spin"></div>
+              <div className="absolute w-3 h-3 border-2 rounded-full border-blue-300 border-t-transparent animate-spin" style={{ animationDirection: 'reverse', animationDuration: '0.8s' }}></div>
             </div>
-          )}
+          </div>
+          <span className={`font-medium ${isDarkMode ? 'text-blue-300' : 'text-blue-600'}`}>
+            Retrying diagram
+          </span>
         </div>
+        <p className={`ml-8 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+          Creating a fresh diagram with improved syntax...
+        </p>
+      </div>
+    );
+  }
+
+  // Normal typing indicator
+  if (message.isTyping) {
+    return (
+      <div className="py-3">
+        <div className="flex items-center mb-2">
+          <div className="relative mr-2">
+            <div className="w-6 h-6 border-2 rounded-full border-b-transparent border-primary animate-spin"></div>
+          </div>
+          <span className={`font-medium ${isDarkMode ? 'text-blue-300' : 'text-blue-600'}`}>
+            Generating your diagram
+          </span>
+        </div>
+        <p className={`ml-8 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+          Creating a beautiful visualization of your idea...
+        </p>
       </div>
     );
   }
@@ -102,18 +166,21 @@ export const MessageContent: React.FC<MessageContentProps> = ({
   // Render markdown content
   return (
     <div className="w-full">
-      {/* Show diagram version indicator */}
+      {/* Show diagram version indicator as a clickable button */}
       {(hasDiagramVersion || hasDiagramImg) && message.role === 'assistant' && (
-        <div className={`mb-3 text-xs inline-flex items-center px-2 py-1 rounded-full ${
-          isDarkMode ? 'bg-primary-dark/20 text-primary-dark' : 'bg-primary/10 text-primary'
-        }`}>
+        <button 
+          onClick={onDiagramVersionSelect}
+          className={`mb-3 text-xs inline-flex items-center px-2 py-1 rounded-full cursor-pointer ${
+            isDarkMode ? 'bg-primary-dark/20 text-primary-dark hover:bg-primary-dark/30' : 'bg-primary/10 text-primary hover:bg-primary/20'
+          }`}
+        >
           <svg className="w-3 h-3 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polygon points="12 2 2 7 12 12 22 7 12 2" />
             <polyline points="2 17 12 22 22 17" />
             <polyline points="2 12 12 17 22 12" />
           </svg>
-          <span>Diagram Updated</span>
-        </div>
+          <span>Apply this diagram</span>
+        </button>
       )}
 
       {/* Content */}
@@ -129,7 +196,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({
                 const [language, ...code] = part.split('\n');
                 return (
                   <pre key={i} className={`p-3 rounded my-2 overflow-x-auto ${
-                    isDarkMode ? 'bg-gray-800' : 'bg-gray-100' 
+                    isDarkMode ? 'bg-gray-800' : 'bg-[#e8dccc]' 
                   }`}>
                     <code className={`language-${language || 'text'}`}>
                       {code.join('\n')}
@@ -143,14 +210,6 @@ export const MessageContent: React.FC<MessageContentProps> = ({
           <p>{message.content}</p>
         )}
       </div>
-
-      {message.error && (
-        <div className={`mt-2 p-2 text-sm rounded border ${
-          isDarkMode ? 'bg-red-900/30 border-red-800 text-red-300' : 'bg-red-50 border-red-200 text-red-600'
-        }`}>
-          <span className="font-medium">Error:</span> {message.error}
-        </div>
-      )}
     </div>
   );
 }; 

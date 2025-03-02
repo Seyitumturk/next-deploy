@@ -45,7 +45,6 @@ const useDiagramRendering = ({
           barHeight: 20,
           fontSize: 14,
           sectionFontSize: 14,
-          titleFontSize: 16,
           barGap: 4,
         },
       });
@@ -79,6 +78,9 @@ const useDiagramRendering = ({
       setVersionId(versionId);
       console.log(`[renderDiagram] Generated version ID: ${versionId}`);
 
+      // Clear any previous render errors before attempting to render
+      setRenderError(null);
+
       // Attempt to render with mermaid
       console.log(`[renderDiagram] Calling mermaid.render with versionId: ${versionId}`);
       const { svg } = await mermaid.render(versionId, processedCode);
@@ -90,8 +92,6 @@ const useDiagramRendering = ({
         const enhancedSvg = ensureSvgDimensions(svg);
         console.log(`[renderDiagram] Setting SVG output, length: ${enhancedSvg.length}`);
         setSvgOutput(enhancedSvg);
-        // Silently clear any error that might be displayed
-        setRenderError(null);
         return true;
       }
       
@@ -102,8 +102,24 @@ const useDiagramRendering = ({
       // Log the error to console but don't display it to user
       console.error('[renderDiagram] Error rendering diagram:', error);
       
-      // Don't set error message for UI display
-      // Just keep the previous SVG showing
+      // Set error message for UI display only for actual syntax errors
+      // This prevents false "failed" states at the end of streaming
+      if (error.message && (
+        error.message.includes('Syntax error') || 
+        error.message.includes('Parse error') ||
+        error.message.includes('Invalid') ||
+        error.message.includes('Expected') ||
+        error.message.includes('Expecting') ||
+        error.message.includes('Unexpected token') ||
+        error.message.includes('not defined') ||
+        error.message.includes('missing')
+      )) {
+        setRenderError(`Diagram syntax error: ${error.message}`);
+      } else {
+        // For other types of errors, don't set render error to avoid "failed" state
+        // This helps with stream-end errors that aren't actually syntax issues
+        console.log('[renderDiagram] Non-syntax error encountered, not showing as render error');
+      }
       
       return false;
     }
@@ -177,7 +193,17 @@ const useDiagramRendering = ({
       : codeOrEvent.target.value;
     
     setCurrentDiagram(newCode);
-    renderDiagram(newCode);
+    
+    // Auto-render with a small debounce to prevent too many renders
+    // Clear any existing timeout
+    if ((handleCodeChange as any).timeoutId) {
+      clearTimeout((handleCodeChange as any).timeoutId);
+    }
+    
+    // Set a new timeout to render after a short delay
+    (handleCodeChange as any).timeoutId = setTimeout(() => {
+      renderDiagram(newCode);
+    }, 500); // 500ms debounce
   }, [setCurrentDiagram, renderDiagram]);
 
   // Change theme function

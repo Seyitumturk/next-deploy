@@ -11,6 +11,13 @@ import Image from 'next/image';
 import { EyeIcon } from '@heroicons/react/24/outline';
 import { PaperAirplaneIcon, ArrowDownCircleIcon } from '@heroicons/react/24/solid';
 
+// Add Monaco editor type definition to the global Window interface
+declare global {
+  interface Window {
+    monaco: any;
+  }
+}
+
 export interface PromptPanelProps {
   handleCodeChange?: (code: string) => void;
   editorMode: 'chat' | 'code';
@@ -40,6 +47,7 @@ export interface PromptPanelProps {
   onDiagramVersionSelect: (version: string) => Promise<void>;
   downloadSVG?: () => void;
   downloadPNG?: (transparent?: boolean) => void;
+  onRetry?: () => void;
 }
 
 const monacoOptions = {
@@ -84,7 +92,7 @@ const GeneratingIndicator = ({ isDarkMode, message = "Generating diagram..." }: 
   <div className={`absolute -top-10 left-0 right-0 flex justify-center pointer-events-none animate-fadeIn`}>
     <div className={`px-3 py-1.5 rounded-full text-xs font-medium flex items-center space-x-2 shadow-md ${
       isDarkMode 
-        ? "bg-gray-800 text-blue-300 border border-gray-700" 
+        ? "bg-[#282424] text-blue-300 border border-[#343030]"
         : "bg-[#d8cbb8] text-[#4a3c2c] border border-[#b8a990]"
     }`}>
       <svg className="h-3.5 w-3.5 animate-spin mr-1.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -125,6 +133,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
   onDiagramVersionSelect,
   downloadSVG,
   downloadPNG,
+  onRetry,
 }) => {
   // State for website URL input
   const [showWebsiteInput, setShowWebsiteInput] = useState(false);
@@ -133,8 +142,33 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
   // Create a separate ref for the mobile chat container
   const mobileChatContainerRef = useRef<HTMLDivElement | null>(null);
   
+  // Add a ref to track the editor instance
+  const editorRef = useRef<any>(null);
+  
   // Add state to track if refs are initialized
   const [refsInitialized, setRefsInitialized] = useState(false);
+
+  // Add a useEffect to update editor theme when dark mode or editor mode changes
+  useEffect(() => {
+    if (editorRef.current && editorMode === 'code') {
+      // Get the Monaco instance
+      const monaco = window.monaco;
+      if (monaco) {
+        // Update editor theme
+        monaco.editor.setTheme(isDarkMode ? 'vs-dark' : 'vs');
+        
+        // Try to update the editor's background color directly
+        try {
+          const editorElement = document.querySelector('.monaco-editor');
+          if (editorElement) {
+            (editorElement as HTMLElement).style.backgroundColor = isDarkMode ? '#111827' : '#e8dccc';
+          }
+        } catch (err) {
+          console.error('Error updating editor background:', err);
+        }
+      }
+    }
+  }, [isDarkMode, editorMode]);
 
   // Add a useEffect to check if refs are initialized
   useEffect(() => {
@@ -413,15 +447,10 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
   // Add a typing indicator to the last message if generating
   useEffect(() => {
     if (isGenerating && chatHistory && chatHistory.length > 0) {
-      // Add a typing indicator message at the end of chat history
-      const lastMessage = chatHistory[chatHistory.length - 1];
-      if (lastMessage && (lastMessage.role !== 'assistant' || !lastMessage.isTyping)) {
-        // We would add a typing indicator here, but since we can't modify chatHistory directly,
-        // we'll show the indicator in the UI instead
-        // Ensure refs exist before scrolling
-        if (chatContainerRef || mobileChatContainerRef) {
-          guaranteedScrollToBottom();
-        }
+      // Only scroll to bottom if needed - don't add additional typing indicators here
+      // We already have typing indicators in the chat history or at the end of the chat
+      if (chatContainerRef || mobileChatContainerRef) {
+        guaranteedScrollToBottom();
       }
     }
   }, [isGenerating, chatHistory, guaranteedScrollToBottom, chatContainerRef, mobileChatContainerRef]);
@@ -431,7 +460,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
     documentSummary ? 'h-[120px]' : 'h-[72px]'
   } transition-all duration-200 ease-in-out focus:placeholder:text-transparent overflow-y-auto break-words overflow-x-hidden no-scrollbar ${
     isDarkMode 
-      ? "border-gray-700/60 bg-gray-800/70 backdrop-blur-sm text-white placeholder:text-gray-500" 
+      ? "border-[#343030]/60 bg-[#282424]/70 backdrop-blur-sm text-white placeholder:text-gray-500" 
       : "border-[#b8a990] bg-[#e8dccc]/70 text-[#6a5c4c] placeholder:text-[#8a7a66]"
   } ${documentSummary && prompt ? 'ring-2 ring-primary/50 border-transparent' : ''}`;
 
@@ -462,12 +491,12 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
       <div
         className={`hidden md:flex w-96 flex-col backdrop-blur-md border-r transform transition-transform duration-300 ease-in-out ${
           isDarkMode 
-            ? "bg-gray-900/85 border-gray-700/60" 
+            ? "bg-[#201c1c]/85 border-[#343030]/60" 
             : "bg-[#e8dccc]/90 border-[#b8a990] shadow-sm"
         }`}
         style={{
           position: 'absolute',
-          height: 'calc(100% - 4.25rem)', // subtract header height + gradient line
+          height: 'calc(100% - 4rem)', // updated height calculation - removed gradient line height
           zIndex: 10,
           transform: isVisible ? 'translateX(0)' : 'translateX(-100%)',
           display: 'flex',
@@ -482,7 +511,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
             <div className="flex items-center space-x-3">
               <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
                 isDarkMode 
-                  ? "bg-gray-800 text-white hover:bg-gray-700" 
+                  ? "bg-[#282424] text-white hover:bg-[#343030]"
                   : "bg-[#d8cbb8] text-[#6a5c4c] hover:bg-[#c8bba8] border border-[#b8a990]"
               }`}>
                 {editorMode === 'chat' ? (
@@ -499,10 +528,30 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
             </div>
             <div className="flex items-center space-x-2">
               <button
-                onClick={() => setEditorMode(editorMode === 'chat' ? 'code' : 'chat')}
+                onClick={() => {
+                  const newMode = editorMode === 'chat' ? 'code' : 'chat';
+                  setEditorMode(newMode);
+                  // If switching to code mode, ensure editor theme is set correctly after a short delay
+                  if (newMode === 'code') {
+                    setTimeout(() => {
+                      if (window.monaco) {
+                        window.monaco.editor.setTheme(isDarkMode ? 'vs-dark' : 'vs');
+                        // Also try to update the editor background directly
+                        try {
+                          const editorElement = document.querySelector('.monaco-editor');
+                          if (editorElement) {
+                            (editorElement as HTMLElement).style.backgroundColor = isDarkMode ? '#111827' : '#e8dccc';
+                          }
+                        } catch (err) {
+                          console.error('Error updating editor background:', err);
+                        }
+                      }
+                    }, 50);
+                  }
+                }}
                 className={`px-3 py-1.5 rounded-lg transition-colors text-xs font-medium flex items-center space-x-2 ${
                   isDarkMode 
-                    ? "bg-gray-800 hover:bg-gray-700 text-gray-300" 
+                    ? "bg-[#282424] hover:bg-[#343030] text-gray-300"
                     : "bg-[#d8cbb8] hover:bg-[#c8bba8] text-[#6a5c4c] border border-[#b8a990]"
                 }`}
                 title={editorMode === 'chat' ? 'Switch to Code Editor' : 'Switch to Chat'}
@@ -522,7 +571,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
               <button
                 onClick={() => setShowPromptPanel(!isVisible)}
                 className={`p-2 rounded-full transition-colors focus:outline-none ${
-                  isDarkMode ? "hover:bg-gray-800" : "hover:bg-[#d8cbb8]"
+                  isDarkMode ? "hover:bg-[#282424]" : "hover:bg-[#d8cbb8]"
                 }`}
                 title={isVisible ? "Collapse Panel" : "Expand Panel"}
               >
@@ -568,8 +617,8 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
                   <div
                     className={`flex-1 mx-2 rounded-lg py-1.5 px-3 shadow-sm ${
                       isDarkMode 
-                        ? "bg-gray-800/80 backdrop-blur-sm border border-gray-700/60" 
-                        : "bg-[#d8cbb8] border border-[#b8a990]"
+                        ? "bg-[#282424]/80 backdrop-blur-sm border border-[#343030]/60" 
+                        : "bg-[#c8bba8] border border-[#b8a990]"
                     }`}
                     style={{ maxHeight: "50px", overflow: "hidden" }}
                   >
@@ -634,7 +683,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
                         timestamp: Date.now()
                       }} 
                       onDiagramVersionSelect={onDiagramVersionSelect}
-                      onRetry={() => handleGenerateDiagram(null)}
+                      onRetry={onRetry}
                       isDarkMode={!!isDarkMode}
                       isFirstUserMessage={!!isFirstMsg}
                       messageIndex={index}
@@ -650,18 +699,52 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
               })}
               
               {/* Add typing indicator at the end when generating */}
-              {isGenerating && (
+              {isGenerating && !chatHistory.some(msg => msg.isTyping) && (
                 <div className="flex justify-start mb-4 animate-fadeIn">
                   <div className={`max-w-[85%] rounded-2xl py-3 px-4 ${
                     isDarkMode 
-                      ? "bg-gray-800/80 backdrop-blur-sm text-white border border-gray-700/60 shadow-md" 
-                      : "bg-[#d8cbb8] text-[#4a3c2c] border border-[#b8a990] shadow-sm"
+                      ? "bg-[#282424]/80 backdrop-blur-sm text-white shadow-md" 
+                      : "bg-[#c8bba8] text-[#4a3c2c] shadow-sm"
                   }`}>
-                    <div className={`flex space-x-1 items-center h-5 ${isDarkMode ? 'opacity-70' : 'opacity-60'}`}>
-                      <div className={`w-2 h-2 rounded-full ${isDarkMode ? 'bg-blue-400' : 'bg-primary'} animate-bounce`} style={{ animationDelay: '0ms' }}></div>
-                      <div className={`w-2 h-2 rounded-full ${isDarkMode ? 'bg-blue-400' : 'bg-primary'} animate-bounce`} style={{ animationDelay: '150ms' }}></div>
-                      <div className={`w-2 h-2 rounded-full ${isDarkMode ? 'bg-blue-400' : 'bg-primary'} animate-bounce`} style={{ animationDelay: '300ms' }}></div>
+                    <div className="flex space-x-2 items-center h-5">
+                      <div 
+                        className={`w-2 h-2 rounded-full border-0 ${isDarkMode ? 'bg-blue-400' : 'bg-primary'}`}
+                        style={{ 
+                          animation: 'typingAnimationPanel 1.4s infinite ease-in-out',
+                          animationDelay: '0ms' 
+                        }}
+                      ></div>
+                      <div 
+                        className={`w-2 h-2 rounded-full border-0 ${isDarkMode ? 'bg-blue-400' : 'bg-primary'}`}
+                        style={{ 
+                          animation: 'typingAnimationPanel 1.4s infinite ease-in-out',
+                          animationDelay: '160ms' 
+                        }}
+                      ></div>
+                      <div 
+                        className={`w-2 h-2 rounded-full border-0 ${isDarkMode ? 'bg-blue-400' : 'bg-primary'}`}
+                        style={{ 
+                          animation: 'typingAnimationPanel 1.4s infinite ease-in-out',
+                          animationDelay: '320ms' 
+                        }}
+                      ></div>
                     </div>
+                    <style jsx>{`
+                      @keyframes typingAnimationPanel {
+                        0% { 
+                          transform: translateY(0px);
+                          opacity: 0.3;
+                        }
+                        50% { 
+                          transform: translateY(-4px);
+                          opacity: 1;
+                        }
+                        100% { 
+                          transform: translateY(0px);
+                          opacity: 0.3;
+                        }
+                      }
+                    `}</style>
                   </div>
                 </div>
               )}
@@ -727,7 +810,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
                   disabled={isGenerating || !prompt.trim()}
                   className={`absolute right-3 bottom-3.5 p-2 rounded-lg transition-colors ${
                     isDarkMode
-                      ? "bg-gray-800 hover:bg-gray-700 text-blue-400 hover:text-blue-300"
+                      ? "bg-[#282424] hover:bg-[#343030] text-blue-400 hover:text-blue-300"
                       : "bg-[#d8cbb8] hover:bg-[#c8bba8] text-[#5a4c3c] hover:text-[#4a3c2c]"
                   } ${(!prompt.trim() || isGenerating) ? "opacity-40 cursor-not-allowed" : ""}`}
                 >
@@ -738,15 +821,41 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
           </>
         ) : (
           <>
-            <div className="p-4 space-y-4 h-full overflow-y-auto scroll-smooth">
-              <Editor
-                height="calc(100% - 120px)"
-                width="100%"
-                language="javascript"
-                value={prompt}
-                onChange={(value) => setPrompt(value || '')}
-                options={monacoOptions}
-              />
+            <div 
+              className={`h-full overflow-y-auto scroll-smooth ${
+                isDarkMode ? "bg-gray-900" : "bg-[#e8dccc]"
+              }`}
+              style={{
+                backgroundColor: isDarkMode ? '#111827' : '#e8dccc'
+              }}
+            >
+              <div className="p-4">
+                <h3 className={`text-sm font-medium ${isDarkMode ? "text-gray-300" : "text-[#6a5c4c]"}`}>
+                  Mermaid Diagram Code
+                </h3>
+                
+                <Editor
+                  height="calc(100vh - 12rem)"
+                  width="100%"
+                  language="javascript"
+                  value={currentDiagram}
+                  onChange={(value) => {
+                    if (value !== undefined && handleCodeChange) {
+                      setCurrentDiagram(value);
+                      handleCodeChange(value);
+                    }
+                  }}
+                  options={{
+                    ...monacoOptions,
+                    theme: isDarkMode ? 'vs-dark' : 'vs',
+                    backgroundColor: isDarkMode ? '#111827' : '#e8dccc'
+                  }}
+                  onMount={(editor) => {
+                    editorRef.current = editor;
+                    setIsEditorReady(true);
+                  }}
+                />
+              </div>
             </div>
           </>
         )}

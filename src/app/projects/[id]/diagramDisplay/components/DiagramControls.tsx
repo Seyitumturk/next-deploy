@@ -50,7 +50,7 @@ export const DiagramControls: React.FC<DiagramControlsProps> = ({
   return (
     <div className={`flex items-center justify-between h-12 px-3 py-2 diagram-controls ${
       isDarkMode 
-        ? "bg-gray-800 text-white border-b border-gray-900" 
+        ? "bg-[#201c1c] text-white border-b border-[#282424]/50" 
         : "bg-[#e8dccc] text-[#6a5c4c] border-b border-[#b8a990]"
     } shadow-sm`}>
       <div className="flex items-center space-x-3">
@@ -70,7 +70,7 @@ export const DiagramControls: React.FC<DiagramControlsProps> = ({
           </button>
         )}
         
-        <div className="flex items-center space-x-1.5 bg-black/10 dark:bg-white/5 rounded-lg p-1.5">
+        <div className="flex items-center space-x-1.5 bg-black/10 dark:bg-[#282424]/20 rounded-lg p-1.5">
           <button 
             onClick={() => setScale(Math.min(scale + 0.1, 5))} 
             className={`p-1.5 rounded-md transition-colors ${
@@ -169,7 +169,7 @@ export const DiagramControls: React.FC<DiagramControlsProps> = ({
       </div>
 
       {showThemeSelector && (
-        <div className="absolute top-14 right-4 z-50 shadow-xl rounded-lg overflow-hidden border dark:border-gray-700">
+        <div className="absolute top-14 right-4 z-50 shadow-xl rounded-lg overflow-hidden border dark:border-[#343030]">
           <DiagramThemeSelector
             currentTheme={currentTheme}
             changeTheme={changeTheme}

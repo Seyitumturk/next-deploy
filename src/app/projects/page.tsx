@@ -107,9 +107,6 @@ const EditableTitle = ({
 };
 
 const DiagramPreview = ({ project }: { project: Project }) => {
-  // Add state for showing code preview
-  const [showCode, setShowCode] = useState(false);
-  
   // Try to get the SVG from different sources
   const svgContent = 
     // First try the diagramSVG field
@@ -128,48 +125,18 @@ const DiagramPreview = ({ project }: { project: Project }) => {
   
   if (!svgContent && !diagramCode) {
     return (
-      <div className="flex items-center justify-center h-32 bg-gray-100 dark:bg-gray-800 rounded-lg">
+      <div className="flex items-center justify-center h-32 bg-gray-100 dark:bg-[#282424] rounded-lg">
         <span className="text-sm text-gray-500 dark:text-gray-400">No preview available</span>
       </div>
     );
   }
   
   return (
-    <div className="relative">
-      {/* Toggle button for code/svg view */}
-      <button 
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setShowCode(!showCode);
-        }}
-        className="absolute top-2 right-2 z-10 bg-gray-200 dark:bg-gray-700 p-1 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-        title={showCode ? "Show diagram" : "Show code"}
-      >
-        {showCode ? (
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-700 dark:text-gray-300" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-            <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-          </svg>
-        ) : (
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-700 dark:text-gray-300" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M12.316 3.051a1 1 0 01.633 1.265l-4 12a1 1 0 11-1.898-.632l4-12a1 1 0 011.265-.633zM5.707 6.293a1 1 0 010 1.414L3.414 10l2.293 2.293a1 1 0 11-1.414 1.414l-3-3a1 1 0 010-1.414l3-3a1 1 0 011.414 0zm8.586 0a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 11-1.414-1.414L16.586 10l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
-          </svg>
-        )}
-      </button>
-      
-      {showCode ? (
-        <div className="h-32 w-full overflow-auto bg-gray-100 dark:bg-gray-800 rounded-lg p-2">
-          <pre className="text-xs text-gray-800 dark:text-gray-300 h-full font-mono">
-            {diagramCode ? diagramCode.substring(0, 500) : 'No diagram code available'}
-          </pre>
-        </div>
-      ) : (
-        <div 
-          className="h-32 w-full overflow-hidden bg-white dark:bg-gray-800 rounded-lg flex items-center justify-center"
-          dangerouslySetInnerHTML={{ __html: svgContent }}
-        />
-      )}
+    <div className="relative h-32">
+      <div 
+        className="h-full w-full overflow-hidden bg-white dark:bg-[#282424] rounded-lg flex items-center justify-center"
+        dangerouslySetInnerHTML={{ __html: svgContent }}
+      />
     </div>
   );
 };
@@ -452,9 +419,7 @@ export default function ProjectsPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
             className={`relative max-w-2xl mx-auto px-6 py-4 rounded-lg ${
-              isDarkMode 
-                ? "bg-gray-800/60 border border-gray-700/50" 
-                : "bg-[#e8dccc]/60 border border-[#d8cbb8]/50"
+              isDarkMode ? "bg-[#282424]/60 border border-[#282424]/50" : "bg-[#e8dccc]/60 border border-[#d8cbb8]/50"
             } shadow-md`}
           >
             <p className={`text-xl ${isDarkMode ? "text-white" : "text-gray-900"}`}>
@@ -473,9 +438,7 @@ export default function ProjectsPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className={`w-full px-4 py-3 pl-10 rounded-xl ${
-                  isDarkMode 
-                    ? "bg-gray-800/70 text-white focus:bg-gray-800 border border-gray-700 focus:border-primary/50" 
-                    : "bg-white text-gray-900 border border-gray-200 focus:border-primary/50"
+                  isDarkMode ? "bg-[#282424]/70 text-white focus:bg-[#282424] border border-[#282424] focus:border-primary/50" : "bg-white text-gray-900 border border-gray-200 focus:border-primary/50"
                 } focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all`}
               />
               <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
@@ -514,7 +477,7 @@ export default function ProjectsPage() {
                     className={`px-3 py-1.5 text-sm rounded-full whitespace-nowrap transition-all flex-shrink-0 ${
                       activeFilter === null
                         ? (isDarkMode ? 'bg-primary text-white' : 'bg-primary text-white')
-                        : (isDarkMode ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200')
+                        : (isDarkMode ? 'bg-[#282424] text-gray-300 hover:bg-[#343030]' : 'bg-gray-100 text-gray-700 hover:bg-gray-200')
                     }`}
                   >
                     All
@@ -526,7 +489,7 @@ export default function ProjectsPage() {
                       className={`px-3 py-1.5 text-sm rounded-full whitespace-nowrap flex items-center space-x-1 transition-all flex-shrink-0 ${
                         activeFilter === type
                           ? (isDarkMode ? 'bg-primary text-white' : 'bg-primary text-white')
-                          : (isDarkMode ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200')
+                          : (isDarkMode ? 'bg-[#282424] text-gray-300 hover:bg-[#343030]' : 'bg-gray-100 text-gray-700 hover:bg-gray-200')
                       }`}
                     >
                       <span className="w-3 h-3">
@@ -543,7 +506,7 @@ export default function ProjectsPage() {
                     onClick={scrollRight}
                   >
                     <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
-                      isDarkMode ? 'bg-gray-800/90 hover:bg-gray-700/90' : 'bg-gray-100/90 hover:bg-gray-200/90'
+                      isDarkMode ? 'bg-[#282424]/90 hover:bg-[#343030]/90' : 'bg-gray-100/90 hover:bg-gray-200/90'
                     } shadow-sm transition-colors`}>
                       <svg 
                         xmlns="http://www.w3.org/2000/svg" 
@@ -578,12 +541,12 @@ export default function ProjectsPage() {
             {[...Array(6)].map((_, i) => (
               <div
                 key={i}
-                className={`rounded-xl p-6 shadow-md animate-pulse ${isDarkMode ? 'bg-gray-800/50' : 'bg-[#e8dccc]/50'}`}
+                className={`rounded-xl p-6 shadow-md animate-pulse ${isDarkMode ? 'bg-[#282424]/50' : 'bg-[#e8dccc]/50'}`}
               >
-                <div className="h-48 bg-gray-200 dark:bg-gray-700 rounded-lg mb-4" />
-                <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-4" />
-                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-2" />
-                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4" />
+                <div className="h-48 bg-gray-200 dark:bg-[#343030] rounded-lg mb-4" />
+                <div className="h-8 bg-gray-200 dark:bg-[#343030] rounded w-3/4 mb-4" />
+                <div className="h-4 bg-gray-200 dark:bg-[#343030] rounded w-1/2 mb-2" />
+                <div className="h-4 bg-gray-200 dark:bg-[#343030] rounded w-1/4" />
               </div>
             ))}
           </div>
@@ -592,7 +555,7 @@ export default function ProjectsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className={`text-center py-16 px-4 rounded-2xl ${isDarkMode ? 'bg-gray-800/50' : 'bg-[#e8dccc]/50'} shadow-xl`}
+            className={`text-center py-16 px-4 rounded-2xl ${isDarkMode ? 'bg-[#282424]/50' : 'bg-[#e8dccc]/50'} shadow-xl`}
           >
             <div className="text-6xl mb-6">🎨</div>
             <h3 className={`text-2xl font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-black'}`}>
@@ -612,7 +575,7 @@ export default function ProjectsPage() {
             </button>
           </motion.div>
         ) : searchQuery && filteredProjects.length === 0 ? (
-          <div className={`text-center py-12 px-4 rounded-2xl ${isDarkMode ? 'bg-gray-800/50' : 'bg-[#e8dccc]/50'} shadow-xl`}>
+          <div className={`text-center py-12 px-4 rounded-2xl ${isDarkMode ? 'bg-[#282424]/50' : 'bg-[#e8dccc]/50'} shadow-xl`}>
             <h3 className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>
               No diagrams match &quot;{searchQuery}&quot;
             </h3>
@@ -636,11 +599,9 @@ export default function ProjectsPage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: index * 0.05 }}
                   className={`group relative ${
-                    isDarkMode 
-                      ? 'bg-gray-800/70 hover:bg-gray-800' 
-                      : 'bg-[#e8dccc]/70 hover:bg-[#e8dccc]'
+                    isDarkMode ? 'bg-[#282424]/70 hover:bg-[#282424]' : 'bg-[#e8dccc]/70 hover:bg-[#e8dccc]'
                   } rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 border ${
-                    isDarkMode ? 'border-gray-700' : 'border-[#d8cbb8]'
+                    isDarkMode ? 'border-[#343030]' : 'border-[#d8cbb8]'
                   }`}
                 >
                   {/* Preview section - clickable */}
@@ -649,15 +610,13 @@ export default function ProjectsPage() {
                     className="block"
                   >
                     <div className={`h-48 ${
-                      isDarkMode 
-                        ? 'bg-gradient-to-br from-gray-900/50 to-gray-800/50 border-b border-gray-700/50' 
-                        : 'bg-gradient-to-br from-[#f0eee6] to-[#e8dccc]/50 border-b border-[#d8cbb8]/50'
+                      isDarkMode ? 'bg-gradient-to-br from-gray-900/50 to-gray-800/50 border-b border-gray-700/50' : 'bg-gradient-to-br from-[#f0eee6] to-[#e8dccc]/50 border-b border-[#d8cbb8]/50'
                     } p-4 flex items-center justify-center relative overflow-hidden group-hover:from-gray-100 group-hover:to-gray-200 dark:group-hover:from-gray-800/50 dark:group-hover:to-gray-700/50 transition-all duration-300`}>
                       <DiagramPreview project={project} />
                       
                       {/* Type badge */}
                       <div className={`absolute top-3 left-3 px-2.5 py-1 rounded-full text-xs font-medium flex items-center space-x-1 ${
-                        isDarkMode ? 'bg-gray-700/70 text-gray-300' : 'bg-[#d8cbb8]/70 text-[#6a5c4c]'
+                        isDarkMode ? 'bg-[#282424]/70 text-gray-300' : 'bg-[#d8cbb8]/70 text-[#6a5c4c]'
                       }`}>
                         <span className="w-3 h-3 flex items-center justify-center">
                           {getDiagramIcon(project.diagramType)}
@@ -701,9 +660,7 @@ export default function ProjectsPage() {
                       <Link 
                         href={`/projects/${project._id}`}
                         className={`px-3 py-1.5 rounded-lg text-sm font-medium ${
-                          isDarkMode 
-                            ? 'bg-gray-700 text-white hover:bg-gray-600' 
-                            : 'bg-[#d8cbb8] text-[#6a5c4c] hover:bg-[#c8bba8]'
+                          isDarkMode ? 'bg-[#282424] hover:bg-[#343030] text-white' : 'bg-[#d8cbb8] text-[#6a5c4c] hover:bg-[#c8bba8]'
                         } transition-colors flex items-center space-x-1`}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -719,9 +676,7 @@ export default function ProjectsPage() {
                           setProjectToDelete(project);
                         }}
                         className={`p-2 rounded-lg ${
-                          isDarkMode 
-                            ? 'text-red-400 hover:bg-red-900/20' 
-                            : 'text-red-500 hover:bg-red-50'
+                          isDarkMode ? 'text-red-400 hover:bg-red-900/20' : 'text-red-500 hover:bg-red-50'
                         } transition-colors`}
                         title="Delete project"
                       >
@@ -741,9 +696,7 @@ export default function ProjectsPage() {
                   onClick={loadMoreProjects}
                   disabled={isLoadingMore}
                   className={`px-6 py-3 rounded-xl ${
-                    isDarkMode 
-                      ? 'bg-gray-800 hover:bg-gray-700 text-white border border-gray-700' 
-                      : 'bg-[#e8dccc] hover:bg-[#d8cbb8] text-[#6a5c4c] border border-[#d8cbb8]'
+                    isDarkMode ? 'bg-[#282424] hover:bg-[#343030] text-white border border-[#343030]' : 'bg-[#e8dccc] hover:bg-[#d8cbb8] text-[#6a5c4c] border border-[#d8cbb8]'
                   } transition-colors shadow-sm flex items-center space-x-2`}
                 >
                   {isLoadingMore ? (
