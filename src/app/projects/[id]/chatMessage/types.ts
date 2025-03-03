@@ -19,6 +19,7 @@ export interface ChatMessageData {
   isTemporaryError?: boolean;
   reactions?: string[];
   documentSource?: string;
+  isPersistentTypingIndicator?: boolean;
 }
 
 export interface ChatMessageProps {

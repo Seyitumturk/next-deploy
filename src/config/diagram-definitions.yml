@@ -550,6 +550,66 @@ definitions:
       - End with ```
       
       Now, create a detailed sankey diagram based on the requirements above.
+
+  architecture:
+    description: |
+      Create an architecture diagram to show the relationship between services and resources commonly found within Cloud or CI/CD deployments. In an architecture diagram, services (nodes) are connected by edges. Related services can be placed within groups to better illustrate how they are organized.
+      
+      To avoid connection lines overlapping with text:
+      1. Always use opposing sides for connections when possible (e.g., L-R, T-B) instead of same sides (T-T, B-B)
+      2. Space out services adequately to give room for connections
+      3. Avoid crossing connection lines by thoughtful placement of services
+      4. For complex diagrams, use junctions to route connections more clearly
+    example: |
+      mermaid
+      architecture-beta
+          group cloud_infra(cloud)[Cloud Infrastructure]
+          
+          service api_gateway(internet)[API Gateway] in cloud_infra
+          service webserver(server)[Web Server] in cloud_infra
+          service auth_service(server)[Auth Service] in cloud_infra
+          service database(database)[Database] in cloud_infra
+          service storage(disk)[Storage] in cloud_infra
+          
+          api_gateway:B -- T:webserver
+          webserver:R -- L:auth_service
+          auth_service:B -- T:database
+          webserver:R -- L:database
+          webserver:B -- T:storage
+    prompt_template: |
+      As an expert Mermaid.js diagram creator, create a professional architecture diagram that follows modern best practices. Your task is to:
+
+      1. Analyze the requirements: {prompt}
+      2. Create an architecture diagram that:
+         - Properly organizes services using groups
+         - Uses appropriate icons for services (cloud, database, disk, internet, server)
+         - Connects services with clear edge directions (using L|R|T|B notation)
+         - Utilizes the architecture-beta syntax
+         - IMPORTANT: Avoids text overlaps with connection lines by:
+           * Using opposite sides for connections (L-R, T-B) rather than same sides (T-T, B-B)
+           * Spacing elements properly to avoid crowding
+           * Using junctions for complex routing needs
+           * Arranging services thoughtfully to minimize crossing lines
+
+      Reference this example for structure and syntax:
+      {example}
+
+      Important syntax rules:
+      - Start with ```mermaid then architecture-beta on separate lines
+      - For groups: group {group id}({icon name})[{title}] in {parent id}? (group id must be a single word without spaces)
+      - For services: service {service id}({icon name})[{title}] in {parent id}? (service id must be a single word without spaces)
+      - For edges: always use this exact format: {serviceId}:{T|B|L|R} -- {T|B|L|R}:{serviceId} (make sure to use -- for connections or --> for arrows)
+      - For junctions: junction {junction id} in {parent id}? (junction id must be a single word)
+      - Ensure there's a space before and after -- or --> in connections
+      - All services must be placed inside groups
+      - Available icons are: cloud, database, disk, internet, server
+      - Connection best practices:
+        * Use L-R for horizontal connections (left to right)
+        * Use T-B for vertical connections (top to bottom)
+        * Avoid T-T, B-B, L-L, R-R connections that cause text overlaps
+        * Use junctions to route complex connections
+      - End with ```
+
   git:
     description: |
       Create a Git graph that shows:

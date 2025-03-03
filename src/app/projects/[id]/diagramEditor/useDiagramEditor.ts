@@ -243,37 +243,33 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
     // Add typing indicator message
     const typingMessage: ChatMessageData = {
       role: 'assistant',
-      content: 'Generating your diagram...',
+      content: 'Creating a beautiful visualization of your idea...',
       timestamp: new Date(),
       isTyping: true,
       isRetrying: isRetry,
+      // Add a persistent flag to ensure this message isn't replaced even on errors
+      isPersistentTypingIndicator: true,
     };
     
     // Only add user message if it's not a retry attempt
     if (!isRetry) {
-      setMessages(prev => [...prev, userMessage, typingMessage]);
-    } else {
-      // If it's a retry, add a retry notification and a new typing indicator
-      const retryNotification: ChatMessageData = {
-        role: 'assistant',
-        content: 'Retrying diagram generation...',
-        timestamp: new Date(),
-        isSystemNotification: true,
-      };
-      
-      // Replace the last typing message with the retry notification and a new typing indicator
+      // First remove any existing typing indicators
       setMessages(prev => {
-        // Filter out the previous typing message
-        const withoutTyping = prev.filter(msg => !msg.isTyping);
-        // Add the retry notification and a new typing indicator
-        return [...withoutTyping, retryNotification, typingMessage];
+        const filteredMessages = prev.filter(msg => !msg.isTyping);
+        return [...filteredMessages, userMessage, typingMessage];
+      });
+    } else {
+      // If it's a retry, maintain just one typing indicator
+      setMessages(prev => {
+        // Remove typing indicators first
+        const filteredMessages = prev.filter(msg => !msg.isTyping);
+        return [...filteredMessages, typingMessage];
       });
     }
 
     try {
       // Use currentMessagesForContext to prepare chat history
-      // but skip the last two messages (user prompt and typing indicator)
-      // so we don't duplicate them in the request
+      // Improved context handling to ensure second prompt has context of first diagram
       const currentMessagesForContext = isRetry 
         ? messages
             .filter(msg => 
@@ -284,8 +280,19 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
               (msg.role === 'user' || msg.role === 'assistant')
             ) // Filter out all system messages and notifications
         : messages
-            .slice(0, -2)
-            .filter(msg => msg.role === 'user' || msg.role === 'assistant'); // Only include user and assistant roles
+            // Don't remove the last messages, just exclude typing indicators and errors
+            .filter(msg => 
+              !msg.isTyping && 
+              !msg.error && 
+              !msg.isSystemNotification && 
+              (msg.role === 'user' || msg.role === 'assistant')
+            );
+
+      // Add debug logging to see chat history context being sent
+      console.log(`[handleGenerateDiagram] Sending ${currentMessagesForContext.length} messages as context`);
+      currentMessagesForContext.forEach((msg, index) => {
+        console.log(`[handleGenerateDiagram] Context message ${index}: role=${msg.role}, has diagram=${!!msg.diagramVersion}, content length=${msg.content.length}`);
+      });
 
       // Configure request options
       const options: RequestInit = {
@@ -748,6 +755,41 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
     }
   };
 
+  // Function to handle diagram syntax errors
+  const handleDiagramSyntaxError = useCallback((errorText: string) => {
+    console.log(`[handleDiagramSyntaxError] Handling syntax error: ${errorText}`);
+    setError(errorText);
+    setLastErrorMessage(errorText);
+    
+    // Only add an error message if we're not currently generating
+    // This prevents replacing the typing indicator with an error message
+    if (!isGenerating) {
+      // Create error message for chat
+      const errorMessage: ChatMessageData = {
+        role: 'assistant',
+        content: `Creating a beautiful visualization of your idea...`,
+        timestamp: new Date(),
+        error: errorText, // Store actual error for debugging
+        hasRetryButton: true,
+        isTyping: true, // Keep it as a typing indicator to preserve the animation
+      };
+      
+      // Add the error message to chat, but only if we're not already showing errors
+      setMessages(prev => {
+        // Filter out any existing error messages but KEEP typing indicators
+        const filteredMessages = prev.filter(msg => !msg.error);
+        return [...filteredMessages, errorMessage];
+      });
+    }
+  }, [setError, setLastErrorMessage, setMessages, isGenerating]);
+
+  // Listen for render errors and handle them
+  useEffect(() => {
+    if (renderError && !error) { // Only handle render errors if no other error is already displayed
+      handleDiagramSyntaxError(renderError);
+    }
+  }, [renderError, handleDiagramSyntaxError, error]);
+
   // Add listener for the DIAGRAM_SYNTAX_ERROR message from iframe
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -769,27 +811,41 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
         // This ensures the error from the diagram rendering is properly handled
         const errorText = event.data.error || 'Diagram syntax error';
         
-        // Only process the error if it's not already being displayed
-        if (!error || error !== errorText) {
+        // Only process the error if it's not already being displayed and it's a final error
+        if ((!error || error !== errorText) && event.data.isFinal) {
           safeSetError(errorText);
           setLastErrorMessage(errorText);
           
-          // Create error message for chat
-          const errorMessage: ChatMessageData = {
-            role: 'assistant',
-            content: `I couldn't create your diagram. Would you like to try again with a different prompt?`,
-            timestamp: new Date(),
-            error: errorText,
-            hasRetryButton: event.data.hasRetryButton !== false, // Honor the hasRetryButton property, default to true
-            isTemporaryError: false, // This is a final error, not a temporary one
-          };
+          // Don't add a new error message if there's already a persistent typing indicator
+          const hasPersistentTyping = messages.some(msg => msg.isPersistentTypingIndicator);
           
-          // Add the error message to chat, but only if we're not already showing errors
-          setMessages(prev => {
-            // Filter out any existing error messages and typing indicators
-            const filteredMessages = prev.filter(msg => !msg.error && !msg.isTyping);
-            return [...filteredMessages, errorMessage];
-          });
+          if (!hasPersistentTyping) {
+            // Create error message for chat
+            const errorMessage: ChatMessageData = {
+              role: 'assistant',
+              content: `Creating a beautiful visualization of your idea...`,
+              timestamp: new Date(),
+              error: errorText,
+              hasRetryButton: event.data.hasRetryButton !== false, // Honor the hasRetryButton property, default to true
+              isTemporaryError: false, // This is a final error, not a temporary one
+              isTyping: true, // Keep it as a typing indicator to preserve the animation
+            };
+            
+            // Add the error message to chat, but preserve the typing indicator
+            setMessages(prev => {
+              // Keep the existing typing indicator if there is one
+              const hasTypingIndicator = prev.some(msg => msg.isTyping);
+              
+              // If there's already a typing indicator, don't add another message
+              if (hasTypingIndicator) {
+                return prev;
+              }
+              
+              // Otherwise, add the error but make it look like a typing indicator
+              const filteredMessages = prev.filter(msg => !msg.error);
+              return [...filteredMessages, errorMessage];
+            });
+          }
         }
       }
     };
@@ -915,35 +971,11 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
     loadChatHistory();
   }, []);
 
-  // Function to handle diagram syntax errors
-  const handleDiagramSyntaxError = useCallback((errorText: string) => {
-    console.log(`[handleDiagramSyntaxError] Handling syntax error: ${errorText}`);
-    setError(errorText);
-    setLastErrorMessage(errorText);
-    
-    // Create error message for chat
-    const errorMessage: ChatMessageData = {
-      role: 'assistant',
-      content: `I had trouble understanding how to create this diagram. Let's try a different approach or use a simpler description.`,
-      timestamp: new Date(),
-      error: errorText, // Store actual error for debugging
-      hasRetryButton: true,
-    };
-    
-    // Add the error message to chat, but only if we're not already showing errors
-    setMessages(prev => {
-      // Filter out any existing error messages and typing indicators
-      const filteredMessages = prev.filter(msg => !msg.error && !msg.isTyping);
-      return [...filteredMessages, errorMessage];
-    });
-  }, [setError, setLastErrorMessage, setMessages]);
-
-  // Listen for render errors and handle them
-  useEffect(() => {
-    if (renderError && !error) { // Only handle render errors if no other error is already displayed
-      handleDiagramSyntaxError(renderError);
-    }
-  }, [renderError, handleDiagramSyntaxError, error]);
+  // Custom setShowExportMenu handler to ensure state is properly updated
+  const handleSetShowExportMenu = useCallback((value: boolean) => {
+    console.log('Setting export menu state to:', value);
+    setShowExportMenu(value);
+  }, []);
 
   return {
     // State
@@ -984,7 +1016,7 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
     isProcessingFile,
     isProcessingImage: isUploadingImage,
     showExportMenu,
-    setShowExportMenu,
+    setShowExportMenu: handleSetShowExportMenu,
     isLoading,
     isChatHistoryLoading,
     

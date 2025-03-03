@@ -34,6 +34,7 @@ export default function FileUploadOptions({
   const wordInputRef = useRef<HTMLInputElement>(null);
   const pptxInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const websiteInputRef = useRef<HTMLInputElement>(null);
   
   const isProcessing = isProcessingFile || isProcessingImage;
 
@@ -42,6 +43,7 @@ export default function FileUploadOptions({
     if (websiteUrl && processWebsite) {
       setProcessingOption('website');
       processWebsite(websiteUrl);
+      setShowFileUpload(false);
     }
   };
 
@@ -52,6 +54,7 @@ export default function FileUploadOptions({
     } else {
       handleFileUpload(e);
     }
+    setShowFileUpload(false);
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -122,213 +125,246 @@ export default function FileUploadOptions({
     }
   };
 
+  // Handle keyboard events for the website input
+  const handleWebsiteInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Close the modal on Escape key
+    if (e.key === 'Escape') {
+      setShowWebsiteInput(false);
+      setWebsiteUrl('');
+      setShowFileUpload(false);
+    }
+  };
+
   return (
-    <div className="flex flex-col space-y-4">
-      <div className="mb-4">
-        <button 
-          onClick={() => setShowFileUpload(!showFileUpload)}
-          className={`w-full flex items-center justify-between rounded-lg border ${
-            isDarkMode
-              ? "border-gray-700 hover:bg-gray-700 bg-gray-800 text-white"
-              : "border-[#d8cbb8] hover:bg-[#d8cbb8] bg-[#e8dccc] text-[#6a5c4c]"
-          } transition-colors text-sm font-medium px-3 py-2`}
-          disabled={isProcessing}
+    <div className="w-full rounded-lg overflow-hidden z-50 transition-all duration-300 ease-in-out">
+      <div className={`${isDarkMode ? "bg-[#282424]" : "bg-white"} p-4 rounded-lg shadow-xl border ${isDarkMode ? "border-gray-700" : "border-gray-200"}`}>
+        {/* Drag and drop area */}
+        <div 
+          className={`border-2 border-dashed ${
+            dragActive 
+              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
+              : isDarkMode 
+                ? 'border-gray-600 hover:border-gray-500' 
+                : 'border-gray-300 hover:border-gray-400'
+          } rounded-lg p-4 mb-4 text-center transition-colors duration-200 ease-in-out`}
+          onDragEnter={handleDrag}
+          onDragLeave={handleDrag}
+          onDragOver={handleDrag}
+          onDrop={handleDrop}
         >
-          <div className="flex items-center space-x-2">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M8 4a3 3 0 00-3 3v4a5 5 0 0010 0V7a1 1 0 112 0v4a7 7 0 11-14 0V7a3 3 0 013-3z" clipRule="evenodd" />
-            </svg>
-            <span>Import from document or image</span>
-          </div>
-          <svg 
-            xmlns="http://www.w3.org/2000/svg" 
-            className={`h-4 w-4 transform transition-transform ${showFileUpload ? 'rotate-180' : ''}`} 
-            viewBox="0 0 20 20" 
-            fill="currentColor"
+          {isProcessing ? (
+            <div className="flex flex-col items-center justify-center py-2">
+              <LoadingSpinner size={24} className="text-blue-500 mb-2" />
+              <p className={`text-sm ${isDarkMode ? "text-gray-300" : "text-gray-600"}`}>
+                {isProcessingFile ? 'Processing document...' : 'Processing image...'}
+              </p>
+            </div>
+          ) : (
+            <>
+              <UploadIcon size={24} className={`mx-auto ${isDarkMode ? "text-gray-400" : "text-gray-500"} mb-2`} />
+              <p className={`text-sm ${isDarkMode ? "text-gray-300" : "text-gray-600"} mb-1`}>
+                Drag files here or click an option below
+              </p>
+            </>
+          )}
+        </div>
+
+        {/* File type options */}
+        <div className="grid grid-cols-4 gap-3 mb-4">
+          <button
+            type="button"
+            onClick={() => pdfInputRef.current?.click()}
+            className={`flex flex-col items-center justify-center p-3 rounded-md ${
+              isDarkMode 
+                ? "bg-[#343030] hover:bg-[#3e3a3a] text-gray-200" 
+                : "bg-[#f0e8dc] hover:bg-[#e8dccc] text-[#6a5c4c]"
+            } ${isProcessingFile && processingOption === 'pdf-upload' ? 'animate-pulse' : ''} transition-colors`}
+            title="Upload PDF Document"
+            disabled={isProcessing}
           >
-            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-          </svg>
-        </button>
-        
-        {showFileUpload && (
-          <div className="mt-2">
-            {/* Drag and drop area */}
-            <div 
-              className={`border-2 border-dashed ${dragActive ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-300 dark:border-gray-600'} 
-                        rounded-lg p-4 mb-4 text-center transition-colors duration-200 ease-in-out`}
-              onDragEnter={handleDrag}
-              onDragLeave={handleDrag}
-              onDragOver={handleDrag}
-              onDrop={handleDrop}
-            >
-              {isProcessing ? (
-                <div className="flex flex-col items-center justify-center py-2">
-                  <LoadingSpinner size={24} className="text-blue-500 mb-2" />
-                  <p className="text-sm text-gray-600 dark:text-gray-300">
-                    {isProcessingFile ? 'Processing document...' : 'Processing image...'}
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <UploadIcon size={24} className="mx-auto text-gray-400 mb-2" />
-                  <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">
-                    Drag and drop files here, or use the options below
-                  </p>
-                </>
-              )}
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => pdfInputRef.current?.click()}
-                className={`flex flex-col items-center justify-center px-3 py-2 rounded-md text-sm ${
-                  isDarkMode 
-                    ? "bg-gray-800 hover:bg-gray-700 text-gray-300" 
-                    : "bg-[#d8cbb8] hover:bg-[#c8bba8] text-[#6a5c4c] border border-[#b8a990]"
-                } ${isProcessingFile && processingOption === 'pdf-upload' ? 'animate-pulse' : ''}`}
-                title="Upload PDF Document"
-                disabled={isProcessing}
-              >
-                {isProcessingFile && processingOption === 'pdf-upload' ? (
-                  <LoadingSpinner size={20} className="mb-1 text-red-500" />
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mb-1 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                    <path d="M9 15v-2h6v2"></path>
-                    <path d="M12 13v5"></path>
-                  </svg>
-                )}
-                <span>PDF</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => wordInputRef.current?.click()}
-                className={`flex flex-col items-center justify-center px-3 py-2 rounded-md text-sm ${
-                  isDarkMode 
-                    ? "bg-gray-800 hover:bg-gray-700 text-gray-300" 
-                    : "bg-[#d8cbb8] hover:bg-[#c8bba8] text-[#6a5c4c] border border-[#b8a990]"
-                } ${isProcessingFile && processingOption === 'word-upload' ? 'animate-pulse' : ''}`}
-                title="Upload Word Document"
-                disabled={isProcessing}
-              >
-                {isProcessingFile && processingOption === 'word-upload' ? (
-                  <LoadingSpinner size={20} className="mb-1 text-indigo-500" />
-                ) : (
-                  <FileIcon size={20} className="mb-1 text-indigo-500" />
-                )}
-                <span>Word</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => pptxInputRef.current?.click()}
-                className={`flex flex-col items-center justify-center px-3 py-2 rounded-md text-sm ${
-                  isDarkMode 
-                    ? "bg-gray-800 hover:bg-gray-700 text-gray-300" 
-                    : "bg-[#d8cbb8] hover:bg-[#c8bba8] text-[#6a5c4c] border border-[#b8a990]"
-                } ${isProcessingFile && processingOption === 'pptx-upload' ? 'animate-pulse' : ''}`}
-                title="Upload PowerPoint Presentation"
-                disabled={isProcessing}
-              >
-                {isProcessingFile && processingOption === 'pptx-upload' ? (
-                  <LoadingSpinner size={20} className="mb-1 text-orange-500" />
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mb-1 text-orange-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                    <rect x="8" y="12" width="8" height="6" rx="1" />
-                  </svg>
-                )}
-                <span>PPTX</span>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 gap-2 mt-2">
-              <button
-                type="button"
-                onClick={() => imageInputRef.current?.click()}
-                className={`flex flex-col items-center justify-center px-3 py-2 rounded-md text-sm ${
-                  isDarkMode 
-                    ? "bg-gray-800 hover:bg-gray-700 text-gray-300" 
-                    : "bg-[#d8cbb8] hover:bg-[#c8bba8] text-[#6a5c4c] border border-[#b8a990]"
-                } ${isProcessingImage && processingOption === 'image-upload' ? 'animate-pulse' : ''}`}
-                title="Upload Image"
-                disabled={isProcessing}
-              >
-                {isProcessingImage && processingOption === 'image-upload' ? (
-                  <LoadingSpinner size={20} className="mb-1 text-purple-500" />
-                ) : (
-                  <ImageIcon size={20} className="mb-1 text-purple-500" />
-                )}
-                <span>Image</span>
-              </button>
-            </div>
-
-            {processWebsite && (
-              <div className="mt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowWebsiteInput(prev => !prev)}
-                  className={`w-full flex items-center justify-center px-3 py-2 rounded-md text-sm ${
-                    isDarkMode 
-                      ? "bg-gray-800 hover:bg-gray-700 text-gray-300" 
-                      : "bg-[#d8cbb8] hover:bg-[#c8bba8] text-[#6a5c4c] border border-[#b8a990]"
-                  } ${isProcessingFile && processingOption === 'website' ? 'animate-pulse' : ''}`}
-                  title="Import from Website"
-                  disabled={isProcessing}
-                >
-                  {isProcessingFile && processingOption === 'website' ? (
-                    <LoadingSpinner size={20} className="mr-2 text-green-500" />
-                  ) : (
-                    <GlobeIcon size={20} className="mr-2 text-green-500" />
-                  )}
-                  <span>Import from Website</span>
-                </button>
-
-                {showWebsiteInput && (
-                  <form onSubmit={handleWebsiteSubmit} className="mt-2">
-                    <div className="flex">
-                      <input
-                        type="url"
-                        value={websiteUrl}
-                        onChange={(e) => setWebsiteUrl(e.target.value)}
-                        placeholder="Enter website URL"
-                        className={`flex-1 px-3 py-2 text-sm rounded-l-md ${
-                          isDarkMode
-                            ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400"
-                            : "bg-white border-gray-300 text-gray-700 placeholder-gray-400"
-                        } border focus:outline-none focus:ring-1 focus:ring-blue-500`}
-                        disabled={isProcessing}
-                        required
-                      />
-                      <button
-                        type="submit"
-                        className={`px-3 py-2 text-sm font-medium rounded-r-md ${
-                          isDarkMode
-                            ? "bg-blue-600 hover:bg-blue-700 text-white"
-                            : "bg-blue-500 hover:bg-blue-600 text-white"
-                        } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
-                        disabled={isProcessing || !websiteUrl}
-                      >
-                        {isProcessingFile && processingOption === 'website' ? (
-                          <LoadingSpinner size={20} />
-                        ) : (
-                          "Import"
-                        )}
-                      </button>
-                    </div>
-                  </form>
-                )}
-              </div>
+            {isProcessingFile && processingOption === 'pdf-upload' ? (
+              <LoadingSpinner size={20} className="text-red-500" />
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-500 mb-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <path d="M9 15v-2h6v2"></path>
+                <path d="M12 13v5"></path>
+              </svg>
             )}
+            <span className="text-xs mt-1">PDF</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => wordInputRef.current?.click()}
+            className={`flex flex-col items-center justify-center p-3 rounded-md ${
+              isDarkMode 
+                ? "bg-[#343030] hover:bg-[#3e3a3a] text-gray-200" 
+                : "bg-[#f0e8dc] hover:bg-[#e8dccc] text-[#6a5c4c]"
+            } ${isProcessingFile && processingOption === 'word-upload' ? 'animate-pulse' : ''} transition-colors`}
+            title="Upload Word Document"
+            disabled={isProcessing}
+          >
+            {isProcessingFile && processingOption === 'word-upload' ? (
+              <LoadingSpinner size={20} className="text-blue-500" />
+            ) : (
+              <FileIcon size={24} className="text-blue-500 mb-1" />
+            )}
+            <span className="text-xs mt-1">Word</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => pptxInputRef.current?.click()}
+            className={`flex flex-col items-center justify-center p-3 rounded-md ${
+              isDarkMode 
+                ? "bg-[#343030] hover:bg-[#3e3a3a] text-gray-200" 
+                : "bg-[#f0e8dc] hover:bg-[#e8dccc] text-[#6a5c4c]"
+            } ${isProcessingFile && processingOption === 'pptx-upload' ? 'animate-pulse' : ''} transition-colors`}
+            title="Upload PowerPoint Presentation"
+            disabled={isProcessing}
+          >
+            {isProcessingFile && processingOption === 'pptx-upload' ? (
+              <LoadingSpinner size={20} className="text-orange-500" />
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-orange-500 mb-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <rect x="8" y="12" width="8" height="6" rx="1" />
+              </svg>
+            )}
+            <span className="text-xs mt-1">PPTX</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => imageInputRef.current?.click()}
+            className={`flex flex-col items-center justify-center p-3 rounded-md ${
+              isDarkMode 
+                ? "bg-[#343030] hover:bg-[#3e3a3a] text-gray-200" 
+                : "bg-[#f0e8dc] hover:bg-[#e8dccc] text-[#6a5c4c]"
+            } ${isProcessingImage && processingOption === 'image-upload' ? 'animate-pulse' : ''} transition-colors`}
+            title="Upload Image"
+            disabled={isProcessing}
+          >
+            {isProcessingImage && processingOption === 'image-upload' ? (
+              <LoadingSpinner size={20} className="text-purple-500" />
+            ) : (
+              <ImageIcon size={24} className="text-purple-500 mb-1" />
+            )}
+            <span className="text-xs mt-1">Image</span>
+          </button>
+        </div>
+
+        {/* Website import option */}
+        {processWebsite && (
+          <div className="mt-2">
+            {!showWebsiteInput ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowWebsiteInput(true);
+                  // Focus the input after a short delay to allow the UI to update
+                  setTimeout(() => websiteInputRef.current?.focus(), 50);
+                }}
+                className={`w-full flex items-center justify-center p-3 rounded-md text-sm ${
+                  isDarkMode 
+                    ? "bg-[#343030] hover:bg-[#3e3a3a] text-gray-200" 
+                    : "bg-[#f0e8dc] hover:bg-[#e8dccc] text-[#6a5c4c]"
+                } ${isProcessingFile && processingOption === 'website' ? 'animate-pulse' : ''} transition-colors`}
+                title="Import from Website"
+                disabled={isProcessing}
+              >
+                {isProcessingFile && processingOption === 'website' ? (
+                  <LoadingSpinner size={18} className="mr-2 text-green-500" />
+                ) : (
+                  <GlobeIcon size={20} className="mr-2 text-green-500" />
+                )}
+                <span>Import from Website</span>
+              </button>
+            ) : (
+              <form onSubmit={handleWebsiteSubmit} className="mt-3 w-full">
+                <div className="flex w-full">
+                  <div className="relative w-full flex items-center">
+                    <input
+                      ref={websiteInputRef}
+                      type="url"
+                      value={websiteUrl}
+                      onChange={(e) => setWebsiteUrl(e.target.value)}
+                      onKeyDown={handleWebsiteInputKeyDown}
+                      placeholder="Enter website URL"
+                      className={`w-full h-10 px-3 py-2 text-sm rounded-l-md ${
+                        isDarkMode
+                          ? "bg-[#343030] border-[#444] text-white placeholder-gray-400"
+                          : "bg-[#f0e8dc] border-[#d8cbb8] text-[#6a5c4c] placeholder-[#8a7a66]"
+                      } border focus:outline-none focus:ring-1 focus:ring-blue-500`}
+                      disabled={isProcessing}
+                      required
+                    />
+                    {websiteUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setWebsiteUrl('')}
+                        className={`absolute right-2 ${
+                          isDarkMode ? "text-gray-400 hover:text-gray-300" : "text-[#8a7a66] hover:text-[#6a5c4c]"
+                        }`}
+                        aria-label="Clear input"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                  <button
+                    type="submit"
+                    className={`h-10 px-4 py-2 text-sm font-medium rounded-r-md ${
+                      isDarkMode
+                        ? "bg-blue-600 hover:bg-blue-700 text-white"
+                        : "bg-blue-500 hover:bg-blue-600 text-white"
+                    } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors`}
+                    disabled={isProcessing || !websiteUrl}
+                  >
+                    {isProcessingFile && processingOption === 'website' ? (
+                      <LoadingSpinner size={16} />
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+                <div className="flex justify-between mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowWebsiteInput(false)}
+                    className={`text-xs ${
+                      isDarkMode ? "text-gray-400 hover:text-gray-300" : "text-[#8a7a66] hover:text-[#6a5c4c]"
+                    }`}
+                  >
+                    Cancel
+                  </button>
+                  <span className={`text-xs ${
+                    isDarkMode ? "text-gray-400" : "text-[#8a7a66]"
+                  }`}>
+                    {websiteUrl ? 'Press Enter to import' : 'Enter a valid URL'}
+                  </span>
+                </div>
+              </form>
+            )}
+          </div>
+        )}
+
+        {/* Processing message */}
+        {isProcessing && (
+          <div className={`text-xs ${isDarkMode ? "text-gray-400" : "text-[#8a7a66]"} text-center mt-2`}>
+            <p>Processing may take a few moments...</p>
           </div>
         )}
       </div>
 
-      {/* Separate file inputs for each document type */}
+      {/* Hidden file inputs */}
       <input
         type="file"
         ref={pdfInputRef}
@@ -364,13 +400,6 @@ export default function FileUploadOptions({
         className="hidden"
         disabled={isProcessing}
       />
-      
-      {isProcessing && (
-        <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
-          <p>Processing may take a few moments. Please wait...</p>
-          <p className="mt-1">You can type your question in the input box below while processing.</p>
-        </div>
-      )}
     </div>
   );
 } 

@@ -119,6 +119,8 @@ export function getNewDiagramTemplate(diagramType: string): string {
       return 'mindmap\n    root((Mind Map))\n        Topic 1\n            Subtopic 1\n            Subtopic 2\n        Topic 2\n            Subtopic 3';
     case 'journey':
       return 'journey\n    title User Journey\n    section Sign up\n        Create account: 5: Me\n        Login: 3: Me\n    section Use app\n        Do something: 5: Me';
+    case 'architecture':
+      return 'architecture-beta\n    group cloud_infra(cloud)[Cloud Infrastructure]\n\n    service api_gateway(internet)[API Gateway] in cloud_infra\n    service webserver(server)[Web Server] in cloud_infra\n    service auth_service(server)[Auth Service] in cloud_infra\n    service database(database)[Database] in cloud_infra\n    service storage(disk)[Storage] in cloud_infra\n\n    api_gateway:B -- T:webserver\n    webserver:R -- L:auth_service\n    auth_service:B -- T:database\n    webserver:B -- T:database\n    webserver:L -- R:storage';
     default:
       return 'graph TD\n    A[Start] --> B[Process]\n    B --> C[End]';
   }

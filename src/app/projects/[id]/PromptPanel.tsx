@@ -485,6 +485,36 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Add a click outside handler to close the file upload modal
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      // Check if the file upload modal is open
+      if (showFileUpload) {
+        // Get the modal element and the upload button element
+        const modalElement = document.getElementById('file-upload-options-container');
+        const uploadButtonElement = document.getElementById('file-upload-button');
+        
+        // If the click is outside both the modal and the upload button, close the modal
+        if (
+          modalElement && 
+          uploadButtonElement && 
+          !modalElement.contains(event.target as Node) && 
+          !uploadButtonElement.contains(event.target as Node)
+        ) {
+          setShowFileUpload(false);
+        }
+      }
+    };
+
+    // Add event listener
+    document.addEventListener('mousedown', handleClickOutside);
+    
+    // Clean up
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showFileUpload, setShowFileUpload]);
+
   return (
     <>
       {/* Desktop Prompt Panel */}
@@ -771,9 +801,10 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
                 />
                 
                 {/* Upload button */}
-                <div className="absolute right-14 bottom-3.5">
+                <div className="absolute right-14 bottom-3">
                   <div className="relative">
                     <button
+                      id="file-upload-button"
                       type="button"
                       onClick={() => setShowFileUpload(!showFileUpload)}
                       className={`p-2 rounded-lg transition-colors ${
@@ -782,25 +813,12 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
                           : "hover:bg-[#d8cbb8] text-[#8a7a66] hover:text-[#6a5c4c]"
                       } ${isGenerating ? "opacity-40 cursor-not-allowed" : ""}`}
                       disabled={isGenerating}
+                      aria-label="Attach file"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
                         <path fillRule="evenodd" d="M15.621 4.379a3 3 0 00-4.242 0l-7 7a3 3 0 004.241 4.243h.001l.497-.5a.75.75 0 011.064 1.057l-.498.501-.002.002a4.5 4.5 0 01-6.364-6.364l7-7a4.5 4.5 0 016.368 6.36l-3.455 3.553A2.625 2.625 0 119.52 9.52l3.45-3.451a.75.75 0 111.061 1.06l-3.45 3.451a1.125 1.125 0 001.587 1.595l3.454-3.553a3 3 0 000-4.242z" clipRule="evenodd" />
                       </svg>
                     </button>
-                    
-                    {/* File Upload Menu */}
-                    {showFileUpload && (
-                      <FileUploadOptions 
-                        handleFileUpload={wrappedHandleFileUpload}
-                        handleImageUpload={wrappedHandleImageUpload}
-                        processWebsite={processWebsite}
-                        isDarkMode={isDarkMode}
-                        isProcessingFile={isProcessingFile || false}
-                        isProcessingImage={isProcessingImage || false}
-                        showFileUpload={showFileUpload}
-                        setShowFileUpload={setShowFileUpload}
-                      />
-                    )}
                   </div>
                 </div>
                 
@@ -818,6 +836,22 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
                 </button>
               </form>
             </div>
+
+            {/* File Upload Menu - positioned absolutely relative to the chat container */}
+            {showFileUpload && (
+              <div id="file-upload-options-container" className="absolute inset-x-0 bottom-[120px] px-4 z-50">
+                <FileUploadOptions 
+                  handleFileUpload={wrappedHandleFileUpload}
+                  handleImageUpload={wrappedHandleImageUpload}
+                  processWebsite={processWebsite}
+                  isDarkMode={isDarkMode}
+                  isProcessingFile={isProcessingFile || false}
+                  isProcessingImage={isProcessingImage || false}
+                  showFileUpload={showFileUpload}
+                  setShowFileUpload={setShowFileUpload}
+                />
+              </div>
+            )}
           </>
         ) : (
           <>

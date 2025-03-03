@@ -31,7 +31,7 @@ interface ChatMessage {
   errorMessage?: string;
 }
 
-function getPromptForDiagramType(diagramType: string, userPrompt: string) {
+function getPromptForDiagramType(diagramType: string, userPrompt: string, isSubsequentPrompt: boolean = false, existingDiagram: string = '') {
   const config = diagramConfig.definitions[diagramType];
   
   if (!config) {
@@ -41,6 +41,27 @@ function getPromptForDiagramType(diagramType: string, userPrompt: string) {
   // Use the diagram-specific prompt template if available, otherwise use the default
   const promptTemplate = config.prompt_template || diagramConfig.prompts.user_template;
 
+  // Add context for subsequent prompts to ensure diagram editing works properly
+  if (isSubsequentPrompt && existingDiagram) {
+    // Create an enhanced prompt for follow-up requests that focuses on editing
+    return `${promptTemplate
+      .replace('{prompt}', userPrompt)
+      .replace('{diagram_type}', diagramType)
+      .replace('{example}', config.example || '')}
+
+IMPORTANT: This is a follow-up request to modify or extend the existing diagram. 
+Here is the current diagram that needs to be updated:
+
+\`\`\`mermaid
+${existingDiagram}
+\`\`\`
+
+Please modify this existing diagram based on my request rather than creating a completely new one. 
+Maintain the working syntax patterns, structure, and formatting. Your task is to integrate the 
+requested changes while preserving the overall structure.`;
+  }
+
+  // Standard prompt for first-time diagram generation
   return promptTemplate
     .replace('{prompt}', userPrompt)
     .replace('{diagram_type}', diagramType)
@@ -60,15 +81,30 @@ function getSystemPromptForDiagramType(diagramType: string) {
     .replace('{description}', config.description || '')
     .replace('{example}', config.example || '');
     
+  // Common instructions for all diagram types to ensure continuity
+  const continuityInstructions = `
+When editing an existing diagram based on subsequent user requests:
+1. ALWAYS build upon the existing diagram structure - do not create a completely new diagram
+2. Preserve the working syntax patterns that already exist in the diagram
+3. Maintain the same syntax style and formatting conventions
+4. Focus on integrating the requested changes while keeping the overall structure
+5. If the user asks for a change that might break the diagram, implement it in a way that preserves functionality
+6. For any subsequent prompts after the first, your task is to EDIT the existing diagram, not create a new one
+
+Always ensure proper syntax that follows Mermaid.js requirements for the specific diagram type.
+`;
+    
   // Add specific instructions for flowcharts to ensure proper syntax
   if (diagramType === 'flowchart') {
     return `${basePrompt}
+${continuityInstructions}
 
 Important: Always ensure the diagram code begins with the proper declaration (e.g., "flowchart TD").
 Do not start with comments. The diagram declaration MUST be on the very first line of the code.`;
   }
   
-  return basePrompt;
+  return `${basePrompt}
+${continuityInstructions}`;
 }
 
 export async function POST(req: Request) {
@@ -157,9 +193,35 @@ Please create a simpler diagram with more reliable syntax. Focus on clarity and 
 Avoid advanced features that might cause syntax errors. Double-check your syntax before submitting.`;
           }
           
-          // Create user prompt with specific retry guidance if needed
-          let userPrompt = getPromptForDiagramType(effectiveDiagramType, textPrompt);
+          // Determine if this is a subsequent prompt for context handling
+          const isSubsequentPrompt = chatHistory.length > 0 && 
+            chatHistory.some((msg: ChatMessage) => msg.role === 'assistant' && msg.diagramVersion);
           
+          // Get the last diagram from chat history if available
+          let lastDiagram = '';
+          if (isSubsequentPrompt) {
+            // Find the most recent assistant message with a diagram
+            const lastAssistantWithDiagram = [...chatHistory]
+              .reverse()
+              .find((msg: ChatMessage) => msg.role === 'assistant' && msg.diagramVersion);
+              
+            if (lastAssistantWithDiagram?.diagramVersion) {
+              lastDiagram = lastAssistantWithDiagram.diagramVersion;
+            } else if (project.currentDiagram) {
+              // Fallback to current project diagram
+              lastDiagram = project.currentDiagram;
+            }
+          }
+          
+          // Create enhanced user prompt
+          let userPrompt = getPromptForDiagramType(
+            effectiveDiagramType, 
+            textPrompt, 
+            isSubsequentPrompt, 
+            lastDiagram
+          );
+          
+          // Additional retry logic if needed
           if (isRetry && failureReason) {
             userPrompt += `\n\nThe previous attempt failed with this error: "${failureReason}". 
 Please create a new diagram from scratch with simpler, more reliable syntax.`;
@@ -175,7 +237,7 @@ Please try again with a completely fresh approach, focusing on simpler, more rel
             .map((msg: ChatMessage) => ({
               role: msg.role as "user" | "assistant",
               content: msg.role === 'assistant' && msg.diagramVersion 
-                ? `${msg.content}\n\nHere is the diagram I created based on your request:\n\n\`\`\`mermaid\n${msg.diagramVersion}\n\`\`\``
+                ? `${msg.content}\n\nHere is the diagram I created based on your request:\n\n\`\`\`mermaid\n${msg.diagramVersion}\n\`\`\`\n\nThis is the current diagram that needs to be edited based on the user's next request. When responding to the user's next request, you should edit this diagram while maintaining its current structure.`
                 : msg.content
             }));
           
@@ -184,9 +246,16 @@ Please try again with a completely fresh approach, focusing on simpler, more rel
             ...previousMessages,
             {
               role: "user" as const,
-              content: userPrompt
+              content: previousMessages.length > 0 && previousMessages.some((msg: {role: string, content: string}) => msg.role === 'assistant' && msg.content.includes('```mermaid'))
+                ? `${userPrompt}\n\nPlease update the existing diagram based on this request. Keep the working elements and overall structure of the diagram, but incorporate my requested changes.`
+                : userPrompt
             }
           ];
+
+          // Log the conversation context for debugging
+          console.log(`[diagrams API] Sending ${messageContent.length} messages to Anthropic`);
+          console.log(`[diagrams API] Last user prompt: ${messageContent[messageContent.length - 1].content.substring(0, 100)}...`);
+          console.log(`[diagrams API] Chat history has diagrams: ${previousMessages.some((msg: {role: string, content: string}) => msg.content.includes('```mermaid'))}`);
           
           // Configure Anthropic API parameters
           let anthropicParams: {
@@ -209,7 +278,7 @@ Please try again with a completely fresh approach, focusing on simpler, more rel
           if (isRetry && clearCache) {
             anthropicParams = {
               ...anthropicParams,
-              temperature: 1.0, // Increase temperature to get more variety
+              temperature: 0.7, // Increase temperature to get more variety
             };
             
             console.log("[diagrams API] Using retry parameters with cleared cache:", {

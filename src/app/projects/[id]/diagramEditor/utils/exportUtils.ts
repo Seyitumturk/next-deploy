@@ -9,18 +9,67 @@ export function prepareSvgForExport(svgElement: SVGElement): SVGElement {
   // Clone the SVG to avoid modifying the original
   const clonedSvg = svgElement.cloneNode(true) as SVGElement;
   
-  // Ensure SVG has proper dimensions
-  if (!clonedSvg.hasAttribute('width') || !clonedSvg.hasAttribute('height')) {
-    if (clonedSvg.hasAttribute('viewBox')) {
-      const viewBox = clonedSvg.getAttribute('viewBox')?.split(' ');
-      if (viewBox && viewBox.length === 4) {
-        if (!clonedSvg.hasAttribute('width')) {
-          clonedSvg.setAttribute('width', viewBox[2]);
-        }
-        if (!clonedSvg.hasAttribute('height')) {
-          clonedSvg.setAttribute('height', viewBox[3]);
+  // Process viewBox and dimensions
+  let hasViewBox = clonedSvg.hasAttribute('viewBox');
+  let hasWidth = clonedSvg.hasAttribute('width');
+  let hasHeight = clonedSvg.hasAttribute('height');
+  
+  // Try to get dimensions from various sources
+  let width: number | null = null;
+  let height: number | null = null;
+  let viewBox: number[] | null = null;
+  
+  // First check for explicit dimensions
+  if (hasWidth && hasHeight) {
+    width = parseFloat(clonedSvg.getAttribute('width') || '0');
+    height = parseFloat(clonedSvg.getAttribute('height') || '0');
+  }
+  
+  // Then check for viewBox
+  if (hasViewBox) {
+    const viewBoxAttr = clonedSvg.getAttribute('viewBox') || '';
+    const viewBoxValues = viewBoxAttr.split(/\s+/).map(parseFloat);
+    
+    if (viewBoxValues.length === 4 && !viewBoxValues.some(isNaN)) {
+      viewBox = viewBoxValues;
+      
+      // Use viewBox dimensions if we don't have width/height
+      if (!width || !height) {
+        width = viewBox[2];
+        height = viewBox[3];
+      }
+    }
+  }
+  
+  // Try to compute bounding box as a last resort
+  if (!width || !height || width <= 0 || height <= 0) {
+    try {
+      if (svgElement.getBBox) {
+        const bbox = svgElement.getBBox();
+        width = bbox.width;
+        height = bbox.height;
+        
+        // Create a viewBox if none exists
+        if (!hasViewBox) {
+          viewBox = [bbox.x, bbox.y, bbox.width, bbox.height];
+          clonedSvg.setAttribute('viewBox', viewBox.join(' '));
         }
       }
+    } catch (e) {
+      // Fallback values if all else fails
+      width = width || 800;
+      height = height || 600;
+    }
+  }
+  
+  // Ensure SVG has proper dimensions
+  if (width && height) {
+    clonedSvg.setAttribute('width', width.toString());
+    clonedSvg.setAttribute('height', height.toString());
+    
+    // If we have no viewBox, create one that matches the dimensions
+    if (!hasViewBox && width && height) {
+      clonedSvg.setAttribute('viewBox', `0 0 ${width} ${height}`);
     }
   }
   
@@ -41,6 +90,11 @@ export function prepareSvgForExport(svgElement: SVGElement): SVGElement {
       if (attr.name.startsWith('on')) {
         el.removeAttribute(attr.name);
       }
+    }
+    
+    // Add crossorigin attribute to any images or other elements with external resources
+    if (el.tagName.toLowerCase() === 'image' && el.hasAttribute('href')) {
+      el.setAttribute('crossorigin', 'anonymous');
     }
   });
   
@@ -93,9 +147,50 @@ export async function convertSvgToPng(svgElement: SVGElement, transparent: boole
         cleanedSvg.style.backgroundColor = '#ffffff';
       }
       
-      // Get dimensions
-      const width = parseInt(cleanedSvg.getAttribute('width') || '800', 10);
-      const height = parseInt(cleanedSvg.getAttribute('height') || '600', 10);
+      // Get the SVG's dimensions - first try to get from the viewBox for accuracy
+      let width, height, viewBox;
+      
+      if (cleanedSvg.hasAttribute('viewBox')) {
+        viewBox = cleanedSvg.getAttribute('viewBox')?.split(/\s+/).map(Number);
+        if (viewBox && viewBox.length === 4) {
+          // viewBox format: minX minY width height
+          width = viewBox[2];
+          height = viewBox[3];
+        }
+      }
+      
+      // If viewBox didn't work, try width/height attributes
+      if (!width || !height) {
+        width = parseInt(cleanedSvg.getAttribute('width') || '800', 10);
+        height = parseInt(cleanedSvg.getAttribute('height') || '600', 10);
+      }
+      
+      // Get the SVG's bounding box as a fallback
+      if (!width || !height || width <= 0 || height <= 0) {
+        try {
+          const bbox = cleanedSvg.getBBox();
+          width = bbox.width;
+          height = bbox.height;
+          
+          // Update viewBox if needed
+          if (!cleanedSvg.hasAttribute('viewBox')) {
+            cleanedSvg.setAttribute('viewBox', `${bbox.x} ${bbox.y} ${bbox.width} ${bbox.height}`);
+          }
+        } catch (e) {
+          // Fallback dimensions if getBBox fails
+          width = 800;
+          height = 600;
+        }
+      }
+      
+      // Scale up for high-quality export (2x resolution)
+      const scale = 2;
+      const exportWidth = width * scale;
+      const exportHeight = height * scale;
+      
+      // Ensure proper dimensions are set on the SVG
+      cleanedSvg.setAttribute('width', `${width}`);
+      cleanedSvg.setAttribute('height', `${height}`);
       
       // Create a serialized SVG string
       const svgString = new XMLSerializer().serializeToString(cleanedSvg);
@@ -104,15 +199,14 @@ export async function convertSvgToPng(svgElement: SVGElement, transparent: boole
       
       // Create an Image object to load the SVG
       const img = new Image();
-      img.width = width;
-      img.height = height;
+      img.crossOrigin = "anonymous";  // Prevent tainted canvas
       
       // When the image loads, draw it to a canvas and convert to PNG
       img.onload = () => {
-        // Create a canvas of the same dimensions
+        // Create a canvas with the scaled dimensions for high quality
         const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
+        canvas.width = exportWidth;
+        canvas.height = exportHeight;
         
         // Get drawing context
         const ctx = canvas.getContext('2d');
@@ -121,26 +215,39 @@ export async function convertSvgToPng(svgElement: SVGElement, transparent: boole
           return;
         }
         
+        // Set image smoothing for high quality
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        
         // If transparent, don't fill background
         if (!transparent) {
           ctx.fillStyle = '#ffffff';
-          ctx.fillRect(0, 0, width, height);
+          ctx.fillRect(0, 0, exportWidth, exportHeight);
         }
         
-        // Draw the image
-        ctx.drawImage(img, 0, 0, width, height);
+        // Draw the image, preserving aspect ratio
+        ctx.drawImage(img, 0, 0, exportWidth, exportHeight);
         
-        // Convert canvas to PNG blob
-        canvas.toBlob((blob) => {
-          if (blob) {
-            resolve(blob);
-          } else {
-            reject(new Error('Failed to convert SVG to PNG'));
-          }
-          
-          // Clean up
-          URL.revokeObjectURL(url);
-        }, 'image/png');
+        try {
+          // Convert canvas to PNG blob with high quality
+          canvas.toBlob((blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error('Failed to convert SVG to PNG'));
+            }
+            
+            // Clean up
+            URL.revokeObjectURL(url);
+          }, 'image/png', 1.0); // Use maximum quality (1.0)
+        } catch (canvasError) {
+          // If the canvas is tainted, try alternative approach
+          console.warn('Canvas tainted, trying alternative approach:', canvasError);
+          fallbackSvgToPng(svgString, exportWidth, exportHeight, transparent)
+            .then(resolve)
+            .catch(reject)
+            .finally(() => URL.revokeObjectURL(url));
+        }
       };
       
       // Handle errors
@@ -149,8 +256,82 @@ export async function convertSvgToPng(svgElement: SVGElement, transparent: boole
         reject(new Error(`Failed to load SVG: ${error}`));
       };
       
-      // Trigger the loading process
+      // Trigger the loading process - Don't set width/height on the image
+      // Let the natural dimensions of the SVG be preserved
       img.src = url;
+      
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+/**
+ * Fallback method to convert SVG to PNG using data URLs
+ * This approach is more reliable for SVGs with embedded images
+ */
+async function fallbackSvgToPng(svgString: string, width: number, height: number, transparent: boolean = false): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    try {
+      // Convert SVG string to a data URL
+      const svgData = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgString)))}`;
+      
+      // Create an Image object
+      const img = new Image();
+      
+      img.onload = () => {
+        // Create canvas with the proper dimensions
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          return reject(new Error('Could not get canvas context'));
+        }
+        
+        // Enable high quality rendering
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        
+        // Set background if not transparent
+        if (!transparent) {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, width, height);
+        }
+        
+        // Calculate scaling to preserve aspect ratio
+        const scale = Math.min(
+          width / img.naturalWidth,
+          height / img.naturalHeight
+        );
+        
+        // Center the image
+        const x = (width - img.naturalWidth * scale) / 2;
+        const y = (height - img.naturalHeight * scale) / 2;
+        
+        // Draw the image with proper scaling
+        ctx.drawImage(
+          img, 
+          0, 0, img.naturalWidth, img.naturalHeight,
+          x, y, img.naturalWidth * scale, img.naturalHeight * scale
+        );
+        
+        // Export as blob with high quality
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error('Failed to create PNG blob from canvas'));
+          }
+        }, 'image/png', 1.0); // Maximum quality
+      };
+      
+      img.onerror = () => {
+        reject(new Error('Failed to load SVG data URL'));
+      };
+      
+      img.src = svgData;
       
     } catch (error) {
       reject(error);

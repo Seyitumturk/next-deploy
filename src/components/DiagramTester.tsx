@@ -24,7 +24,8 @@ const DiagramTester: React.FC = () => {
     'userJourney',
     'gantt',
     'pie',
-    'mindmap'
+    'mindmap',
+    'architecture'
   ];
 
   // Add this function to the component to handle flowchart templates
@@ -69,6 +70,22 @@ const DiagramTester: React.FC = () => {
     }
     
     User <|-- Admin`;
+      
+      case 'architecture':
+        return `architecture-beta
+  group cloud_infra(cloud)[Cloud Infrastructure]
+  
+  service api_gateway(internet)[API Gateway] in cloud_infra
+  service webserver(server)[Web Server] in cloud_infra
+  service auth_service(server)[Auth Service] in cloud_infra
+  service database(database)[Database] in cloud_infra
+  service storage(disk)[Storage] in cloud_infra
+  
+  api_gateway:B -- T:webserver
+  webserver:R -- L:auth_service
+  auth_service:B -- T:database
+  webserver:B -- T:database
+  webserver:L -- R:storage`;
       
       default:
         return `${type}\n  A simple ${type} diagram example`;
