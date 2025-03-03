@@ -11,6 +11,15 @@ import useZoomAndPan from './hooks/useZoomAndPan';
 import useFileProcessing from './hooks/useFileProcessing';
 import useImageProcessing from './hooks/useImageProcessing';
 
+// Create a global flag to track if streaming is active - this will block ALL error displays
+let GLOBAL_STREAMING_ACTIVE = false;
+
+// Make accessible globally for cross-component access
+if (typeof window !== 'undefined') {
+  // @ts-ignore - Adding custom property to window
+  window.GLOBAL_STREAMING_ACTIVE = false;
+}
+
 function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram, user, history: initialHistory }: EditorProps) {
   // --- Core state ---
   const [prompt, setPrompt] = useState('');
@@ -45,6 +54,16 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
   // Add a ref to always track the latest SVG to ensure it's available for saves
   const latestSvgRef = useRef<string>('');
 
+  // Override the error setter to respect streaming state
+  const safeSetError = (errorText: string) => {
+    // NEVER set errors during streaming
+    if (GLOBAL_STREAMING_ACTIVE) {
+      console.log('[safeSetError] Blocked error display during streaming:', errorText);
+      return;
+    }
+    setError(errorText);
+  };
+  
   // --- Refs ---
   const diagramRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<HTMLDivElement>(null);
@@ -180,7 +199,7 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
   // Remove auto-retry related states
   const [lastErrorMessage, setLastErrorMessage] = useState<string>('');
 
-  // Modify the handleGenerateDiagram function to simplify error handling
+  // Modify the handleGenerateDiagram function to set global streaming flag
   const handleGenerateDiagram = async (e: React.FormEvent<HTMLFormElement> | null, initialPrompt?: string, isRetry: boolean = false, failureReason?: string) => {
     if (e) e.preventDefault();
     
@@ -196,6 +215,13 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
     // Don't proceed if no prompt or if currently generating or retrying
     if (!promptToUse || isGenerating) {
       return;
+    }
+    
+    // Set global streaming flag to block ALL errors during streaming
+    GLOBAL_STREAMING_ACTIVE = true;
+    if (typeof window !== 'undefined') {
+      // @ts-ignore - Adding custom property to window
+      window.GLOBAL_STREAMING_ACTIVE = true;
     }
     
     // Update retry state
@@ -310,6 +336,7 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
         let allErrorMessages: string[] = []; // Collect all error messages during streaming
         let isFinalError = false; // Flag to track if we're at the final error state
         let isStreamActive = true; // New flag to track if streaming is active
+        let hasFinalValidDiagram = false; // Track if we got a valid final diagram
         
         while (!isComplete) {
           const { done, value } = await reader.read();
@@ -354,19 +381,17 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
                       console.log(`[handleGenerateDiagram] Collected streaming error (not displaying): ${errorMessage}`);
                     }
                     
-                    // If we're explicitly told this is a final error, handle it
+                    // If we're explicitly told this is a final error
                     if (data.isComplete) {
+                      console.log(`[handleGenerateDiagram] Server indicated this is a final error`);
                       isComplete = true;
                       isFinalError = true;
                       isStreamActive = false; // Mark streaming as complete
                       break;
                     }
                     
-                    // If we're still in streaming, never show streaming errors to user
-                    if (isStreamActive) {
-                      // Skip completely - no state updates for streaming errors
-                      continue;
-                    }
+                    // Skip completely - no state updates for streaming errors
+                    continue;
                   }
                   
                   // If we got mermaid syntax, update the diagram
@@ -377,6 +402,15 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
                     // Render the updated diagram immediately
                     const renderSuccess = await renderDiagram(receivedDiagram);
                     console.log(`[handleGenerateDiagram] Diagram rendered successfully: ${renderSuccess}, SVG length after render: ${svgOutput?.length || 0}`);
+                    
+                    // If this is a successful render AND it's the final message, mark as having a valid diagram
+                    if (renderSuccess && data.isComplete) {
+                      console.log(`[handleGenerateDiagram] Final diagram rendered successfully, ignoring any previous errors`);
+                      hasFinalValidDiagram = true;
+                      // Clear any previous error flags if we successfully rendered the final diagram
+                      hasError = false;
+                      isFinalError = false;
+                    }
                     
                     // Track successful renders for improved save reliability
                     if (renderSuccess && svgOutput && svgOutput.length > 0) {
@@ -527,8 +561,18 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
         // Handle errors after streaming is completely done
         isStreamActive = false; // Ensure streaming state is marked as complete
         
+        // IMPORTANT: If we have a valid final diagram, ignore any streaming errors!
+        if (hasFinalValidDiagram) {
+          console.log(`[handleGenerateDiagram] We have a valid final diagram, ignoring all previous errors!`);
+          // Reset error states
+          hasError = false;
+          isFinalError = false;
+          setError('');
+        }
+        
         // Only show error UI if this was a true final error and not a resolved streaming error
-        if (isFinalError) {
+        // AND we don't have a valid final diagram
+        if (isFinalError && !hasFinalValidDiagram) {
           const finalErrorMessage = allErrorMessages.length > 0 
             ? allErrorMessages[allErrorMessages.length - 1] 
             : 'Failed to generate diagram';
@@ -562,9 +606,9 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
           setIsRetrying(false);
           return; // Exit early - don't proceed to processing the diagram
         } 
-        else if (hasError && allErrorMessages.length > 0) {
-          // We had streaming errors, but the final diagram rendered successfully
-          console.log(`[handleGenerateDiagram] Had ${allErrorMessages.length} streaming errors but final diagram rendered successfully. Not showing error UI.`);
+        else if (hasError && allErrorMessages.length > 0 && !hasFinalValidDiagram) {
+          // We had streaming errors, but not marked as final error - try proceeding with the diagram
+          console.log(`[handleGenerateDiagram] Had ${allErrorMessages.length} streaming errors but will attempt to use the diagram anyway.`);
           // Clear any existing error state to be safe
           setError('');
         }
@@ -693,6 +737,12 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
         return [...filteredMessages, errorMessage];
       });
     } finally {
+      // IMPORTANT: Reset the global streaming flag after generation is complete
+      GLOBAL_STREAMING_ACTIVE = false;
+      if (typeof window !== 'undefined') {
+        // @ts-ignore - Adding custom property to window
+        window.GLOBAL_STREAMING_ACTIVE = false;
+      }
       setIsGenerating(false);
       setIsRetrying(false);
     }
@@ -702,11 +752,14 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.data && event.data.type === 'DIAGRAM_SYNTAX_ERROR') {
-        // Ignore errors while streaming is active
-        const isStreaming = isGenerating && !event.data.isFinal;
-
+        // Block ALL errors during streaming - hard block
+        if (GLOBAL_STREAMING_ACTIVE || isGenerating) {
+          console.log('[handleMessage] Blocking error during streaming - global streaming flag active');
+          return;
+        }
+        
         // Only process final diagram errors, not intermediate streaming ones
-        if (isStreaming) {
+        if (!event.data.isFinal) {
           console.log('[handleMessage] Ignoring error during streaming - not displaying to user');
           return;
         }
@@ -718,7 +771,7 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
         
         // Only process the error if it's not already being displayed
         if (!error || error !== errorText) {
-          setError(errorText);
+          safeSetError(errorText);
           setLastErrorMessage(errorText);
           
           // Create error message for chat

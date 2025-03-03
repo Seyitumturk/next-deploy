@@ -7,6 +7,13 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { tomorrow, prism } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import { mermaidToPlantUml } from './utils';
 
+// Get access to streaming state from useDiagramEditor
+declare global {
+  interface Window {
+    GLOBAL_STREAMING_ACTIVE?: boolean;
+  }
+}
+
 interface MessageContentProps {
   message: ChatMessageData;
   isExpanded: boolean;
@@ -67,8 +74,11 @@ export const MessageContent: React.FC<MessageContentProps> = ({
     );
   }
 
-  // Render error message with retry button if needed
-  if (message.error && !message.isTemporaryError) {
+  // Hard block ANY error display during streaming
+  const isStreamingActive = typeof window !== 'undefined' && window.GLOBAL_STREAMING_ACTIVE === true;
+  
+  // Render error message with retry button if needed - with streaming protection
+  if (message.error && !message.isTemporaryError && !isStreamingActive) {
     return (
       <div>
         <div className={`p-3 rounded-md ${
