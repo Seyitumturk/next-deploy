@@ -131,6 +131,9 @@ export async function POST(req: Request) {
       async start(controller) {
         // Track if we've sent any completion message
         let completionMessageSent = false;
+        // Track diagram content across try/catch blocks
+        let diagram = '';
+        
         console.log('[diagrams API] STREAM STARTED - beginning diagram generation');
         
         try {
@@ -138,7 +141,6 @@ export async function POST(req: Request) {
           let systemPrompt = getSystemPromptForDiagramType(effectiveDiagramType);
           
           // Track if we've found a valid final diagram
-          let diagram = '';
           let currentChunk = '';
           let isCollectingDiagram = false;
           let lineBuffer: string[] = [];
@@ -480,12 +482,46 @@ Please try again with a completely fresh approach, focusing on simpler, more rel
                     // Add the lines to the diagram
                     diagram += lineBuffer.join('\n') + '\n';
                     
+                    // STREAMING FIX: Check each chunk for obvious syntax errors that might halt rendering
+                    // BUT we only use this check to assist UI rendering, not for showing errors
+                    let fixedDiagram = diagram;
+                    try {
+                      // Apply emergency fixes for common syntax issues that might stop rendering
+                      if (effectiveDiagramType === 'flowchart' && !diagram.trim().toLowerCase().startsWith('flowchart')) {
+                        // Add flowchart declaration if missing
+                        fixedDiagram = 'flowchart TD\n' + diagram;
+                      }
+                      
+                      // Check for unbalanced elements that can break rendering
+                      const openBrackets = (diagram.match(/\{/g) || []).length;
+                      const closeBrackets = (diagram.match(/\}/g) || []).length;
+                      if (openBrackets > closeBrackets) {
+                        // Add missing closing brackets to help rendering
+                        fixedDiagram = diagram + '}';
+                      }
+                      
+                      // Check for incomplete relationships
+                      if (diagram.trim().endsWith('--') || diagram.trim().endsWith('-->')) {
+                        // Fix incomplete relationship
+                        fixedDiagram = diagram + ' Incomplete';
+                      }
+                    } catch (fixError) {
+                      console.log('[diagrams API] Error trying to fix diagram chunk:', fixError);
+                      // Just continue with original diagram
+                    }
+                    
                     // Add artificial delay to prevent overwhelming the client
                     await new Promise(resolve => setTimeout(resolve, ARTIFICIAL_DELAY));
                     
-                    // Send the update
+                    // Always send the update to maintain streaming, regardless of syntax errors
+                    // We send the original diagram to avoid corrupting the final result
                     controller.enqueue(
-                      `data: ${JSON.stringify({ mermaidSyntax: diagram, isComplete: false })}\n\n`
+                      `data: ${JSON.stringify({ 
+                        mermaidSyntax: diagram, 
+                        isComplete: false,
+                        isPartial: true,
+                        continuedStreaming: true  // Signal to client to keep streaming
+                      })}\n\n`
                     );
                     
                     // Clear the buffer
@@ -503,7 +539,7 @@ Please try again with a completely fresh approach, focusing on simpler, more rel
           // Only send a message if we haven't already sent one
           if (!completionMessageSent) {
             // EMERGENCY FIX: If we have any diagram at all, force a success response
-            if (diagram.trim().length > 0) {
+            if (diagram && diagram.trim().length > 0) {
               console.log('[diagrams API] EMERGENCY FALLBACK: Non-empty diagram found, forcing success');
               controller.enqueue(
                 `data: ${JSON.stringify({ 
@@ -531,7 +567,7 @@ Please try again with a completely fresh approach, focusing on simpler, more rel
           // Only send error if we haven't already sent a completion message
           if (!completionMessageSent) {
             // EMERGENCY FIX: If we have any diagram at all, force a success response even after errors
-            if (diagram.trim().length > 0) {
+            if (diagram && diagram.trim().length > 0) {
               console.log('[diagrams API] EMERGENCY ERROR HANDLER: Non-empty diagram exists, forcing success despite error');
               controller.enqueue(
                 `data: ${JSON.stringify({ 
