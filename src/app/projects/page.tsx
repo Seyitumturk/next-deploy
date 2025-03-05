@@ -9,6 +9,7 @@ import { getProjects } from './actions';
 import DeleteProjectModal from '@/components/DeleteProjectModal';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
+import PricingModal from '@/components/PricingModal';
 
 interface Project {
   _id: string;
@@ -143,6 +144,7 @@ const DiagramPreview = ({ project }: { project: Project }) => {
 
 export default function ProjectsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPricingModalOpen, setIsPricingModalOpen] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -345,9 +347,12 @@ export default function ProjectsPage() {
               )}
             </button>
             {user && (
-              <div className={`hidden md:flex items-center space-x-2 px-4 py-2 rounded-lg ${
-                isDarkMode ? "bg-gray-800/50" : "bg-gray-100/80"
-              }`}>
+              <div 
+                className={`hidden md:flex items-center space-x-2 px-4 py-2 rounded-lg ${
+                  isDarkMode ? "bg-gray-800/50" : "bg-gray-100/80"
+                } cursor-pointer hover:bg-primary/10 transition-colors`}
+                onClick={() => setIsPricingModalOpen(true)}
+              >
                 <svg 
                   xmlns="http://www.w3.org/2000/svg" 
                   className={`h-4 w-4 ${isDarkMode ? 'text-primary' : 'text-primary'}`} 
@@ -365,7 +370,10 @@ export default function ProjectsPage() {
               </div>
             )}
             {user && (
-              <div className="md:hidden flex items-center space-x-1">
+              <div 
+                className="md:hidden flex items-center space-x-1 cursor-pointer"
+                onClick={() => setIsPricingModalOpen(true)}
+              >
                 <span className={`font-mono text-sm ${isDarkMode ? 'text-white' : 'text-black'}`}>
                   {user.wordCountBalance.toLocaleString()}
                 </span>
@@ -688,6 +696,15 @@ export default function ProjectsPage() {
             projectTitle={projectToDelete.title}
             onClose={() => setProjectToDelete(null)}
             onDelete={handleDeleteProject}
+          />
+        )}
+
+        {user && (
+          <PricingModal
+            isOpen={isPricingModalOpen}
+            onClose={() => setIsPricingModalOpen(false)}
+            currentCredits={user.wordCountBalance}
+            isDarkMode={isDarkMode}
           />
         )}
       </div>
