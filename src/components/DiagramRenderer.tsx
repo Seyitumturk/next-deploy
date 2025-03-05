@@ -162,17 +162,12 @@ const DiagramRenderer: React.FC<DiagramRendererProps> = ({
       data-error={error ? 'true' : 'false'}
       data-diagram-type={diagramType || 'unknown'}
     >
-      {error && !suppressErrors && (
-        <div className="absolute top-2 left-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 px-3 py-1.5 rounded-md text-xs font-medium pointer-events-none max-w-[90%] overflow-hidden text-ellipsis whitespace-nowrap">
-          {error}
-        </div>
-      )}
       {isLoading && !fallbackSvg && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-50 dark:bg-gray-800/50 rounded-lg">
           <div className="flex flex-col items-center">
             <div className="h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
             <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-              Generating {diagramType || 'diagram'}...
+              Generating diagram...
             </p>
           </div>
         </div>

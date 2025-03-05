@@ -142,12 +142,9 @@ export const MessageContent: React.FC<MessageContentProps> = ({
             </div>
           </div>
           <span className={`font-medium ${isDarkMode ? 'text-blue-300' : 'text-blue-600'}`}>
-            Retrying diagram
+            Generating diagram
           </span>
         </div>
-        <p className={`ml-8 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-          Creating a fresh diagram with improved syntax...
-        </p>
       </div>
     );
   }
@@ -161,12 +158,9 @@ export const MessageContent: React.FC<MessageContentProps> = ({
             <div className="w-6 h-6 border-2 rounded-full border-b-transparent border-primary animate-spin"></div>
           </div>
           <span className={`font-medium ${isDarkMode ? 'text-blue-300' : 'text-blue-600'}`}>
-            Generating your diagram
+            Generating diagram
           </span>
         </div>
-        <p className={`ml-8 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-          Creating a beautiful visualization of your idea...
-        </p>
       </div>
     );
   }

@@ -928,25 +928,17 @@ function useDiagramEditor({ projectId, projectTitle, diagramType, initialDiagram
   // Function to handle diagram syntax errors
   const handleDiagramSyntaxError = useCallback((errorText: string) => {
     console.log(`[handleDiagramSyntaxError] Handling syntax error: ${errorText}`);
-    setError(errorText);
+    
+    // Store the error for potential retry but don't display it to the user
     setLastErrorMessage(errorText);
     
-    // Create error message for chat
-    const errorMessage: ChatMessageData = {
-      role: 'assistant',
-      content: `I had trouble understanding how to create this diagram. Let's try a different approach or use a simpler description.`,
-      timestamp: new Date(),
-      error: errorText, // Store actual error for debugging
-      hasRetryButton: true,
-    };
+    // Don't create an error message in the chat for syntax errors
+    // Only log the error for debugging purposes
+    console.log(`[handleDiagramSyntaxError] Suppressing error message: ${errorText}`);
     
-    // Add the error message to chat, but only if we're not already showing errors
-    setMessages(prev => {
-      // Filter out any existing error messages and typing indicators
-      const filteredMessages = prev.filter(msg => !msg.error && !msg.isTyping);
-      return [...filteredMessages, errorMessage];
-    });
-  }, [setError, setLastErrorMessage, setMessages]);
+    // Don't update the UI with error messages during diagram generation
+    // This keeps only the loading animation visible
+  }, [setLastErrorMessage]);
 
   // Listen for render errors and handle them
   useEffect(() => {

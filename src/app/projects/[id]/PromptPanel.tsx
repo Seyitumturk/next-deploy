@@ -88,7 +88,7 @@ const mobileMonacoOptions = {
 };
 
 // Add this new component for the generating status indicator
-const GeneratingIndicator = ({ isDarkMode, message = "Generating diagram..." }: { isDarkMode: boolean, message?: string }) => (
+const GeneratingIndicator = ({ isDarkMode }: { isDarkMode: boolean }) => (
   <div className={`absolute -top-10 left-0 right-0 flex justify-center pointer-events-none animate-fadeIn`}>
     <div className={`px-3 py-1.5 rounded-full text-xs font-medium flex items-center space-x-2 shadow-md ${
       isDarkMode 
@@ -99,7 +99,7 @@ const GeneratingIndicator = ({ isDarkMode, message = "Generating diagram..." }: 
         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
       </svg>
-      <span>{message}</span>
+      <span>Generating diagram</span>
     </div>
   </div>
 );
@@ -240,41 +240,40 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
     window.setTimeout(scrollNow, 100);
   }, [chatContainerRef, mobileChatContainerRef]);
   
-  // Add state for the generating message
-  const [generatingMessage, setGeneratingMessage] = useState("Generating diagram...");
+  // Keep track of code editor status
+  const [isEditing, setIsEditing] = useState(false);
+  const [monacoEditorInstance, setMonacoEditorInstance] = useState<any>(null);
+  
+  // Remove the generatingMessage state and simplify
+  const textAreaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  // Monitor window size for responsive designs
+  const [isMobile, setIsMobile] = useState(false);
   
   // Update the custom handler for generating diagram
   const handleGenerateAndCollapse = (e: React.FormEvent<HTMLFormElement> | null, initialPrompt?: string) => {
-    // First scroll to bottom before handling the generation
-    guaranteedScrollToBottom();
+    // Determine if we have a prompt to work with
+    const promptToUse = initialPrompt || prompt;
+    if (!promptToUse.trim() || isGenerating) return;
     
-    // Set a more specific message based on the prompt
-    if (prompt.toLowerCase().includes("flowchart")) {
-      setGeneratingMessage("Creating flowchart...");
-    } else if (prompt.toLowerCase().includes("sequence")) {
-      setGeneratingMessage("Building sequence diagram...");
-    } else if (prompt.toLowerCase().includes("class")) {
-      setGeneratingMessage("Designing class diagram...");
-    } else if (prompt.toLowerCase().includes("entity")) {
-      setGeneratingMessage("Mapping entity relationships...");
-    } else {
-      setGeneratingMessage("Generating diagram...");
-    }
+    if (e) e.preventDefault();
     
-    // Then handle the diagram generation
-    handleGenerateDiagram(e, initialPrompt);
+    // Determine if it's a user prompt requiring the chat interface
+    const needsChat = true;
     
-    // Scroll again after submission
-    guaranteedScrollToBottom();
+    // Remove diagram type specific messages - we now use a simplified UI
     
-    // On mobile, collapse the panel after submitting
-    if (window.innerWidth < 768) {
-      setTimeout(() => {
-        setShowPromptPanel(false);
-      }, 300); // Small delay for better UX
+    // Generate the diagram
+    handleGenerateDiagram(e, promptToUse);
+
+    // If we're on mobile, auto-collapse the prompt panel to show results
+    if (window.innerWidth < 640) {
+      setShowPromptPanel(false);
     }
   };
-  
+
   // Add a useEffect to handle document text extraction
   useEffect(() => {
     if (documentSummary) {
@@ -783,7 +782,7 @@ const PromptPanel: React.FC<PromptPanelProps> = ({
             {/* Prompt Form */}
             <div className={`p-4 border-t ${isDarkMode ? "border-gray-700/60" : "border-[#b8a990]"}`}>
               <form onSubmit={(e) => handleGenerateAndCollapse(e)} className="w-full relative">
-                {isGenerating && <GeneratingIndicator isDarkMode={isDarkMode} message={generatingMessage} />}
+                {isGenerating && <GeneratingIndicator isDarkMode={isDarkMode} />}
                 
                 <textarea
                   ref={textareaRef}

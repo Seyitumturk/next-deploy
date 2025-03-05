@@ -62,50 +62,36 @@ const FallbackDiagramVisualizer: React.FC<FallbackDiagramVisualizerProps> = ({
             .pulsing { animation: pulse 1.5s infinite; }
           </style>
           <rect width="100%" height="100%" fill="#F7FAFC" rx="8" ry="8" />
-          <text x="50%" y="40%" text-anchor="middle" class="loading-text pulsing">Processing your ${diagramType} diagram...</text>
-          <text x="50%" y="50%" text-anchor="middle" class="loading-subtext">We're preparing your visualization</text>
+          <text x="50%" y="40%" text-anchor="middle" class="loading-text pulsing">Processing diagram...</text>
+          <text x="50%" y="50%" text-anchor="middle" class="loading-subtext">Generating visualization</text>
         </svg>`;
         
       case 'processing':
-        // For processing state, show a progress bar if progress is provided
-        const progressWidth = Math.max(0, Math.min(100, progress)) * 6; // Scale to 600px max
+        // For processing state, simplify to just show the same as loading
         return `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="300" viewBox="0 0 800 300">
           <style>
             .loading-text { font-family: sans-serif; font-size: 24px; fill: #718096; }
             .loading-subtext { font-family: sans-serif; font-size: 16px; fill: #A0AEC0; }
-            .progress-text { font-family: sans-serif; font-size: 14px; fill: #4B5563; }
+            @keyframes pulse { 0% { opacity: 0.3; } 50% { opacity: 1; } 100% { opacity: 0.3; } }
+            .pulsing { animation: pulse 1.5s infinite; }
           </style>
           <rect width="100%" height="100%" fill="#F7FAFC" rx="8" ry="8" />
-          <text x="50%" y="35%" text-anchor="middle" class="loading-text">Building your ${diagramType} diagram</text>
-          <text x="50%" y="45%" text-anchor="middle" class="loading-subtext">${message || 'Creating visualization from your description'}</text>
-          
-          <!-- Progress bar background -->
-          <rect x="100" y="170" width="600" height="20" rx="10" fill="#E5E7EB" />
-          
-          <!-- Progress bar fill -->
-          <rect x="100" y="170" width="${progressWidth}" height="20" rx="10" fill="#3B82F6" />
-          
-          <!-- Progress percentage -->
-          <text x="50%" y="210" text-anchor="middle" class="progress-text">${progress}% complete</text>
+          <text x="50%" y="40%" text-anchor="middle" class="loading-text pulsing">Processing diagram...</text>
+          <text x="50%" y="50%" text-anchor="middle" class="loading-subtext">Generating visualization</text>
         </svg>`;
       
       case 'syntax_error':
-        // Extract useful information from the error message
-        const error = getErrorSummary(errorDetails);
+        // Simplify syntax error to show same as generic error
         return `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="300" viewBox="0 0 800 300">
           <style>
-            .error-title { font-family: sans-serif; font-size: 20px; fill: #DC2626; }
-            .error-message { font-family: sans-serif; font-size: 16px; fill: #4B5563; }
-            .error-detail { font-family: sans-serif; font-size: 14px; fill: #6B7280; }
-            .error-suggestion { font-family: sans-serif; font-size: 14px; fill: #1E40AF; }
+            .error-text { font-family: sans-serif; font-size: 20px; fill: #E53E3E; }
+            .error-subtext { font-family: sans-serif; font-size: 14px; fill: #718096; }
           </style>
-          <rect width="100%" height="100%" fill="#FEF2F2" rx="8" ry="8" />
-          <circle cx="400" cy="80" r="30" fill="#FEE2E2" />
-          <text x="400" y="88" text-anchor="middle" font-size="24" fill="#DC2626">!</text>
-          <text x="50%" y="140" text-anchor="middle" class="error-title">Syntax Error in ${diagramType} Diagram</text>
-          <text x="50%" y="170" text-anchor="middle" class="error-message">${error.message}</text>
-          ${error.line ? `<text x="50%" y="200" text-anchor="middle" class="error-detail">Line ${error.line}</text>` : ''}
-          ${error.suggestion ? `<text x="50%" y="230" text-anchor="middle" class="error-suggestion">Tip: ${error.suggestion}</text>` : ''}
+          <rect width="100%" height="100%" fill="#FFF5F5" rx="8" ry="8" />
+          <circle cx="400" cy="100" r="30" fill="#FEB2B2" />
+          <text x="400" y="110" text-anchor="middle" font-size="30" fill="#E53E3E">!</text>
+          <text x="50%" y="160" text-anchor="middle" class="error-text">Error generating diagram</text>
+          <text x="50%" y="190" text-anchor="middle" class="error-subtext">${message || 'Unable to generate diagram'}</text>
         </svg>`;
         
       case 'error':
@@ -118,15 +104,14 @@ const FallbackDiagramVisualizer: React.FC<FallbackDiagramVisualizerProps> = ({
           <circle cx="400" cy="100" r="30" fill="#FEB2B2" />
           <text x="400" y="110" text-anchor="middle" font-size="30" fill="#E53E3E">!</text>
           <text x="50%" y="160" text-anchor="middle" class="error-text">Error generating diagram</text>
-          <text x="50%" y="190" text-anchor="middle" class="error-subtext">${message || 'Please check your input and try again'}</text>
-          <text x="50%" y="220" text-anchor="middle" class="error-subtext">We'll show you a preview when ready</text>
+          <text x="50%" y="190" text-anchor="middle" class="error-subtext">${message || 'Unable to generate diagram'}</text>
         </svg>`;
         
       default:
         return `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="300" viewBox="0 0 800 300">
           <rect width="100%" height="100%" fill="#F7FAFC" rx="8" ry="8" />
           <text x="50%" y="50%" text-anchor="middle" font-family="sans-serif" font-size="16px" fill="#A0AEC0">
-            Diagram visualization is being prepared...
+            Generating diagram...
           </text>
         </svg>`;
     }
