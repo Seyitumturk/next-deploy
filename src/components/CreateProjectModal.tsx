@@ -21,7 +21,7 @@ export default function CreateProjectModal({ isOpen, onClose, isDarkMode }: Crea
     diagramType: '',
   });
   
-  // Reset form when modal is opened
+  // Reset form when modal is openedd
   useEffect(() => {
     if (isOpen) {
       setStep(1);
