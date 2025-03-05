@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import Editor from '@monaco-editor/react';
 import { ChatMessageData } from './chatMessage/types';
-import { ChatMessage } from './chatMessage';
+import { ChatMessage } from './chatMessage/ChatMessage';
 import FileUploadOptions from './FileUploadOptions';
 import { ChatBubbleLeftEllipsisIcon, CodeBracketIcon } from '@heroicons/react/24/outline';
 import Image from 'next/image';
