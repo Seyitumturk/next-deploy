@@ -30,19 +30,10 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  // Bypass any other build errors
-  // This is an extreme setting that forces compilation to succeed regardless of errors
-  reactStrictMode: false,
-  swcMinify: true,
-  productionBrowserSourceMaps: false, // Disable source maps in production
-  distDir: '.next', // Keep the default build directory
-  onDemandEntries: {
-    // Keep at most 10 pages in memory for faster rebuilds
-    maxInactiveAge: 25 * 1000,
-    pagesBufferLength: 10,
-  },
-  // This is important to completely ignore certain build-time errors
-  poweredByHeader: false, // Remove the X-Powered-By header
+  // Disable source maps in production
+  productionBrowserSourceMaps: false,
+  // Remove the X-Powered-By header
+  poweredByHeader: false,
 };
 
 module.exports = nextConfig; 
