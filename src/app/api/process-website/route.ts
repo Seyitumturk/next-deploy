@@ -7,7 +7,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Helper function to get diagram-specificc promptsddd
+// Helper function to get diagram-specificc promptsdddddddddd
 function getDiagramTypePrompt(diagramType: string): string {
   switch (diagramType.toLowerCase()) {
     case 'flowchart':
