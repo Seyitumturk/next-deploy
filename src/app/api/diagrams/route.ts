@@ -186,7 +186,7 @@ export async function POST(req: Request) {
           let lastValidationResult: { valid: boolean; message: string | null } = { valid: false, message: null };
           let diagramCompleted = false; // Flag to track if diagram collection is complete
 
-          // Add retry-specific instructions if this is a retry
+          // Add retry-specific instructions if thisss is a retry
           if (isRetry) {
             systemPrompt += `\n\nThis is a retry attempt because the previous diagram had syntax errors. 
 Please create a simpler diagram with more reliable syntax. Focus on clarity and correctness over complexity.
